@@ -1,9 +1,15 @@
 # Open to Inspiration 📖
 
-A random scripture reader for the **standard works** and **general conference** of
-The Church of Jesus Christ of Latter-day Saints. Open the book anywhere, watch the
-pages riffle, and land on a passage — then expand it to read the whole chapter (or
-talk) or jump straight to the matching page in the Church's Gospel Library.
+A random scripture finder for the _**Standard Works**_ and _**General Conference**_ of
+The Church of Jesus Christ of Latter-day Saints.
+
+## Introduction
+
+Growing up, when I needed some inspiration or wanted to pray for guidance from the Lord I would open up my scriptures to a random page and scan through the verses. Many times I would find something that felt especially relevant to my situation. Moments like this would make me feel seen and known by my Savior.
+
+Since then, mobile phones and the internet have widely replaced my use of physical books. The convenience of having any scripture or talk available wherever I go has been a huge blessing but I missed the novelty of the "open to a random page" approach.
+
+_**Open to Inspiration**_ pulls in passages from all LDS standard works and general conference talks and rifles through virtual pages to land on a random passage. The user can then expand it to read a whole chapter (or talk) or jump straight to the passage in the Church's Gospel Library for annotation or further study.
 
 > Not sponsored by or affiliated with The Church of Jesus Christ of Latter-day Saints.
 
@@ -12,9 +18,9 @@ talk) or jump straight to the matching page in the Church's Gospel Library.
 - **Random passage picker** weighted across every selected source, so longer books
   and conferences show up in proportion to how much scripture they contain.
 - **Filters** for each volume of scripture (with per-book toggles) and for each
-  general conference, plus one-tap presets (*Everything* / *Standard works* /
-  *Conference* / *None*).
-- **Riffling page animation** while the passage is drawn, settling onto the verse.
+  general conference, plus one-tap presets (*All* / *Bible* / *LDS Standard Works* /
+  *LDS General Conference*).
+- **Page rifle animation** as the passage is selected, to capture that feeling of opening a physical book.
 - **Expand to the whole chapter** (or the full conference talk) with the selected
   verse highlighted and auto-scrolled into view.
 - **Gospel Library deep link** for every passage, built from the official
