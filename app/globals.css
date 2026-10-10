@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* Class-based dark mode driven by next-themes */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f7f2e7;
+  --surface: #fffdf7;
+  --surface-2: #f1e9d7;
+  --foreground: #2a2118;
+  --muted: #7a6b53;
+  --border: #e2d6bd;
+  --accent: #9a6b1f;
+  --accent-strong: #7c5514;
+  --accent-contrast: #fffdf7;
+  --page: #fffefb;
+  --page-edge: #e8dcc3;
+  --spine: #d9c9a6;
+}
+
+.dark {
+  --background: #13100b;
+  --surface: #1c1811;
+  --surface-2: #241f16;
+  --foreground: #f0e7d6;
+  --muted: #a99a80;
+  --border: #332b1e;
+  --accent: #e0b45c;
+  --accent-strong: #f0c877;
+  --accent-contrast: #1a150d;
+  --page: #221d15;
+  --page-edge: #33291a;
+  --spine: #3d3222;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-page: var(--page);
+  --color-page-edge: var(--page-edge);
+  --color-spine: var(--spine);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-source-serif);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  background-image:
+    radial-gradient(circle at 15% 0%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 100%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 45%);
+  background-attachment: fixed;
+}
+
+/* --- Riffling book animation ------------------------------------------- */
+.riffling-stage {
+  perspective: 1400px;
+}
+
+@keyframes page-flip {
+  0% {
+    transform: rotateY(0deg);
+    opacity: 0.95;
+  }
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotateY(-168deg);
+    opacity: 0.15;
+  }
+}
+
+.flip-page {
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  animation-name: page-flip;
+  animation-timing-function: cubic-bezier(0.4, 0.05, 0.55, 0.95);
+  animation-iteration-count: infinite;
+}
+
+@keyframes text-riffle-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.riffle-line {
+  animation: text-riffle-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-page {
+    animation: none;
+    opacity: 0.4;
+  }
+  .riffle-line {
+    animation: none;
+  }
+}

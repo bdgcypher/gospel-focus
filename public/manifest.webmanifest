@@ -1,0 +1,18 @@
+{
+  "name": "Open to Inspiration",
+  "short_name": "Inspiration",
+  "description": "Open to a random passage from the standard works and general conference.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f2e7",
+  "theme_color": "#9a6b1f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

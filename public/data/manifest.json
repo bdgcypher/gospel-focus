@@ -1,0 +1,681 @@
+{
+  "generatedAt": "2026-10-10T20:34:51.101Z",
+  "sources": {
+    "scriptures": {
+      "name": "bcbooks/scriptures-json",
+      "url": "https://github.com/bcbooks/scriptures-json",
+      "license": "Public domain (2013 edition)"
+    },
+    "conference": {
+      "name": "johnmwood/LDS-Conference-Scraper",
+      "url": "https://github.com/johnmwood/LDS-Conference-Scraper",
+      "note": "Scraped; verify redistribution rights before publishing."
+    }
+  },
+  "volumes": [
+    {
+      "id": "bom",
+      "title": "Book of Mormon",
+      "subtitle": "Another Testament of Jesus Christ",
+      "url": "data/scriptures/bom.json",
+      "chapters": 239,
+      "verses": 6604,
+      "books": [
+        {
+          "name": "1 Nephi",
+          "slug": "1-ne",
+          "chapters": 22,
+          "verses": 618
+        },
+        {
+          "name": "2 Nephi",
+          "slug": "2-ne",
+          "chapters": 33,
+          "verses": 779
+        },
+        {
+          "name": "Jacob",
+          "slug": "jacob",
+          "chapters": 7,
+          "verses": 203
+        },
+        {
+          "name": "Enos",
+          "slug": "enos",
+          "chapters": 1,
+          "verses": 27
+        },
+        {
+          "name": "Jarom",
+          "slug": "jarom",
+          "chapters": 1,
+          "verses": 15
+        },
+        {
+          "name": "Omni",
+          "slug": "omni",
+          "chapters": 1,
+          "verses": 30
+        },
+        {
+          "name": "Words of Mormon",
+          "slug": "w-of-m",
+          "chapters": 1,
+          "verses": 18
+        },
+        {
+          "name": "Mosiah",
+          "slug": "mosiah",
+          "chapters": 29,
+          "verses": 785
+        },
+        {
+          "name": "Alma",
+          "slug": "alma",
+          "chapters": 63,
+          "verses": 1975
+        },
+        {
+          "name": "Helaman",
+          "slug": "hel",
+          "chapters": 16,
+          "verses": 497
+        },
+        {
+          "name": "3 Nephi",
+          "slug": "3-ne",
+          "chapters": 30,
+          "verses": 785
+        },
+        {
+          "name": "4 Nephi",
+          "slug": "4-ne",
+          "chapters": 1,
+          "verses": 49
+        },
+        {
+          "name": "Mormon",
+          "slug": "morm",
+          "chapters": 9,
+          "verses": 227
+        },
+        {
+          "name": "Ether",
+          "slug": "ether",
+          "chapters": 15,
+          "verses": 433
+        },
+        {
+          "name": "Moroni",
+          "slug": "moro",
+          "chapters": 10,
+          "verses": 163
+        }
+      ]
+    },
+    {
+      "id": "dc",
+      "title": "Doctrine and Covenants",
+      "subtitle": "of The Church of Jesus Christ of Latter-day Saints",
+      "url": "data/scriptures/dc.json",
+      "chapters": 138,
+      "verses": 3654,
+      "books": [
+        {
+          "name": "Doctrine and Covenants",
+          "slug": "dc",
+          "chapters": 138,
+          "verses": 3654
+        }
+      ]
+    },
+    {
+      "id": "pgp",
+      "title": "Pearl of Great Price",
+      "subtitle": "A Selection from the Revelations, Translations, and Narrations of Joseph Smith First Prophet, Seer, and Revelator to The Church of Jesus Christ of Latter-day Saints",
+      "url": "data/scriptures/pgp.json",
+      "chapters": 16,
+      "verses": 635,
+      "books": [
+        {
+          "name": "Moses",
+          "slug": "moses",
+          "chapters": 8,
+          "verses": 356
+        },
+        {
+          "name": "Abraham",
+          "slug": "abr",
+          "chapters": 5,
+          "verses": 136
+        },
+        {
+          "name": "Joseph Smith—Matthew",
+          "slug": "js-m",
+          "chapters": 1,
+          "verses": 55
+        },
+        {
+          "name": "Joseph Smith—History",
+          "slug": "js-h",
+          "chapters": 1,
+          "verses": 75
+        },
+        {
+          "name": "Articles of Faith",
+          "slug": "a-of-f",
+          "chapters": 1,
+          "verses": 13
+        }
+      ]
+    },
+    {
+      "id": "nt",
+      "title": "New Testament",
+      "subtitle": "",
+      "url": "data/scriptures/nt.json",
+      "chapters": 260,
+      "verses": 7957,
+      "books": [
+        {
+          "name": "Matthew",
+          "slug": "matt",
+          "chapters": 28,
+          "verses": 1071
+        },
+        {
+          "name": "Mark",
+          "slug": "mark",
+          "chapters": 16,
+          "verses": 678
+        },
+        {
+          "name": "Luke",
+          "slug": "luke",
+          "chapters": 24,
+          "verses": 1151
+        },
+        {
+          "name": "John",
+          "slug": "john",
+          "chapters": 21,
+          "verses": 879
+        },
+        {
+          "name": "Acts",
+          "slug": "acts",
+          "chapters": 28,
+          "verses": 1007
+        },
+        {
+          "name": "Romans",
+          "slug": "rom",
+          "chapters": 16,
+          "verses": 433
+        },
+        {
+          "name": "1 Corinthians",
+          "slug": "1-cor",
+          "chapters": 16,
+          "verses": 437
+        },
+        {
+          "name": "2 Corinthians",
+          "slug": "2-cor",
+          "chapters": 13,
+          "verses": 257
+        },
+        {
+          "name": "Galatians",
+          "slug": "gal",
+          "chapters": 6,
+          "verses": 149
+        },
+        {
+          "name": "Ephesians",
+          "slug": "eph",
+          "chapters": 6,
+          "verses": 155
+        },
+        {
+          "name": "Philippians",
+          "slug": "philip",
+          "chapters": 4,
+          "verses": 104
+        },
+        {
+          "name": "Colossians",
+          "slug": "col",
+          "chapters": 4,
+          "verses": 95
+        },
+        {
+          "name": "1 Thessalonians",
+          "slug": "1-thes",
+          "chapters": 5,
+          "verses": 89
+        },
+        {
+          "name": "2 Thessalonians",
+          "slug": "2-thes",
+          "chapters": 3,
+          "verses": 47
+        },
+        {
+          "name": "1 Timothy",
+          "slug": "1-tim",
+          "chapters": 6,
+          "verses": 113
+        },
+        {
+          "name": "2 Timothy",
+          "slug": "2-tim",
+          "chapters": 4,
+          "verses": 83
+        },
+        {
+          "name": "Titus",
+          "slug": "titus",
+          "chapters": 3,
+          "verses": 46
+        },
+        {
+          "name": "Philemon",
+          "slug": "philem",
+          "chapters": 1,
+          "verses": 25
+        },
+        {
+          "name": "Hebrews",
+          "slug": "heb",
+          "chapters": 13,
+          "verses": 303
+        },
+        {
+          "name": "James",
+          "slug": "james",
+          "chapters": 5,
+          "verses": 108
+        },
+        {
+          "name": "1 Peter",
+          "slug": "1-pet",
+          "chapters": 5,
+          "verses": 105
+        },
+        {
+          "name": "2 Peter",
+          "slug": "2-pet",
+          "chapters": 3,
+          "verses": 61
+        },
+        {
+          "name": "1 John",
+          "slug": "1-jn",
+          "chapters": 5,
+          "verses": 105
+        },
+        {
+          "name": "2 John",
+          "slug": "2-jn",
+          "chapters": 1,
+          "verses": 13
+        },
+        {
+          "name": "3 John",
+          "slug": "3-jn",
+          "chapters": 1,
+          "verses": 14
+        },
+        {
+          "name": "Jude",
+          "slug": "jude",
+          "chapters": 1,
+          "verses": 25
+        },
+        {
+          "name": "Revelation",
+          "slug": "rev",
+          "chapters": 22,
+          "verses": 404
+        }
+      ]
+    },
+    {
+      "id": "ot",
+      "title": "Old Testament",
+      "subtitle": "",
+      "url": "data/scriptures/ot.json",
+      "chapters": 929,
+      "verses": 23145,
+      "books": [
+        {
+          "name": "Genesis",
+          "slug": "gen",
+          "chapters": 50,
+          "verses": 1533
+        },
+        {
+          "name": "Exodus",
+          "slug": "ex",
+          "chapters": 40,
+          "verses": 1213
+        },
+        {
+          "name": "Leviticus",
+          "slug": "lev",
+          "chapters": 27,
+          "verses": 859
+        },
+        {
+          "name": "Numbers",
+          "slug": "num",
+          "chapters": 36,
+          "verses": 1288
+        },
+        {
+          "name": "Deuteronomy",
+          "slug": "deut",
+          "chapters": 34,
+          "verses": 959
+        },
+        {
+          "name": "Joshua",
+          "slug": "josh",
+          "chapters": 24,
+          "verses": 658
+        },
+        {
+          "name": "Judges",
+          "slug": "judg",
+          "chapters": 21,
+          "verses": 618
+        },
+        {
+          "name": "Ruth",
+          "slug": "ruth",
+          "chapters": 4,
+          "verses": 85
+        },
+        {
+          "name": "1 Samuel",
+          "slug": "1-sam",
+          "chapters": 31,
+          "verses": 810
+        },
+        {
+          "name": "2 Samuel",
+          "slug": "2-sam",
+          "chapters": 24,
+          "verses": 695
+        },
+        {
+          "name": "1 Kings",
+          "slug": "1-kgs",
+          "chapters": 22,
+          "verses": 816
+        },
+        {
+          "name": "2 Kings",
+          "slug": "2-kgs",
+          "chapters": 25,
+          "verses": 719
+        },
+        {
+          "name": "1 Chronicles",
+          "slug": "1-chr",
+          "chapters": 29,
+          "verses": 942
+        },
+        {
+          "name": "2 Chronicles",
+          "slug": "2-chr",
+          "chapters": 36,
+          "verses": 822
+        },
+        {
+          "name": "Ezra",
+          "slug": "ezra",
+          "chapters": 10,
+          "verses": 280
+        },
+        {
+          "name": "Nehemiah",
+          "slug": "neh",
+          "chapters": 13,
+          "verses": 406
+        },
+        {
+          "name": "Esther",
+          "slug": "esth",
+          "chapters": 10,
+          "verses": 167
+        },
+        {
+          "name": "Job",
+          "slug": "job",
+          "chapters": 42,
+          "verses": 1070
+        },
+        {
+          "name": "Psalms",
+          "slug": "ps",
+          "chapters": 150,
+          "verses": 2461
+        },
+        {
+          "name": "Proverbs",
+          "slug": "prov",
+          "chapters": 31,
+          "verses": 915
+        },
+        {
+          "name": "Ecclesiastes",
+          "slug": "eccl",
+          "chapters": 12,
+          "verses": 222
+        },
+        {
+          "name": "Solomon's Song",
+          "slug": "song",
+          "chapters": 8,
+          "verses": 117
+        },
+        {
+          "name": "Isaiah",
+          "slug": "isa",
+          "chapters": 66,
+          "verses": 1292
+        },
+        {
+          "name": "Jeremiah",
+          "slug": "jer",
+          "chapters": 52,
+          "verses": 1364
+        },
+        {
+          "name": "Lamentations",
+          "slug": "lam",
+          "chapters": 5,
+          "verses": 154
+        },
+        {
+          "name": "Ezekiel",
+          "slug": "ezek",
+          "chapters": 48,
+          "verses": 1273
+        },
+        {
+          "name": "Daniel",
+          "slug": "dan",
+          "chapters": 12,
+          "verses": 357
+        },
+        {
+          "name": "Hosea",
+          "slug": "hosea",
+          "chapters": 14,
+          "verses": 197
+        },
+        {
+          "name": "Joel",
+          "slug": "joel",
+          "chapters": 3,
+          "verses": 73
+        },
+        {
+          "name": "Amos",
+          "slug": "amos",
+          "chapters": 9,
+          "verses": 146
+        },
+        {
+          "name": "Obadiah",
+          "slug": "obad",
+          "chapters": 1,
+          "verses": 21
+        },
+        {
+          "name": "Jonah",
+          "slug": "jonah",
+          "chapters": 4,
+          "verses": 48
+        },
+        {
+          "name": "Micah",
+          "slug": "micah",
+          "chapters": 7,
+          "verses": 105
+        },
+        {
+          "name": "Nahum",
+          "slug": "nahum",
+          "chapters": 3,
+          "verses": 47
+        },
+        {
+          "name": "Habakkuk",
+          "slug": "hab",
+          "chapters": 3,
+          "verses": 56
+        },
+        {
+          "name": "Zephaniah",
+          "slug": "zeph",
+          "chapters": 3,
+          "verses": 53
+        },
+        {
+          "name": "Haggai",
+          "slug": "hag",
+          "chapters": 2,
+          "verses": 38
+        },
+        {
+          "name": "Zechariah",
+          "slug": "zech",
+          "chapters": 14,
+          "verses": 211
+        },
+        {
+          "name": "Malachi",
+          "slug": "mal",
+          "chapters": 4,
+          "verses": 55
+        }
+      ]
+    }
+  ],
+  "conferences": [
+    {
+      "id": "2014-04",
+      "label": "April 2014",
+      "year": 2014,
+      "month": 4,
+      "url": "data/conference/2014-04.json",
+      "talks": 40,
+      "paragraphs": 917
+    },
+    {
+      "id": "2014-10",
+      "label": "October 2014",
+      "year": 2014,
+      "month": 10,
+      "url": "data/conference/2014-10.json",
+      "talks": 39,
+      "paragraphs": 941
+    },
+    {
+      "id": "2015-04",
+      "label": "April 2015",
+      "year": 2015,
+      "month": 4,
+      "url": "data/conference/2015-04.json",
+      "talks": 39,
+      "paragraphs": 920
+    },
+    {
+      "id": "2015-10",
+      "label": "October 2015",
+      "year": 2015,
+      "month": 10,
+      "url": "data/conference/2015-10.json",
+      "talks": 40,
+      "paragraphs": 951
+    },
+    {
+      "id": "2016-04",
+      "label": "April 2016",
+      "year": 2016,
+      "month": 4,
+      "url": "data/conference/2016-04.json",
+      "talks": 38,
+      "paragraphs": 880
+    },
+    {
+      "id": "2016-10",
+      "label": "October 2016",
+      "year": 2016,
+      "month": 10,
+      "url": "data/conference/2016-10.json",
+      "talks": 38,
+      "paragraphs": 939
+    },
+    {
+      "id": "2017-04",
+      "label": "April 2017",
+      "year": 2017,
+      "month": 4,
+      "url": "data/conference/2017-04.json",
+      "talks": 39,
+      "paragraphs": 914
+    },
+    {
+      "id": "2017-10",
+      "label": "October 2017",
+      "year": 2017,
+      "month": 10,
+      "url": "data/conference/2017-10.json",
+      "talks": 36,
+      "paragraphs": 950
+    },
+    {
+      "id": "2018-04",
+      "label": "April 2018",
+      "year": 2018,
+      "month": 4,
+      "url": "data/conference/2018-04.json",
+      "talks": 38,
+      "paragraphs": 842
+    },
+    {
+      "id": "2018-10",
+      "label": "October 2018",
+      "year": 2018,
+      "month": 10,
+      "url": "data/conference/2018-10.json",
+      "talks": 34,
+      "paragraphs": 834
+    }
+  ]
+}
