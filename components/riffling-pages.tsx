@@ -9,15 +9,29 @@ const SHEETS = 5;
 /** Fastest the riffle is allowed to tick, in ms between page turns. */
 const MIN_TAP_MS = 150;
 
-/**
- * Seconds one full page turn takes at progress `t` through the riffle. It
- * lengthens evenly from a quick flip at the start to a slow one at the end, so
- * the fan decelerates at a constant rate right up to the last page.
- */
-const turnSeconds = (t: number) => 0.45 + 3.05 * t;
+/** Tempo bookends, in seconds per page turn: the flick the book opens with
+    and the crawl it reaches by the end of the riffle. */
+const FAST_TURN = 0.45;
+const SLOW_TURN = 1.3;
 
-/** The easing every turn shares, so all the pages turn the same way. */
+/**
+ * Seconds one full page turn takes at progress `t` through the riffle. The
+ * tempo decelerates geometrically — every moment a fixed ratio slower than
+ * the one before — so the riffle eases continuously from a flick to a crawl
+ * with no flat stretch and no gear change, and the reveal page that follows
+ * is just the slowest turn of the same curve.
+ */
+const turnSeconds = (t: number) => FAST_TURN * (SLOW_TURN / FAST_TURN) ** t;
+
+/** The easing every riffle turn shares, so all the pages turn the same way. */
 const easeTurn = (p: number) => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2);
+
+/**
+ * The reveal page's easing: it enters at the pace the fan reached and only
+ * ever slows, coming to rest on the draw — a decelerating landing rather than
+ * the old ease-in-out that hesitated at 0° before starting.
+ */
+const easeReveal = (q: number) => 1 - (1 - q) ** 3;
 
 /**
  * How solid a page is over its own turn: full paper coming over the spine,
@@ -56,6 +70,7 @@ interface Props {
 export function RifflingPages({ durationMs, settleMs, passage }: Props) {
   const landed = passage !== null;
   const sheetRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const settleRef = useRef<HTMLDivElement | null>(null);
   const landedRef = useRef(landed);
 
   useEffect(() => {
@@ -76,9 +91,33 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
     /** Whole turns the fan has made since the book was opened. */
     let turned = 0;
 
+    /** Progress of the final, draw-carrying flip, 0 → 1 over `settleMs`. */
+    let reveal = 0;
+    let wasLanded = false;
+    let landedAt = 0;
+
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - previous) / 1000);
       previous = now;
+
+      // The book has landed: the fan holds where it is and fades away, and the
+      // final page turns on this same clock — entering at the pace the fan
+      // reached and only slowing further, so the reveal is the last, slowest
+      // turn of one continuous deceleration rather than a separate animation.
+      if (landedRef.current) {
+        if (!wasLanded) {
+          wasLanded = true;
+          landedAt = now;
+        }
+        if (reveal < 1) {
+          reveal = Math.min(1, (now - landedAt) / settleMs);
+          const settle = settleRef.current;
+          if (settle) settle.style.transform = `rotateY(${-180 * easeReveal(reveal)}deg)`;
+        } else return; // Resting on the draw; nothing left to animate.
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+
       const t = Math.min(1, (now - start) / durationMs);
       turned += dt / turnSeconds(t);
 
@@ -103,7 +142,7 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [durationMs]);
+  }, [durationMs, settleMs]);
 
   // A firmer tap marks the book actually coming to rest: it fires as the final
   // page finishes turning, not when the riffle stops.
@@ -156,10 +195,7 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
             on the left-hand page — the only place it is ever shown. */}
         {passage && (
           <div className="settling-pages">
-            <div
-              className="flip-page-settle absolute inset-y-0 left-1/2 right-0"
-              style={{ animationDuration: `${settleMs}ms` }}
-            >
+            <div ref={settleRef} className="flip-page-settle absolute inset-y-0 left-1/2 right-0">
               <div className="page-face">
                 <SkeletonLines />
               </div>
