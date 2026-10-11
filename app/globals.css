@@ -85,94 +85,28 @@ body {
   opacity: 0;
 }
 
-/* Each sheet is a real two-sided page. The back face turns into view past 90°,
-   so a turn carries paper over the spine instead of the sheet vanishing. */
+/* Pages turn over the spine and thin out as they come to rest on the far side
+   of the book, so the page underneath keeps showing through the riffle. */
 .flip-page {
   transform-origin: left center;
   transform-style: preserve-3d;
-  animation-name: page-flip;
-  animation-timing-function: cubic-bezier(0.42, 0.06, 0.5, 0.96);
-  animation-iteration-count: infinite;
-}
-
-.page-face {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border: 1px solid var(--page-edge);
-  border-left-width: 0;
-  border-radius: 0 1rem 1rem 0;
-  background: var(--page);
   backface-visibility: hidden;
-  /* The shadow each sheet throws on whatever it is passing over is most of
-     what separates one turning page from the next. */
-  box-shadow: -10px 12px 26px -18px rgb(0 0 0 / 0.34);
-  animation-name: page-face-turn;
-  animation-timing-function: cubic-bezier(0.42, 0.06, 0.5, 0.96);
+  animation-name: page-flip;
+  animation-timing-function: cubic-bezier(0.4, 0.05, 0.55, 0.95);
   animation-iteration-count: infinite;
-}
-
-.page-back {
-  transform: rotateY(180deg);
-}
-
-/* Paper loses the light as it swings away from the reader and down into the
-   gutter. Without this every sheet is the same flat cream as the page behind
-   it, so the fan reads as one blank block instead of turning pages. */
-.page-shade {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(to right, rgb(0 0 0 / 0.24), rgb(0 0 0 / 0.02) 70%);
-  animation-name: page-shade;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-
-/* Faces and shading share the sheet's own turn timing. */
-.page-face,
-.page-shade {
-  animation-delay: inherit;
-  animation-duration: inherit;
 }
 
 @keyframes page-flip {
   0% {
     transform: rotateY(0deg);
+    opacity: 0.95;
   }
-  100% {
-    transform: rotateY(-180deg);
-  }
-}
-
-/* A turn ends by snapping back to 0deg, so the sheet is nearly gone at the end
-   of the cycle and fully invisible at the start — the snap is never visible.
-   Sheets also thin out as they come to rest, so the page they settle over
-   still shows through, the way a book being riffled shows its far page. */
-@keyframes page-face-turn {
-  0% {
-    opacity: 0;
-  }
-  5% {
-    opacity: 1;
-  }
-  88% {
+  85% {
     opacity: 0.9;
   }
   100% {
+    transform: rotateY(-168deg);
     opacity: 0.15;
-  }
-}
-
-@keyframes page-shade {
-  0% {
-    opacity: 0;
-  }
-  45% {
-    opacity: 0.55;
-  }
-  100% {
-    opacity: 0;
   }
 }
 
