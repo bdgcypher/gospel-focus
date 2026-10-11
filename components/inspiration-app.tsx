@@ -142,15 +142,43 @@ export function InspirationApp() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-8 sm:flex-row">
+          <div className="flex flex-col sm:flex-row">
+            {/* No gap here: the sidebar's spacing rides its animated margin, so
+                nothing snaps when the element finally unmounts. */}
             {/* items-stretch (the default) lets the main column grow to the
                 sidebar's height, so the idle placeholder can fill it. */}
             {/* Filters as a sidebar from tablet width up, beside the book. The
-                Filters row below is the only way to pack it away. */}
-            {manifest && filtersOpen && (
-              <aside className="hidden w-80 shrink-0 lg:w-96 md:sticky md:top-24 md:block md:max-h-[calc(100vh-8rem)] md:overflow-y-auto md:pr-4">
-                <FilterPanel manifest={manifest} filters={filters} onChange={setFilters} />
-              </aside>
+                Filters row below is the only way to pack it away — and it slides
+                the sidebar open and closed rather than popping it in and out. */}
+            {/* The sidebar stays mounted once it has been shown, collapsing to
+                zero width instead of unmounting — so the row (and the idle
+                placeholder below it) holds its height and nothing snaps
+                vertically when the filters are packed away. */}
+            {manifest && (
+              <motion.aside
+                key="filters-sidebar"
+                initial={false}
+                animate={
+                  filtersOpen
+                    ? { width: "auto", opacity: 1, marginRight: 32, visibility: "visible" }
+                    : { width: 0, opacity: 0, marginRight: 0, visibility: "hidden" }
+                }
+                transition={{
+                  duration: 0.3,
+                  ease: [0.22, 1, 0.36, 1],
+                  // Visibility is not interpolable: flip it only once the slide
+                  // has finished (or at once when opening), so the panel is
+                  // never focusable while invisible.
+                  visibility: { delay: filtersOpen ? 0 : 0.3, duration: 0 },
+                }}
+                className="hidden shrink-0 md:sticky md:top-24 md:block md:max-h-[calc(100vh-8rem)] md:overflow-x-hidden md:overflow-y-auto"
+              >
+                {/* Holds the panel's real width (and the scrollbar clearance),
+                    so the slide never reflows the panel's own content. */}
+                <div className="w-80 pr-4 lg:w-96">
+                  <FilterPanel manifest={manifest} filters={filters} onChange={setFilters} />
+                </div>
+              </motion.aside>
             )}
 
             <div className="min-w-0 flex-1 md:flex md:flex-col">
