@@ -25,7 +25,7 @@ _**Open to Inspiration**_ pulls in passages from all LDS standard works and gene
   verse highlighted and auto-scrolled into view.
 - **Gospel Library deep link** for every passage, built from the official
   `churchofjesuschrist.org/study/...` URL scheme.
-- **Light / dark / system** theme that defaults to the device preference.
+- **Light / Dark** themes that defaults to the device preference.
 - **Cross-platform ready** — a static Next.js build wrapped with Capacitor for
   iOS and Android (see below).
 
