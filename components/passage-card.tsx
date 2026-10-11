@@ -11,21 +11,6 @@ interface Props {
   drawKey: number;
 }
 
-/**
- * Shared-element id for the passage sheet. The page the riffling book lands on
- * carries the same id, so this card expands straight out of that page rather
- * than animating in on its own.
- */
-export const PASSAGE_SHEET_ID = "passage-sheet";
-
-/** Spring shared by both ends of that morph. */
-export const PASSAGE_SHEET_SPRING = {
-  type: "spring" as const,
-  stiffness: 200,
-  damping: 28,
-  mass: 0.9,
-};
-
 export function PassageCard({ passage, drawKey }: Props) {
   const [expanded, setExpanded] = useState(false);
   const highlightRef = useRef<HTMLParagraphElement | null>(null);
@@ -47,11 +32,13 @@ export function PassageCard({ passage, drawKey }: Props) {
   return (
     <motion.article
       key={drawKey}
-      // The landed book page carries this same layoutId, so the card grows out
-      // of the page the book settled on (see RifflingPages).
-      layoutId={PASSAGE_SHEET_ID}
-      initial={false}
-      transition={PASSAGE_SHEET_SPRING}
+      // Rises into place as the landed page settles away, rather than morphing
+      // out of it: travelling between the page and the card means scaling the
+      // card, which stretched the passage text on the way. Fading up with a
+      // short drift keeps every glyph at its final size.
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 200, damping: 26, mass: 0.9 }}
       className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-[0_24px_70px_-40px_rgba(0,0,0,0.6)]"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />

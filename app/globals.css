@@ -106,7 +106,7 @@ body {
   backface-visibility: hidden;
   /* The shadow each sheet throws on whatever it is passing over is most of
      what separates one turning page from the next. */
-  box-shadow: -12px 14px 26px -18px rgb(0 0 0 / 0.65);
+  box-shadow: -10px 12px 26px -18px rgb(0 0 0 / 0.34);
   animation-name: page-face-turn;
   animation-timing-function: cubic-bezier(0.42, 0.06, 0.5, 0.96);
   animation-iteration-count: infinite;
@@ -123,7 +123,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(to right, rgb(0 0 0 / 0.42), rgb(0 0 0 / 0.03) 72%);
+  background: linear-gradient(to right, rgb(0 0 0 / 0.24), rgb(0 0 0 / 0.02) 70%);
   animation-name: page-shade;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
@@ -169,7 +169,7 @@ body {
     opacity: 0;
   }
   45% {
-    opacity: 0.6;
+    opacity: 0.55;
   }
   100% {
     opacity: 0;
