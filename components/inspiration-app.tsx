@@ -18,8 +18,10 @@ import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
 const RIFFLE_MS = 2400;
-/** How long the landed spread rests before the page expands into the card. */
-const LAND_MS = 900;
+/** How long the final page takes to turn slowly onto the draw. */
+const SETTLE_MS = 900;
+/** How long the settled page rests before the card rises into its place. */
+const LAND_MS = 500;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -64,12 +66,11 @@ export function InspirationApp() {
       const next = await pickPassage(manifest, filters);
       const untilLand = RIFFLE_MS - (performance.now() - started);
       if (untilLand > 0) await sleep(untilLand);
-      // The book settles open on the drawn passage, rests there for a beat,
-      // and then that page expands into the full card.
       setLandedPassage(next);
       setPassage(next);
       setDrawKey((k) => k + 1);
-      await sleep(LAND_MS);
+      // Let the last page turn onto the draw and settle before it opens up.
+      await sleep(SETTLE_MS + LAND_MS);
       setPhase("result");
     } catch (e: unknown) {
       const message =
@@ -222,6 +223,7 @@ export function InspirationApp() {
                   >
                     <RifflingPages
                       durationMs={RIFFLE_MS}
+                      settleMs={SETTLE_MS}
                       teasers={teasers}
                       passage={landedPassage}
                     />
