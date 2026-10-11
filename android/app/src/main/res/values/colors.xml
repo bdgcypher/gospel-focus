@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Colours shared by the Android window themes.
+
+  `splashBackground` is what sits behind the WebView: the launch (starting)
+  window paints it, and it also shows through wherever the WebView is inset —
+  on Android 15+ that is the status-bar strip along the top.
+
+  It is deliberately a flat colour and *not* the generated splash artwork
+  (`drawable/splash.png`). Android stretches a bitmap window background to fill
+  the window it is painted into, so the artwork showed up as a squashed copy of
+  the book icon in that strip. A flat colour matching the app background makes
+  the strip blend in instead.
+-->
+<resources>
+    <color name="splashBackground">#f7f2e7</color>
+</resources>
