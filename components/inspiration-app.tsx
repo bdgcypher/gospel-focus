@@ -7,13 +7,7 @@ import { OpenBookLogo } from "./logo";
 import { FilterPanel } from "./filter-panel";
 import { RifflingPages } from "./riffling-pages";
 import { PassageCard } from "./passage-card";
-import {
-  NoSourcesError,
-  getTeaserPool,
-  loadManifest,
-  pickPassage,
-  summarize,
-} from "@/lib/picker";
+import { NoSourcesError, loadManifest, pickPassage, summarize } from "@/lib/picker";
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
@@ -36,7 +30,6 @@ export function InspirationApp() {
   const [drawKey, setDrawKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [teasers, setTeasers] = useState<string[]>([]);
   const riflingRef = useRef(false);
 
   useEffect(() => {
@@ -57,7 +50,6 @@ export function InspirationApp() {
     setPhase("rifling");
     setLandedPassage(null);
     setError(null);
-    setTeasers(getTeaserPool());
     // Collapse the filters panel so the riffling book is fully visible.
     setShowFilters(false);
 
@@ -221,12 +213,7 @@ export function InspirationApp() {
                     className="pointer-events-none"
                     exit={{ opacity: 0, transition: { duration: 0.32, delay: 0.08 } }}
                   >
-                    <RifflingPages
-                      durationMs={RIFFLE_MS}
-                      settleMs={SETTLE_MS}
-                      teasers={teasers}
-                      passage={landedPassage}
-                    />
+                    <RifflingPages durationMs={RIFFLE_MS} settleMs={SETTLE_MS} passage={landedPassage} />
                   </motion.div>
                 )}
 

@@ -134,14 +134,16 @@ body {
 /* A sheet has two sides, so a turn carries paper the whole way over the spine
    instead of vanishing at 90 degrees. Both faces thin out as the sheet comes
    to rest on the far side, which is what lets the page underneath — and so
-   the riffle, and finally the draw — keep showing through. */
+   the riffle, and finally the draw — keep showing through.
+   Every face is rounded on all four corners by the same 1rem as the book
+   itself, so a page keeps one shape the whole way over. */
 .page-face {
   position: absolute;
   inset: 0;
   overflow: hidden;
   border: 1px solid var(--page-edge);
   border-left-width: 0;
-  border-radius: 0 1rem 1rem 0;
+  border-radius: 1rem;
   background: var(--page);
   backface-visibility: hidden;
   box-shadow: 0 6px 20px -12px rgb(0 0 0 / 0.5);
@@ -176,21 +178,6 @@ body {
   }
 }
 
-@keyframes text-riffle-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.riffle-line {
-  animation: text-riffle-in 160ms ease-out;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .flip-page {
     animation: none;
@@ -202,9 +189,6 @@ body {
   }
   .turning-pages {
     transition: none;
-  }
-  .riffle-line {
-    animation: none;
   }
 }
 
