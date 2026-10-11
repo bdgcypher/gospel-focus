@@ -15,6 +15,7 @@ interface Props {
  */
 export function RifflingPages({ durationMs, teasers }: Props) {
   const [tick, setTick] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [flipSeconds, setFlipSeconds] = useState(0.55);
   const pages = useMemo(
     () => [0, 1, 2, 3, 4].map((i) => ({ i, delay: -(i * 0.13) })),
@@ -28,12 +29,15 @@ export function RifflingPages({ durationMs, teasers }: Props) {
     const step = () => {
       const t = Math.min(1, (performance.now() - start) / durationMs);
       setTick((n) => n + 1);
-      // Pages (and the flickering text) slow down as we approach the target.
-      const interval = 55 + 360 * t * t;
+      setProgress(t);
+      // Pages (and the flickering text) slow down as we approach the target —
+      // the deceleration starts early so the riffle visibly settles to a stop
+      // instead of cutting off at full speed.
+      const interval = 55 + 540 * Math.pow(t, 1.8);
       const now = performance.now();
       if (now - lastFlip > 150) {
         lastFlip = now;
-        setFlipSeconds(0.5 + 1.45 * t);
+        setFlipSeconds(0.5 + 1.7 * t);
       }
       timeout = setTimeout(step, interval);
     };
@@ -43,9 +47,17 @@ export function RifflingPages({ durationMs, teasers }: Props) {
 
   const current = teasers.length ? teasers[tick % teasers.length] : "";
 
+  // Fade the book out over the last stretch so the riffling settles rather
+  // than disappearing the moment the passage is ready.
+  const fadeOut = progress < 0.7 ? 1 : Math.max(0, 1 - (progress - 0.7) / 0.25);
+
   return (
-    <div className="riffling-stage w-full" aria-hidden="true">
-      <div className="relative mx-auto h-60 w-full max-w-lg sm:h-64" style={{ transformStyle: "preserve-3d" }}>
+    <div
+      className="riffling-stage w-full"
+      aria-hidden="true"
+      style={{ opacity: fadeOut, transition: "opacity 450ms linear" }}
+    >
+      <div className="relative mx-auto h-64 w-full max-w-lg sm:h-72" style={{ transformStyle: "preserve-3d" }}>
         {/* Book body */}
         <div className="absolute inset-0 rounded-2xl border border-border bg-page shadow-[0_20px_60px_-25px_rgba(0,0,0,0.45)]" />
         {/* Spine */}
