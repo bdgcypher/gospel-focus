@@ -23,8 +23,17 @@
          generated splash bitmap: Android stretches a bitmap window background
          to fill whichever window paints it, which showed the book artwork
          squashed into the strip above the WebView. The Android 12+ system
-         splash (icon + background) is configured in values-v31/styles.xml. -->
+         splash (icon + background) is configured in values-v31/styles.xml.
+
+         The no-title items are repeated here (and in values-v31) because on
+         API 31+ Theme.SplashScreen re-parents to the platform DeviceDefault
+         splash theme, which has a window title bar; the no-title flags it
+         inherits on older releases are dropped, so the activity label showed
+         as a band above the app header. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:windowBackground">@color/splashBackground</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
     </style>
 </resources>
