@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   /** How long to riffle before the passage settles. */
@@ -12,15 +12,12 @@ interface Props {
 /**
  * The "being opened to a random place" animation: a stack of pages fans across
  * the book, riffling quickly and then slowing down until they come to rest.
+ * Near the end the pages are spread evenly across one slow flip cycle, so the
+ * book crawls at barely one page at a time until the passage appears.
  */
 export function RifflingPages({ durationMs, teasers }: Props) {
   const [tick, setTick] = useState(0);
-  const [progress, setProgress] = useState(0);
   const [flipSeconds, setFlipSeconds] = useState(0.55);
-  const pages = useMemo(
-    () => [0, 1, 2, 3, 4].map((i) => ({ i, delay: -(i * 0.13) })),
-    []
-  );
 
   useEffect(() => {
     const start = performance.now();
@@ -29,15 +26,14 @@ export function RifflingPages({ durationMs, teasers }: Props) {
     const step = () => {
       const t = Math.min(1, (performance.now() - start) / durationMs);
       setTick((n) => n + 1);
-      setProgress(t);
-      // Pages (and the flickering text) slow down as we approach the target —
-      // the deceleration starts early so the riffle visibly settles to a stop
-      // instead of cutting off at full speed.
-      const interval = 55 + 540 * Math.pow(t, 1.8);
+      // Teaser flickers slow down as we approach the target.
+      const interval = 55 + 900 * Math.pow(t, 2);
       const now = performance.now();
       if (now - lastFlip > 150) {
         lastFlip = now;
-        setFlipSeconds(0.5 + 1.7 * t);
+        // Each flip stretches out hard at the end: a full page turn grows
+        // from 0.5s to 4s, so the last stretch turns barely one page at a time.
+        setFlipSeconds(0.5 + 3.5 * Math.pow(t, 1.5));
       }
       timeout = setTimeout(step, interval);
     };
@@ -47,15 +43,18 @@ export function RifflingPages({ durationMs, teasers }: Props) {
 
   const current = teasers.length ? teasers[tick % teasers.length] : "";
 
-  // Fade the book out over the last stretch so the riffling settles rather
-  // than disappearing the moment the passage is ready.
-  const fadeOut = progress < 0.7 ? 1 : Math.max(0, 1 - (progress - 0.7) / 0.25);
+  // Spread the five pages evenly across one flip cycle: at any speed there is
+  // always exactly one page turning at a time, instead of the pages clumping
+  // together as each flip gets slower.
+  const pages = [0, 1, 2, 3, 4].map((i) => ({ i, delay: -(i * flipSeconds) / 5 }));
 
   return (
     <div
       className="riffling-stage w-full"
       aria-hidden="true"
-      style={{ opacity: fadeOut, transition: "opacity 450ms linear" }}
+      // Keyframe fade timed to the riffle so the book settles out smoothly at
+      // the very end (the final slow page turn is visible until it finishes).
+      style={{ animation: `riffle-settle ${durationMs}ms linear forwards` }}
     >
       <div className="relative mx-auto h-[300px] w-full max-w-lg" style={{ transformStyle: "preserve-3d" }}>
         {/* Book body */}

@@ -94,6 +94,16 @@ body {
   animation-iteration-count: infinite;
 }
 
+@keyframes riffle-settle {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes text-riffle-in {
   from {
     opacity: 0;
