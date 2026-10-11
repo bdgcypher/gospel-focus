@@ -3,7 +3,16 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { Passage } from "@/lib/types";
+import { tapBookLanded, tapPageTurn } from "@/lib/haptics";
 import { PASSAGE_SHEET_ID, PASSAGE_SHEET_SPRING } from "./passage-card";
+
+/** How many sheets are in the air at once. */
+const SHEETS = 5;
+/** Fastest the riffle is allowed to tick, in ms between page turns. */
+const MIN_TAP_MS = 150;
+
+/** Seconds for one full turn cycle at progress `t` through the riffle. */
+const turnSeconds = (t: number) => 0.5 + 2.1 * Math.pow(t, 1.7);
 
 interface Props {
   /** How long the pages turn before the book lands. */
@@ -53,7 +62,7 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
         // turns barely one page at a time. Capped there (rather than growing
         // without bound) so the book comes to rest on a finished turn instead
         // of the riffle being cut off part-way.
-        setFlipSeconds(0.5 + 2.1 * Math.pow(t, 1.7));
+        setFlipSeconds(turnSeconds(t));
       }
       timeout = setTimeout(step, interval);
     };
@@ -61,11 +70,31 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
     return () => clearTimeout(timeout);
   }, [durationMs, landed]);
 
+  // A tick per page turn, on the same deceleration curve as the animation, so
+  // the phone buzzes along with the riffle and calms down as the book does.
+  useEffect(() => {
+    if (landed) return;
+    const start = performance.now();
+    let timeout: ReturnType<typeof setTimeout>;
+    const beat = () => {
+      const t = Math.min(1, (performance.now() - start) / durationMs);
+      void tapPageTurn();
+      timeout = setTimeout(beat, Math.max(MIN_TAP_MS, (turnSeconds(t) * 1000) / SHEETS));
+    };
+    timeout = setTimeout(beat, MIN_TAP_MS);
+    return () => clearTimeout(timeout);
+  }, [durationMs, landed]);
+
+  // A firmer tap marks the book actually coming to rest on the passage.
+  useEffect(() => {
+    if (landed) void tapBookLanded();
+  }, [landed]);
+
   const current = teasers.length ? teasers[tick % teasers.length] : "";
 
-  // Spread the five sheets evenly across one turn cycle: at any speed they fan
-  // at a constant angle rather than clumping together as each turn slows.
-  const turning = [0, 1, 2, 3, 4].map((i) => ({ i, delay: -(i * flipSeconds) / 5 }));
+  // Spread the sheets evenly across one turn cycle: at any speed they fan at a
+  // constant angle rather than clumping together as each turn slows.
+  const turning = Array.from({ length: SHEETS }, (_, i) => ({ i, delay: -(i * flipSeconds) / SHEETS }));
 
   // The section carries on across the fold once the book has landed.
   const lead = passage?.highlightVerse ?? 0;
@@ -74,10 +103,7 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
 
   return (
     <div className="riffling-stage w-full" aria-hidden="true">
-      <div
-        className="relative mx-auto h-[300px] w-full max-w-lg"
-        style={{ transformStyle: "preserve-3d" }}
-      >
+      <div className="relative mx-auto h-[300px] w-full max-w-lg">
         {/* Book body */}
         <div className="absolute inset-0 rounded-2xl border border-border bg-page shadow-[0_20px_60px_-25px_rgba(0,0,0,0.45)]" />
         {/* Spine */}
@@ -127,9 +153,11 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
             >
               <div className="page-face">
                 <SkeletonLines />
+                <div className="page-shade" />
               </div>
               <div className="page-face page-back">
                 <SkeletonLines />
+                <div className="page-shade" />
               </div>
             </div>
           ))}
