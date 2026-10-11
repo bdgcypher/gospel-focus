@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local Android toolchain (portable JDK + Android SDK)
+/.toolchain/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
