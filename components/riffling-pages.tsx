@@ -140,14 +140,10 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
           {turning.map(({ i, delay }) => (
             <div
               key={i}
-              className="flip-page absolute inset-y-0 left-1/2 right-0 rounded-r-2xl border border-l-0 border-page-edge bg-page"
-              style={{
-                animationDelay: `${delay}s`,
-                animationDuration: `${flipSeconds}s`,
-                boxShadow: "0 6px 20px -12px rgba(0,0,0,0.5)",
-              }}
+              className="flip-page absolute inset-y-0 left-1/2 right-0"
+              style={{ animationDelay: `${delay}s`, animationDuration: `${flipSeconds}s` }}
             >
-              <SkeletonLines />
+              <SheetSides />
             </div>
           ))}
         </div>
@@ -156,13 +152,10 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
         {passage && (
           <div className="settling-pages">
             <div
-              className="flip-page-settle absolute inset-y-0 left-1/2 right-0 rounded-r-2xl border border-l-0 border-page-edge bg-page"
-              style={{
-                animationDuration: `${settleMs}ms`,
-                boxShadow: "0 6px 20px -12px rgba(0,0,0,0.5)",
-              }}
+              className="flip-page-settle absolute inset-y-0 left-1/2 right-0"
+              style={{ animationDuration: `${settleMs}ms` }}
             >
-              <SkeletonLines />
+              <SheetSides />
             </div>
           </div>
         )}
@@ -171,6 +164,23 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
         Opening to a passage…
       </p>
     </div>
+  );
+}
+
+/**
+ * Both sides of a turning sheet, so the page stays paper the whole way over
+ * the spine rather than disappearing at 90 degrees.
+ */
+function SheetSides() {
+  return (
+    <>
+      <div className="page-face">
+        <SkeletonLines />
+      </div>
+      <div className="page-face page-back">
+        <SkeletonLines />
+      </div>
+    </>
   );
 }
 
