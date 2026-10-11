@@ -72,7 +72,7 @@ export function PassageCard({ passage, drawKey }: Props) {
             aria-expanded={expanded}
             className="inline-flex items-center gap-2 self-start rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
           >
-            <BookIcon open={expanded} />
+            {expanded ? <CollapseIcon /> : <BookIcon />}
             {expanded ? "Collapse" : "Read more"}
           </button>
 
@@ -156,12 +156,20 @@ export function PassageCard({ passage, drawKey }: Props) {
   );
 }
 
-function BookIcon({ open }: { open: boolean }) {
+function BookIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 6.5C10 5 7.5 4.3 4.8 4.3A1.3 1.3 0 0 0 3.5 5.6v12.2c0 .7.6 1.3 1.3 1.3 2.7 0 5.2.7 7.2 2.2 2-1.5 4.5-2.2 7.2-2.2.7 0 1.3-.6 1.3-1.3V5.6c0-.7-.6-1.3-1.3-1.3-2.7 0-5.2.7-7.2 2.2Z" />
       <path d="M12 6.5v14.8" />
-      {open && <path d="M7 9.5h2.5M7 12.5h2.5" opacity={0.6} />}
+    </svg>
+  );
+}
+
+/** The expanded state's control: the section folding back up into the card. */
+function CollapseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 15 6-6 6 6" />
     </svg>
   );
 }

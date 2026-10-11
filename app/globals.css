@@ -124,15 +124,18 @@ body {
    per frame from the riffle clock), thinning as the page comes to rest on the
    far side so the page underneath — and so the riffle, and finally the draw —
    keep showing through.
-   Every face is rounded on all four corners by the same 1rem as the book
-   itself, so a page keeps one shape the whole way over. */
+   A page is rounded on its outer edge by the same 1rem as the book itself,
+   but square where it meets the spine, like real pages bound at the middle.
+   The sheet is hinged on its own left edge, so the front face squares its
+   left corners; the back face is mirrored by its rotateY(180deg), which puts
+   the hinge — and so the square corners — on its own right. */
 .page-face {
   position: absolute;
   inset: 0;
   overflow: hidden;
   border: 1px solid var(--page-edge);
   border-left-width: 0;
-  border-radius: 1rem;
+  border-radius: 0 1rem 1rem 0;
   background: var(--page);
   backface-visibility: hidden;
   box-shadow: 0 6px 20px -12px rgb(0 0 0 / 0.5);
@@ -140,6 +143,7 @@ body {
 
 .page-back {
   transform: rotateY(180deg);
+  border-radius: 1rem 0 0 1rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
