@@ -118,3 +118,17 @@ body {
     animation: none;
   }
 }
+
+/* --- Native safe areas -------------------------------------------------- */
+/* In the Android shell the app is edge-to-edge (Android 15+ enforces it),
+   so pad the page by the real status bar / gesture bar insets that
+   Capacitor's SystemBars plugin passes through to the WebView. This keeps
+   the clock and status icons from overlapping the UI. iOS handles insets
+   natively via the Capacitor contentInset setting, and the web build has
+   no system bars to clear. */
+html[data-capacitor="android"] body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}

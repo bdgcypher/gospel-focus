@@ -34,6 +34,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Tag the document with the Capacitor platform as early as
+            possible (before React hydration) so safe-area CSS applies
+            without a flash; providers.tsx sets it too as a fallback. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var c=window.Capacitor;if(c&&c.getPlatform)document.documentElement.dataset.capacitor=c.getPlatform()}catch(e){}',
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

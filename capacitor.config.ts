@@ -22,6 +22,16 @@ const config: CapacitorConfig = {
   android: {
     backgroundColor: "#f7f2e7",
   },
+  plugins: {
+    // Edge-to-edge on Android 15+: the SystemBars plugin passes the real
+    // status/navigation bar insets through to the WebView as
+    // env(safe-area-inset-*), which the app's CSS uses for padding.
+    // (Older WebViews get the WebView embedded below the bars instead.)
+    SystemBars: {
+      insetsHandling: "native",
+      initialViewportFitValueHint: "cover",
+    },
+  },
 };
 
 export default config;

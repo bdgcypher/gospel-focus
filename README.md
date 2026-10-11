@@ -26,6 +26,10 @@ _**Open to Inspiration**_ pulls in passages from all LDS standard works and gene
 - **Gospel Library deep link** for every passage, built from the official
   `churchofjesuschrist.org/study/...` URL scheme.
 - **Light / Dark** themes that defaults to the device preference.
+- **System bar safe areas** on Android — content is padded clear of the status
+  bar (clock/icons) and gesture bar in both themes.
+- **Dark-mode iconography** — night-qualified launcher icons plus the official
+  Android 13+ themed (monochrome) icon layer.
 - **Cross-platform ready** — a static Next.js build wrapped with Capacitor for
   iOS and Android (see below).
 
@@ -102,9 +106,40 @@ Signing setup (already configured in `android/app/build.gradle`):
 - Credentials: `android/keystore.properties` (both are gitignored).
 - Bump `versionCode` in `android/app/build.gradle` for every release.
 
+Dark/night icon variants and the Android 13+ monochrome themed-icon layer are
+generated from `app/icon.svg` as well:
+
+```bash
+npm run icons:dark
+```
+
+Re-run it after regenerating the light assets with `@capacitor/assets` (the
+generator overwrites the adaptive icon XMLs).
+
 > Note: the asset generator also rewrites `public/manifest.webmanifest` with PWA
 > icon paths (`../icons/...`) this project doesn't ship — revert it with
 > `git checkout public/manifest.webmanifest` unless you want those PWA icons.
+
+### Installing the APK on your phone
+
+1. **Get `app-release.apk` onto the device** — any of:
+   - From GitHub: the **Releases** page (permanent link, no login) or the
+     **Actions** tab → latest run → *Artifacts* (needs a GitHub login; zipped,
+     expires after 90 days).
+   - From your computer: USB cable, Google Drive/email it to yourself, or — on
+     the same Wi-Fi — `python3 -m http.server 8000` and download it from
+     `http://<computer-ip>:8000/android/app/build/outputs/apk/release/app-release.apk`.
+2. Open the downloaded `app-release.apk` in the file manager or browser.
+3. When Android blocks the install, choose **Settings** and enable
+   **Allow from this source** for that app (one-time per source), then go back
+   and tap **Install**.
+4. Ignore the generic “file can harm your device” warning (shown for every APK
+   not from Play Store). Play Protect may ask to scan — it's your own build.
+
+**Updates:** CI signs with the same keystore, so new APKs install straight over
+the old version as long as `versionCode` doesn't go backwards (tagged builds
+stamp it from the tag). If you ever lose the keystore, an update requires
+uninstalling the installed app first — back up `android/keystore/`.
 
 ### Getting the APK from GitHub (no local build)
 
