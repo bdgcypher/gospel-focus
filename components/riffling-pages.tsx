@@ -57,7 +57,7 @@ export function RifflingPages({ durationMs, teasers }: Props) {
       aria-hidden="true"
       style={{ opacity: fadeOut, transition: "opacity 450ms linear" }}
     >
-      <div className="relative mx-auto h-64 w-full max-w-lg sm:h-72" style={{ transformStyle: "preserve-3d" }}>
+      <div className="relative mx-auto h-[300px] w-full max-w-lg" style={{ transformStyle: "preserve-3d" }}>
         {/* Book body */}
         <div className="absolute inset-0 rounded-2xl border border-border bg-page shadow-[0_20px_60px_-25px_rgba(0,0,0,0.45)]" />
         {/* Spine */}
