@@ -16,6 +16,8 @@ const turnSeconds = (t: number) => 0.5 + 3.5 * Math.pow(t, 1.5);
 interface Props {
   /** How long the pages turn before the book lands. */
   durationMs: number;
+  /** How long the final page takes to turn onto the draw. */
+  settleMs: number;
   /** Snippets cycled through the left-hand page while riffling. */
   teasers: string[];
   /**
@@ -38,7 +40,7 @@ interface Props {
  * the left, which is where the draw appears — carrying just its body text,
  * with the section continuing on the facing page.
  */
-export function RifflingPages({ durationMs, teasers, passage }: Props) {
+export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props) {
   const landed = passage !== null;
   const [tick, setTick] = useState(0);
   const [flipSeconds, setFlipSeconds] = useState(0.55);
@@ -82,10 +84,13 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
     return () => clearTimeout(timeout);
   }, [durationMs, landed]);
 
-  // A firmer tap marks the book actually coming to rest on the passage.
+  // A firmer tap marks the book actually coming to rest: it fires as the final
+  // page finishes turning, not when the riffle stops.
   useEffect(() => {
-    if (landed) void tapBookLanded();
-  }, [landed]);
+    if (!landed) return;
+    const id = setTimeout(() => void tapBookLanded(), settleMs);
+    return () => clearTimeout(id);
+  }, [landed, settleMs]);
 
   const current = teasers.length ? teasers[tick % teasers.length] : "";
 
@@ -93,10 +98,6 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
   // constant angle rather than clumping together as each turn slows.
   const turning = Array.from({ length: SHEETS }, (_, i) => ({ i, delay: -(i * flipSeconds) / SHEETS }));
 
-  // The section carries on across the fold once the book has landed.
-  const lead = passage?.highlightVerse ?? 0;
-  const following = passage && lead > 0 ? passage.verses.slice(lead, lead + 3) : [];
-  const showVerseNumbers = passage?.kind === "scripture";
 
   return (
     <div className="riffling-stage w-full" aria-hidden="true">
@@ -114,26 +115,24 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
           </p>
         </div>
 
-        {/* Facing page: skeleton lines while riffling, then the verses that
-            follow the draw so the open spread is a real page, not a blank. */}
+        {/* Facing page: placeholder lines, riffle and all — the draw only ever
+            appears on the page the book comes to rest on. */}
         <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
-          {landed && following.length > 0 ? (
-            <div className="space-y-3 p-5 sm:p-6">
-              {following.map((v) => (
-                <p key={v.number} className="font-serif text-[14px] leading-relaxed text-foreground/55">
-                  {showVerseNumbers && (
-                    <span className="mr-1.5 align-super text-[10px] font-semibold text-accent-strong/70">
-                      {v.number}
-                    </span>
-                  )}
-                  {v.text}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <SkeletonLines />
-          )}
+          <SkeletonLines />
         </div>
+
+        {/* The draw, lying on the left-hand page underneath the sheets. It is
+            uncovered by the last page turning away over it. */}
+        {passage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute inset-y-0 left-0 w-1/2 overflow-hidden rounded-l-2xl border border-r-0 border-page-edge bg-page p-5 sm:p-6"
+          >
+            <p className="font-serif text-[15px] leading-relaxed text-foreground/90">{passage.text}</p>
+          </motion.div>
+        )}
 
         {/* Turning sheets. The stack keeps turning while it fades, so the riffle
             settles rather than being cut off. */}
@@ -153,17 +152,19 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
           ))}
         </div>
 
-        {/* The sheet the last turn leaves us on: the left-hand page, carrying
-            the drawn body text only, lying on top of the rest of the book. */}
+        {/* One last page turns slowly onto the draw and settles there. */}
         {passage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="absolute inset-y-0 left-0 w-1/2 overflow-hidden rounded-l-2xl border border-r-0 border-page-edge bg-page p-5 sm:p-6"
-          >
-            <p className="font-serif text-[15px] leading-relaxed text-foreground/90">{passage.text}</p>
-          </motion.div>
+          <div className="settling-pages">
+            <div
+              className="flip-page-settle absolute inset-y-0 left-1/2 right-0 rounded-r-2xl border border-l-0 border-page-edge bg-page"
+              style={{
+                animationDuration: `${settleMs}ms`,
+                boxShadow: "0 6px 20px -12px rgba(0,0,0,0.5)",
+              }}
+            >
+              <SkeletonLines />
+            </div>
+          </div>
         )}
       </div>
       <p className="sr-only" role="status">

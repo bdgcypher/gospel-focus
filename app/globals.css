@@ -71,13 +71,19 @@ body {
   perspective: 1400px;
 }
 
-/* The fan of turning sheets. It carries its own perspective because fading the
+/* Stacks of turning sheets. Each carries its own perspective because fading a
    stack out (via opacity) forces 3D flattening, and the sheets should keep
    their depth as the riffle settles. */
-.turning-pages {
+.turning-pages,
+.settling-pages {
   position: absolute;
   inset: 0;
   perspective: 1400px;
+}
+
+/* The loose sheets clear once the book has landed and the last page takes
+   over; the settling page is kept out of this so it stays fully opaque. */
+.turning-pages {
   transition: opacity 300ms ease-out;
 }
 
@@ -85,12 +91,16 @@ body {
   opacity: 0;
 }
 
-/* Pages turn over the spine and thin out as they come to rest on the far side
-   of the book, so the page underneath keeps showing through the riffle. */
-.flip-page {
+.flip-page,
+.flip-page-settle {
   transform-origin: left center;
   transform-style: preserve-3d;
   backface-visibility: hidden;
+}
+
+/* The riffle loops pages over the spine, thinning as they come to rest on the
+   far side of the book so the page underneath keeps showing through. */
+.flip-page {
   animation-name: page-flip;
   animation-timing-function: cubic-bezier(0.4, 0.05, 0.55, 0.95);
   animation-iteration-count: infinite;
@@ -107,6 +117,27 @@ body {
   100% {
     transform: rotateY(-168deg);
     opacity: 0.15;
+  }
+}
+
+/* The last page turns once, slowly, and settles away — uncovering the draw on
+   the page it comes to rest on. It ends past the fold, where a page is
+   edge-on and out of sight, so it never has to snap back. */
+.flip-page-settle {
+  animation-name: page-flip-settle;
+  animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+@keyframes page-flip-settle {
+  0% {
+    transform: rotateY(0deg);
+    opacity: 0.95;
+  }
+  100% {
+    transform: rotateY(-100deg);
+    opacity: 0.25;
   }
 }
 
@@ -129,6 +160,9 @@ body {
   .flip-page {
     animation: none;
     opacity: 0.4;
+  }
+  .flip-page-settle {
+    animation: none;
   }
   .turning-pages {
     transition: none;
