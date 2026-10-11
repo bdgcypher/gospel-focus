@@ -4,7 +4,6 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { Passage } from "@/lib/types";
 import { tapBookLanded, tapPageTurn } from "@/lib/haptics";
-import { PASSAGE_SHEET_ID, PASSAGE_SHEET_SPRING } from "./passage-card";
 
 /** How many sheets are in the air at once. */
 const SHEETS = 5;
@@ -134,11 +133,7 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
               ))}
             </div>
           ) : (
-            <div className="space-y-3">
-              {[92, 76, 88, 60, 80].map((w, i) => (
-                <div key={i} className="h-2.5 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
-              ))}
-            </div>
+            <SkeletonLines />
           )}
         </div>
 
@@ -164,15 +159,12 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
         </div>
 
         {/* The sheet the last turn leaves us on: the left-hand page, carrying
-            the drawn body text only, lying on top of the rest of the book.
-            Same layoutId as the passage card, so the card expands out of this
-            page. */}
+            the drawn body text only, lying on top of the rest of the book. */}
         {passage && (
           <motion.div
-            layoutId={PASSAGE_SHEET_ID}
-            transition={PASSAGE_SHEET_SPRING}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="absolute inset-y-0 left-0 w-1/2 overflow-hidden rounded-l-2xl border border-r-0 border-page-edge bg-page p-5 sm:p-6"
           >
             <p className="font-serif text-[15px] leading-relaxed text-foreground/90">{passage.text}</p>
@@ -186,11 +178,20 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
   );
 }
 
-function SkeletonLines() {
+/** How wide each placeholder line runs, cycled — varied so the block reads as
+    a page of set text rather than a stack of bars. */
+const LINE_WIDTHS = [97, 88, 94, 72, 91, 96, 84, 93, 66, 89, 95, 78];
+
+/** A page glimpsed while riffling: enough lines to fill it like real text. */
+function SkeletonLines({ lines = 10 }: { lines?: number }) {
   return (
-    <div className="space-y-3 p-5 sm:p-6">
-      {[80, 66, 90, 54].map((w, i) => (
-        <div key={i} className="h-2.5 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
+    <div className="space-y-2.5 p-5 sm:p-6">
+      {Array.from({ length: lines }, (_, i) => (
+        <div
+          key={i}
+          className="h-2 rounded-full bg-foreground/10"
+          style={{ width: `${LINE_WIDTHS[i % LINE_WIDTHS.length]}%` }}
+        />
       ))}
     </div>
   );

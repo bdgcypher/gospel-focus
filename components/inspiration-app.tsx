@@ -208,8 +208,8 @@ export function InspirationApp() {
                 </p>
               )}
 
-              {/* The book stays mounted (popped out of the layout) long enough
-                  for the passage card to grow out of the page it landed on. */}
+              {/* The book stays mounted (popped out of the layout) while the
+                  landed page settles away and the card rises into its place. */}
               <AnimatePresence initial={false} mode="popLayout">
                 {phase === "rifling" && (
                   <motion.div
@@ -218,7 +218,7 @@ export function InspirationApp() {
                     // it is popped out of the layout over the incoming card —
                     // so keep it from swallowing taps meant for the card.
                     className="pointer-events-none"
-                    exit={{ opacity: 0, transition: { duration: 0.3, delay: 0.2 } }}
+                    exit={{ opacity: 0, transition: { duration: 0.32, delay: 0.08 } }}
                   >
                     <RifflingPages
                       durationMs={RIFFLE_MS}
