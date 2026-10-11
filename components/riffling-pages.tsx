@@ -118,9 +118,9 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
 
         {/* Facing page: skeleton lines while riffling, then the verses that
             follow the draw so the open spread is a real page, not a blank. */}
-        <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden p-5 sm:p-6">
+        <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden">
           {landed && following.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-5 sm:p-6">
               {following.map((v) => (
                 <p key={v.number} className="font-serif text-[14px] leading-relaxed text-foreground/55">
                   {showVerseNumbers && (
@@ -143,17 +143,14 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
           {turning.map(({ i, delay }) => (
             <div
               key={i}
-              className="flip-page absolute inset-y-0 left-1/2 right-0"
-              style={{ animationDelay: `${delay}s`, animationDuration: `${flipSeconds}s` }}
+              className="flip-page absolute inset-y-0 left-1/2 right-0 rounded-r-2xl border border-l-0 border-page-edge bg-page"
+              style={{
+                animationDelay: `${delay}s`,
+                animationDuration: `${flipSeconds}s`,
+                boxShadow: "0 6px 20px -12px rgba(0,0,0,0.5)",
+              }}
             >
-              <div className="page-face">
-                <SkeletonLines />
-                <div className="page-shade" />
-              </div>
-              <div className="page-face page-back">
-                <SkeletonLines />
-                <div className="page-shade" />
-              </div>
+              <SkeletonLines />
             </div>
           ))}
         </div>
@@ -178,20 +175,20 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
   );
 }
 
-/** How wide each placeholder line runs, cycled — varied so the block reads as
-    a page of set text rather than a stack of bars. */
-const LINE_WIDTHS = [97, 88, 94, 72, 91, 96, 84, 93, 66, 89, 95, 78];
+/** How wide each placeholder line runs, in order — varied so the block reads
+    as a page of set text rather than a stack of bars. */
+const LINE_WIDTHS = [97, 88, 94, 72, 91, 96, 84, 93, 66, 89, 95, 78, 92, 86];
 
-/** A page glimpsed while riffling: enough lines to fill it like real text. */
-function SkeletonLines({ lines = 10 }: { lines?: number }) {
+/**
+ * A page glimpsed while riffling. The lines are spread across the full height
+ * of the page, so a preview runs all the way down the book rather than
+ * stopping short of the foot.
+ */
+function SkeletonLines() {
   return (
-    <div className="space-y-2.5 p-5 sm:p-6">
-      {Array.from({ length: lines }, (_, i) => (
-        <div
-          key={i}
-          className="h-2 rounded-full bg-foreground/10"
-          style={{ width: `${LINE_WIDTHS[i % LINE_WIDTHS.length]}%` }}
-        />
+    <div className="flex h-full flex-col justify-between p-5 sm:p-6">
+      {LINE_WIDTHS.map((w, i) => (
+        <div key={i} className="h-2 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
       ))}
     </div>
   );
