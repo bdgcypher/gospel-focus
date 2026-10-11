@@ -94,6 +94,7 @@ export function FilterPanel({ manifest, filters, onChange, onCollapse }: Props) 
             aria-label="Hide filters"
             className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
           >
+            {/* A panel with an arrow back into it: the sidebar packing itself away. */}
             <svg
               viewBox="0 0 24 24"
               className="h-4 w-4"
@@ -103,7 +104,8 @@ export function FilterPanel({ manifest, filters, onChange, onCollapse }: Props) 
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="m14 6-6 6 6 6" />
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18M16 15l-3-3 3-3" />
             </svg>
           </button>
         )}

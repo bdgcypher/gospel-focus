@@ -157,29 +157,31 @@ export function InspirationApp() {
 
             <div className="min-w-0 flex-1">
               <section className="text-center sm:text-left">
-                <p className="mx-auto max-w-md font-serif text-sm italic text-muted sm:mx-0">
-                  Find inspiration from the Lord&apos;s words.
-                </p>
+                {/* Shrink-wrapped to the line above, so the button below can
+                    match its width exactly. */}
+                <div className="mx-auto w-full sm:mx-0 sm:w-fit">
+                  <p className="font-serif text-sm italic text-muted">
+                    Find inspiration from the Lord&apos;s words.
+                  </p>
 
-                <div className="mt-6 flex flex-col items-center gap-3 sm:items-start">
-                  <button
-                    type="button"
-                    onClick={() => void draw()}
-                    disabled={!manifest || phase === "rifling" || nothingSelected}
-                    // Full width on phones (where it is the primary action), back
-                    // to hugging its label from sm upwards.
-                    className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                  >
-                    <span className="text-accent-contrast">
-                      <OpenBookLogo className="h-5 w-5" />
-                    </span>
-                    {phase === "rifling" ? "Opening…" : "New passage"}
-                  </button>
+                  <div className="mt-6 flex flex-col items-center gap-3 sm:items-start">
+                    <button
+                      type="button"
+                      onClick={() => void draw()}
+                      disabled={!manifest || phase === "rifling" || nothingSelected}
+                      // Full width on phones, and from there on as wide as the
+                      // line above it.
+                      className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="text-accent-contrast">
+                        <OpenBookLogo className="h-5 w-5" />
+                      </span>
+                      {phase === "rifling" ? "Opening…" : "New passage"}
+                    </button>
 
-                  {/* The sidebar carries its own collapse control, so this one
-                      is only for the inline panel — and for reopening the
-                      sidebar once it has been packed away. */}
-                  {(!wide || !filtersOpen) && (
+                    {/* Stays put whatever the layout: it carries the passage
+                        count, opens and closes the filters, and says which way
+                        the chevron is pointing. */}
                     <button
                       type="button"
                       onClick={() => setShowFilters(!filtersOpen)}
@@ -189,7 +191,7 @@ export function InspirationApp() {
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18M6 12h12M10 18h4" />
                       </svg>
-                      {filtersOpen ? "Hide filters" : "Filters"}
+                      Filters
                       {summary && (
                         <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
                           {new Intl.NumberFormat("en-US").format(summary.verses + summary.paragraphs)} passages
@@ -208,7 +210,7 @@ export function InspirationApp() {
                         <path d="m6 9 6 6 6-6" />
                       </svg>
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 {nothingSelected && (
