@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { Passage } from "@/lib/types";
 import { tapBookLanded, tapPageTurn } from "@/lib/haptics";
 
@@ -9,8 +9,23 @@ const SHEETS = 5;
 /** Fastest the riffle is allowed to tick, in ms between page turns. */
 const MIN_TAP_MS = 150;
 
-/** Seconds for one full turn cycle at progress `t` through the riffle. */
-const turnSeconds = (t: number) => 0.5 + 3.5 * Math.pow(t, 1.5);
+/**
+ * Seconds one full page turn takes at progress `t` through the riffle. It
+ * lengthens evenly from a quick flip at the start to a slow one at the end, so
+ * the fan decelerates at a constant rate right up to the last page.
+ */
+const turnSeconds = (t: number) => 0.45 + 3.05 * t;
+
+/** The easing every turn shares, so all the pages turn the same way. */
+const easeTurn = (p: number) => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2);
+
+/**
+ * How solid a page is over its own turn: full paper coming over the spine,
+ * thinning out as the page comes to rest on the far side so the sheets below
+ * it — and finally the draw — keep showing through.
+ */
+const faceOpacity = (p: number) =>
+  p < 0.85 ? 0.95 - (0.05 * p) / 0.85 : 0.9 - (0.75 * (p - 0.85)) / 0.15;
 
 interface Props {
   /** How long the pages turn before the book lands. */
@@ -40,44 +55,55 @@ interface Props {
  */
 export function RifflingPages({ durationMs, settleMs, passage }: Props) {
   const landed = passage !== null;
-  const [flipSeconds, setFlipSeconds] = useState(0.55);
+  const sheetRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const landedRef = useRef(landed);
 
   useEffect(() => {
-    // Landed: stop driving the turn speed and freeze the page snippet.
-    if (landed) return;
+    landedRef.current = landed;
+  }, [landed]);
+
+  // The riffle runs off a single clock. Every sheet reads the same amount of
+  // turning and sits at an even offset along it, so they all move at exactly
+  // the same speed and stay evenly fanned as the book slows down. Writing the
+  // angles straight to the DOM is what keeps the turns smooth: restyling a
+  // running CSS animation each time the tempo changed made the pages jump.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
     const start = performance.now();
-    let timeout: ReturnType<typeof setTimeout>;
-    let lastFlip = 0;
-    const step = () => {
-      const t = Math.min(1, (performance.now() - start) / durationMs);
-      const interval = 55 + 900 * Math.pow(t, 2);
-      const now = performance.now();
-      if (now - lastFlip > 150) {
-        lastFlip = now;
-        // A full turn stretches from 0.5s out to 4s, so the last stretch
-        // crawls to barely one page at a time before the book settles.
-        setFlipSeconds(turnSeconds(t));
+    let previous = start;
+    let lastTap = 0;
+    /** Whole turns the fan has made since the book was opened. */
+    let turned = 0;
+
+    const frame = (now: number) => {
+      const dt = Math.min(0.05, (now - previous) / 1000);
+      previous = now;
+      const t = Math.min(1, (now - start) / durationMs);
+      turned += dt / turnSeconds(t);
+
+      for (let i = 0; i < SHEETS; i++) {
+        const sheet = sheetRefs.current[i];
+        if (!sheet) continue;
+        const p = (((turned - i / SHEETS) % 1) + 1) % 1;
+        sheet.style.transform = `rotateY(${-180 * easeTurn(p)}deg)`;
+        const opacity = String(faceOpacity(p));
+        for (const face of sheet.children as HTMLCollectionOf<HTMLElement>) face.style.opacity = opacity;
       }
-      timeout = setTimeout(step, interval);
-    };
-    timeout = setTimeout(step, 45);
-    return () => clearTimeout(timeout);
-  }, [durationMs, landed]);
 
-  // A tick per page turn, on the same deceleration curve as the animation, so
-  // the phone buzzes along with the riffle and calms down as the book does.
-  useEffect(() => {
-    if (landed) return;
-    const start = performance.now();
-    let timeout: ReturnType<typeof setTimeout>;
-    const beat = () => {
-      const t = Math.min(1, (performance.now() - start) / durationMs);
-      void tapPageTurn();
-      timeout = setTimeout(beat, Math.max(MIN_TAP_MS, (turnSeconds(t) * 1000) / SHEETS));
+      // A tick per page turn, on the same deceleration curve as the animation,
+      // so the phone buzzes along with the riffle and calms down as it does.
+      if (!landedRef.current && now - lastTap >= Math.max(MIN_TAP_MS, (turnSeconds(t) * 1000) / SHEETS)) {
+        lastTap = now;
+        void tapPageTurn();
+      }
+
+      raf = requestAnimationFrame(frame);
     };
-    timeout = setTimeout(beat, MIN_TAP_MS);
-    return () => clearTimeout(timeout);
-  }, [durationMs, landed]);
+
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [durationMs]);
 
   // A firmer tap marks the book actually coming to rest: it fires as the final
   // page finishes turning, not when the riffle stops.
@@ -87,10 +113,7 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
     return () => clearTimeout(id);
   }, [landed, settleMs]);
 
-  // Spread the sheets evenly across one turn cycle: at any speed they fan at a
-  // constant angle rather than clumping together as each turn slows.
-  const turning = Array.from({ length: SHEETS }, (_, i) => ({ i, delay: -(i * flipSeconds) / SHEETS }));
-
+  const sheets = Array.from({ length: SHEETS }, (_, i) => i);
 
   return (
     <div className="riffling-stage w-full" aria-hidden="true">
@@ -115,11 +138,13 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
         {/* Turning sheets. The stack keeps turning while it fades, so the riffle
             settles rather than being cut off. */}
         <div className={`turning-pages ${landed ? "turning-pages-done" : ""}`}>
-          {turning.map(({ i, delay }) => (
+          {sheets.map((i) => (
             <div
               key={i}
+              ref={(el) => {
+                sheetRefs.current[i] = el;
+              }}
               className="flip-page absolute inset-y-0 left-1/2 right-0"
-              style={{ animationDelay: `${delay}s`, animationDuration: `${flipSeconds}s` }}
             >
               <SheetSides />
             </div>
@@ -138,7 +163,7 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
               <div className="page-face">
                 <SkeletonLines />
               </div>
-              <div className="page-face page-face-solid page-back">
+              <div className="page-face page-back">
                 <div className="p-5 sm:p-6">
                   <p className="font-serif text-[15px] leading-relaxed text-foreground/90">
                     {passage.text}
