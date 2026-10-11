@@ -13,9 +13,9 @@ interface Props {
   /**
    * The drawn passage. While this is null the book is still riffling: the pages
    * fan across the right-hand page and slow to barely one turn at a time. Once
-   * set, the turning pages settle, the book rests open with the passage on the
-   * page it landed on, and that page is the shared element the passage card
-   * expands out of.
+   * set, the turning pages settle, the book rests open with the drawn body text
+   * on the page the last turn landed on (the left-hand page), and that page is
+   * the shared element the passage card expands out of.
    */
   passage: Passage | null;
 }
@@ -108,22 +108,18 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
           </div>
         ))}
 
-        {/* The page the book lands on. Same layoutId as the passage card, so
-            the card expands out of this page. */}
+        {/* The page the book lands on: the last page turn comes to rest on the
+            left, carrying just the drawn body text. Same layoutId as the
+            passage card, so the card expands out of this page. */}
         {passage && (
           <motion.div
             layoutId={PASSAGE_SHEET_ID}
             transition={PASSAGE_SHEET_SPRING}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-y-0 right-0 w-1/2 overflow-hidden rounded-r-2xl border border-l-0 border-page-edge bg-page p-5 sm:p-6"
+            className="absolute inset-y-0 left-0 w-1/2 overflow-hidden rounded-l-2xl border border-r-0 border-page-edge bg-page p-5 sm:p-6"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-strong">
-              {passage.reference}
-            </p>
-            <p className="mt-3 font-serif text-[15px] leading-relaxed text-foreground/90">
-              {passage.text}
-            </p>
+            <p className="font-serif text-[15px] leading-relaxed text-foreground/90">{passage.text}</p>
           </motion.div>
         )}
       </div>
