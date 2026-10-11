@@ -11,9 +11,13 @@ import { NoSourcesError, loadManifest, pickPassage, summarize } from "@/lib/pick
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
-const RIFFLE_MS = 2400;
-/** How long the final page takes to turn slowly onto the draw. */
-const SETTLE_MS = 900;
+const RIFFLE_MS = 2800;
+/**
+ * How long the final page takes to turn slowly onto the draw. The slowest
+ * turn of the whole sequence — the riffle's last flips stay quicker, so the
+ * reveal reads as the book coming to rest.
+ */
+const SETTLE_MS = 1800;
 /** How long the settled page rests before the card rises into its place. */
 const LAND_MS = 500;
 
