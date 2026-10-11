@@ -24,7 +24,8 @@ _**Open to Inspiration**_ pulls in passages from all LDS standard works and gene
 - **Expand to the whole chapter** (or the full conference talk) with the selected
   verse highlighted and auto-scrolled into view.
 - **Gospel Library deep link** for every passage, built from the official
-  `churchofjesuschrist.org/study/...` URL scheme.
+  `churchofjesuschrist.org/study/...` URL scheme — on Android the link opens
+  directly **in the Gospel Library app** when it's installed.
 - **Light / Dark** themes that defaults to the device preference.
 - **System bar safe areas** on Android — content is padded clear of the status
   bar (clock/icons) and gesture bar in both themes.
@@ -69,8 +70,10 @@ npm run cap:ios        # needs macOS + Xcode
 npm run cap:android    # needs Android Studio + SDK
 ```
 
-External passages open in the in-app browser (`@capacitor/browser`) on native and
-in a new tab on the web — see `lib/external.ts`.
+Passage links open in the **Gospel Library app** on Android (via its official
+`gospellibrary://content` custom scheme, falling back to the in-app browser
+(`@capacitor/browser`) when the app isn't installed), in the in-app browser on
+iOS, and in a new tab on the web — see `lib/external.ts`.
 
 Add native app icons and splash screens with
 [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets) using

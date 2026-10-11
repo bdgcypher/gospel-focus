@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         // edge-to-edge so env(safe-area-inset-*) reports the real status bar
         // and gesture bar insets the web content pads against.
         EdgeToEdge.enable(this);
+        registerPlugin(OpenUrlPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
