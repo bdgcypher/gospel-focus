@@ -70,7 +70,61 @@ in a new tab on the web — see `lib/external.ts`.
 
 Add native app icons and splash screens with
 [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets) using
-`app/icon.svg` as the source.
+`app/icon.svg` as the source:
+
+```bash
+npx @capacitor/assets generate android --assetPath app \
+  --iconBackgroundColor "#f7f2e7" --splashBackgroundColor "#f7f2e7"
+```
+
+### Building a sideloadable APK
+
+Prerequisites: a JDK (17+, 21 recommended) and the Android SDK with
+`platforms;android-36` + `build-tools;36.0.0`. Android Studio installs both, or
+you can keep a portable toolchain in a gitignored directory (e.g. `.toolchain/`)
+and point `android/local.properties` at it with `sdk.dir=...`.
+
+```bash
+npm run cap:apk      # = build + cap sync + gradlew assembleRelease
+# output: android/app/build/outputs/apk/release/app-release.apk
+```
+
+(`gradlew.bat` instead of `./gradlew` on Windows.)
+
+The APK is release-signed, targets API 36, and has `minSdkVersion 24`
+(Android 7.0+). To sideload: copy it to the device, allow *Install unknown apps*
+for your file manager or browser, open the file, and install.
+
+Signing setup (already configured in `android/app/build.gradle`):
+
+- Keystore: `android/keystore/release.keystore` — **back it up**; without it you
+  can never push an update to an installed app.
+- Credentials: `android/keystore.properties` (both are gitignored).
+- Bump `versionCode` in `android/app/build.gradle` for every release.
+
+> Note: the asset generator also rewrites `public/manifest.webmanifest` with PWA
+> icon paths (`../icons/...`) this project doesn't ship — revert it with
+> `git checkout public/manifest.webmanifest` unless you want those PWA icons.
+
+### Getting the APK from GitHub (no local build)
+
+CI (`.github/workflows/android-apk.yml`) builds the signed APK on every push to
+`main` — download it from the repo's **Actions** tab → latest run → *Artifacts*
+(needs a GitHub login; artifacts expire after 90 days).
+
+For a permanent, no-login download link, push a version tag:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+That publishes the APK on the **Releases** page and stamps `versionName` from
+the tag (`v1.2.3` → versionName `1.2.3`, versionCode `10203`), so you normally
+don't need to bump versions by hand for tagged builds. CI signs with the same
+keystore as local builds via repo secrets:
+`ANDROID_KEYSTORE_B64` (base64-encoded keystore), `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEYSTORE_KEY_ALIAS`, `ANDROID_KEYSTORE_KEY_PASSWORD` — set with
+`gh secret set <name>`.
 
 ## Data
 

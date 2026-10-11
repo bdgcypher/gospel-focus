@@ -1,0 +1,101 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to create releases and upload artifacts
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      APK: android/app/build/outputs/apk/release/app-release.apk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Ensure Android SDK packages
+        run: |
+          SDKMANAGER="${ANDROID_HOME:+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager}"
+          [ -x "$SDKMANAGER" ] || SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found on runner"
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      # On a v* tag, stamp the APK with the tag version:
+      #   v1.2.3 -> versionName "1.2.3", versionCode 10203
+      - name: Apply version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          IFS=. read -r X Y Z <<<"$V"
+          X=${X:-0}; Y=${Y:-0}; Z=${Z:-0}
+          VC=$((10#$X * 10000 + 10#$Y * 100 + 10#$Z))
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"$V\"/; s/versionCode [0-9]+/versionCode $VC/" android/app/build.gradle
+          echo "Tagged build: versionName $V, versionCode $VC"
+
+      - name: Configure release signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEYSTORE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Signing secrets not set. Run: gh secret set ANDROID_KEYSTORE_B64 etc. (see README)"
+            exit 1
+          fi
+          mkdir -p android/keystore
+          printf '%s' "$KEYSTORE_B64" | base64 -d > android/keystore/release.keystore
+          printf 'storeFile=keystore/release.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/keystore.properties
+
+      - name: Build web app and sync into Android project
+        run: npm run cap:sync
+
+      - name: Assemble release APK
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-to-inspiration-${{ github.ref_name }}
+          path: ${{ env.APK }}
+          if-no-files-found: error
+
+      - name: Attach APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$APK" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$APK" \
+              --title "Open to Inspiration $GITHUB_REF_NAME" --generate-notes
+          fi

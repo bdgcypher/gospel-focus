@@ -13,6 +13,7 @@
     "cap:add:android": "cap add android",
     "cap:ios": "npm run build && cap sync ios && cap open ios",
     "cap:android": "npm run build && cap sync android && cap open android",
+    "cap:apk": "npm run cap:sync && cd android && ./gradlew assembleRelease",
     "preview": "npx --yes serve out"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.5.3",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
@@ -36,5 +38,9 @@
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true,
+    "sharp@0.35.5": true
   }
 }
