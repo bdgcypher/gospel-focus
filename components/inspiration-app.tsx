@@ -16,7 +16,10 @@ import {
 } from "@/lib/picker";
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
-const MIN_RIFFLE_MS = 2400;
+/** How long the book's pages turn before it lands on the draw. */
+const RIFFLE_MS = 2000;
+/** How long the landed page rests before it expands into the passage card. */
+const LAND_MS = 700;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,6 +29,8 @@ export function InspirationApp() {
   const [filters, setFilters] = useState<Filters>({ volumes: {}, books: {}, conferences: {}, conferenceMaster: true });
   const [phase, setPhase] = useState<"idle" | "rifling" | "result">("idle");
   const [passage, setPassage] = useState<Passage | null>(null);
+  /** The passage the book has landed on, shown on the page before it opens up. */
+  const [landedPassage, setLandedPassage] = useState<Passage | null>(null);
   const [drawKey, setDrawKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -48,6 +53,7 @@ export function InspirationApp() {
     if (!manifest || riflingRef.current) return;
     riflingRef.current = true;
     setPhase("rifling");
+    setLandedPassage(null);
     setError(null);
     setTeasers(getTeaserPool());
     // Collapse the filters panel so the riffling book is fully visible.
@@ -56,10 +62,14 @@ export function InspirationApp() {
     const started = performance.now();
     try {
       const next = await pickPassage(manifest, filters);
-      const remaining = MIN_RIFFLE_MS - (performance.now() - started);
-      if (remaining > 0) await sleep(remaining);
+      const untilLand = RIFFLE_MS - (performance.now() - started);
+      if (untilLand > 0) await sleep(untilLand);
+      // The book settles open on the drawn passage, rests there for a beat,
+      // and then that page expands into the full card.
+      setLandedPassage(next);
       setPassage(next);
       setDrawKey((k) => k + 1);
+      await sleep(LAND_MS);
       setPhase("result");
     } catch (e: unknown) {
       const message =
@@ -189,16 +199,37 @@ export function InspirationApp() {
               )}
             </AnimatePresence>
 
-            <div className="mt-8">
+            <div className="relative mt-8">
               {error && phase !== "rifling" && (
                 <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent-strong">
                   {error}
                 </p>
               )}
 
-              {phase === "rifling" && <RifflingPages durationMs={MIN_RIFFLE_MS} teasers={teasers} />}
+              {/* The book stays mounted (popped out of the layout) long enough
+                  for the passage card to grow out of the page it landed on. */}
+              <AnimatePresence initial={false} mode="popLayout">
+                {phase === "rifling" && (
+                  <motion.div
+                    key="opening-book"
+                    // Nothing in the book is interactive, and while it fades out
+                    // it is popped out of the layout over the incoming card —
+                    // so keep it from swallowing taps meant for the card.
+                    className="pointer-events-none"
+                    exit={{ opacity: 0, transition: { duration: 0.3, delay: 0.2 } }}
+                  >
+                    <RifflingPages
+                      durationMs={RIFFLE_MS}
+                      teasers={teasers}
+                      passage={landedPassage}
+                    />
+                  </motion.div>
+                )}
 
-              {phase === "result" && passage && <PassageCard key={drawKey} passage={passage} drawKey={drawKey} />}
+                {phase === "result" && passage && (
+                  <PassageCard key={drawKey} passage={passage} drawKey={drawKey} />
+                )}
+              </AnimatePresence>
 
               {phase === "idle" && !error && (
                 <div className="mx-auto grid h-60 max-w-lg place-items-center rounded-2xl border border-dashed border-border text-center">
