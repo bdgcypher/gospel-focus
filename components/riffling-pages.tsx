@@ -92,8 +92,7 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
     return () => clearTimeout(id);
   }, [landed, settleMs]);
 
-  const snippetAt = (n: number) => (teasers.length ? teasers[((n % teasers.length) + teasers.length) % teasers.length] : "");
-  const current = snippetAt(tick);
+  const current = teasers.length ? teasers[tick % teasers.length] : "";
 
   // Spread the sheets evenly across one turn cycle: at any speed they fan at a
   // constant angle rather than clumping together as each turn slows.
@@ -144,9 +143,7 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
               className="flip-page absolute inset-y-0 left-1/2 right-0"
               style={{ animationDelay: `${delay}s`, animationDuration: `${flipSeconds}s` }}
             >
-              {/* Each sheet shows a different snippet, so consecutive pages
-                  read as different pages rather than one repeated block. */}
-              <SheetSides text={snippetAt(tick + i * 3)} />
+              <SheetSides />
             </div>
           ))}
         </div>
@@ -172,28 +169,17 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
 
 /**
  * Both sides of a turning sheet, so the page stays paper the whole way over
- * the spine rather than disappearing at 90 degrees.
- *
- * The side facing out is a page still to be read — the same placeholder
- * running down the right-hand page — while the side that comes over the spine
- * carries real text, the way the back of a page does. The turning pages are
- * then legible as pages instead of a second grid of grey lines that vanishes
- * into the one behind it.
+ * the spine rather than disappearing at 90 degrees. Both sides are the same
+ * unread page: a turning sheet is a page that has not been read yet.
  */
-function SheetSides({ text = "" }: { text?: string }) {
+function SheetSides() {
   return (
     <>
       <div className="page-face">
         <SkeletonLines />
       </div>
       <div className="page-face page-back">
-        {text ? (
-          <div className="flex h-full items-center p-5 sm:p-6">
-            <p className="font-serif text-[15px] leading-relaxed text-foreground/70">{text}</p>
-          </div>
-        ) : (
-          <SkeletonLines />
-        )}
+        <SkeletonLines />
       </div>
     </>
   );
