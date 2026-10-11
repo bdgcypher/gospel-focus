@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Night variant of the window background: matches the app's dark background
+     (#13100b) so the status-bar strip the WebView is inset by blends in. -->
+<resources>
+    <color name="splashBackground">#13100b</color>
+</resources>

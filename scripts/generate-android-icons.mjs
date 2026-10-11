@@ -11,6 +11,11 @@
  *    adaptive icon XMLs: the official Android 13+ "themed icon" support.
  *    The launcher tints this book silhouette with the wallpaper-derived
  *    theme color, which is how dark mode is officially expressed.
+ *  - restores the flat `android:windowBackground` on the launch and app themes.
+ *    `@capacitor/assets` points the launch theme at `@drawable/splash`, a
+ *    bitmap; Android stretches a bitmap window background to fill whatever
+ *    window paints it, which showed the splash artwork squashed into the
+ *    status-bar strip above the WebView.
  *
  * Run after re-generating the light assets:
  *   npx @capacitor/assets generate android --assetPath app \
@@ -178,6 +183,52 @@ for (const name of ["ic_launcher.xml", "ic_launcher_round.xml"]) {
     xml = xml.replace(/<\/adaptive-icon>\s*$/, monoLayer + "</adaptive-icon>\n");
     writeFileSync(file, xml);
   }
+}
+
+// --- Window / launch background ---------------------------------------------
+//
+// @capacitor/assets rewrites the launch theme back to the legacy
+// `android:background="@drawable/splash"` bitmap every time it runs, so undo
+// that here and keep both themes on the flat @color/splashBackground instead.
+
+const WINDOW_BACKGROUND_ITEM = `        <item name="android:windowBackground">@color/splashBackground</item>`;
+const stylesFile = join(RES, "values/styles.xml");
+const stylesBefore = readFileSync(stylesFile, "utf8");
+
+const withWindowBackground = (xml, styleName) => {
+  const block = new RegExp(`(<style name="${styleName}"[^>]*>)([\\s\\S]*?)(</style>)`);
+  return xml.replace(block, (match, open, body, close) =>
+    body.includes('name="android:windowBackground"')
+      ? match
+      : `${open}${body.replace(/\s*$/, "\n")}${WINDOW_BACKGROUND_ITEM}\n    ${close}`
+  );
+};
+
+let styles = stylesBefore
+  .replace(/\s*<item name="android:background">@drawable\/splash<\/item>/g, "")
+  .replace(/\s*<item name="android:background">@null<\/item>/g, "");
+styles = withWindowBackground(styles, "AppTheme.NoActionBar");
+styles = withWindowBackground(styles, "AppTheme.NoActionBarLaunch");
+
+if (styles !== stylesBefore) {
+  writeFileSync(stylesFile, styles);
+  console.log("Launch theme: window background restored to @color/splashBackground");
+}
+
+// The flat background lives in these files; warn loudly if any went missing
+// (e.g. after re-generating the native project) so the squashed-artwork bug
+// cannot come back unnoticed.
+const requiredWindowResources = [
+  "values/colors.xml",
+  "values-night/colors.xml",
+  "values-v31/styles.xml",
+  "drawable/splash_icon.xml",
+  "drawable-night/splash_icon.xml",
+];
+const missing = requiredWindowResources.filter((name) => !existsSync(join(RES, name)));
+if (missing.length > 0) {
+  console.error(`Missing window/splash resources, restore them from git: ${missing.join(", ")}`);
+  process.exit(1);
 }
 
 console.log(`Night icons: ${written} PNGs written across ${densities.length} densities`);
