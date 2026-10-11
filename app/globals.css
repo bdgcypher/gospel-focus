@@ -158,6 +158,12 @@ body {
   transform: rotateY(180deg);
 }
 
+/* The page the book comes to rest on carries what was drawn, so it keeps its
+   full strength rather than thinning out with the sheets still in the air. */
+.page-face-solid {
+  animation-name: none;
+}
+
 @keyframes page-face-fade {
   0% {
     opacity: 0.95;

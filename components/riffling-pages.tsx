@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { Passage } from "@/lib/types";
 import { tapBookLanded, tapPageTurn } from "@/lib/haptics";
@@ -23,9 +22,9 @@ interface Props {
   /**
    * The drawn passage. While this is null the book is still riffling: the
    * sheets fan across the right-hand page and slow to barely one turn at a
-   * time. Once set, the sheets settle, the book rests open with the drawn body
-   * text on the page the last turn came to rest on (the left-hand page), and
-   * that page is the shared element the passage card expands out of.
+   * time, and no drawn text is on screen at all. Once set, one last page turns
+   * all the way over carrying that text on its back, and the book rests open
+   * with the draw on the page that turn came to rest on (the left-hand page).
    */
   passage: Passage | null;
 }
@@ -36,9 +35,10 @@ interface Props {
  * and then settle open on the drawn passage.
  *
  * Each sheet is a genuine two-sided page, so a turn carries paper over the
- * spine instead of the sheet vanishing at 90°. The last turn comes to rest on
- * the left, which is where the draw appears — carrying just its body text,
- * with the section continuing on the facing page.
+ * spine instead of the sheet vanishing at 90°, and both sides of every sheet
+ * are the same unread placeholder page. Only the very last turn carries the
+ * draw: its back is the drawn passage, so the text arrives with the flip and
+ * comes to rest on the left, the one place it is ever shown.
  */
 export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props) {
   const landed = passage !== null;
@@ -121,19 +121,6 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
           <SkeletonLines />
         </div>
 
-        {/* The draw, lying on the left-hand page underneath the sheets. It is
-            uncovered by the last page turning away over it. */}
-        {passage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute inset-y-0 left-0 w-1/2 overflow-hidden rounded-l-2xl border border-r-0 border-page-edge bg-page p-5 sm:p-6"
-          >
-            <p className="font-serif text-[15px] leading-relaxed text-foreground/90">{passage.text}</p>
-          </motion.div>
-        )}
-
         {/* Turning sheets. The stack keeps turning while it fades, so the riffle
             settles rather than being cut off. */}
         <div className={`turning-pages ${landed ? "turning-pages-done" : ""}`}>
@@ -148,14 +135,25 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
           ))}
         </div>
 
-        {/* One last page turns slowly onto the draw and settles there. */}
+        {/* One last page turns slowly all the way over. Its back carries the
+            drawn passage, so the draw arrives with that turn and comes to rest
+            on the left-hand page — the only place it is ever shown. */}
         {passage && (
           <div className="settling-pages">
             <div
               className="flip-page-settle absolute inset-y-0 left-1/2 right-0"
               style={{ animationDuration: `${settleMs}ms` }}
             >
-              <SheetSides />
+              <div className="page-face">
+                <SkeletonLines />
+              </div>
+              <div className="page-face page-face-solid page-back">
+                <div className="p-5 sm:p-6">
+                  <p className="font-serif text-[15px] leading-relaxed text-foreground/90">
+                    {passage.text}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
