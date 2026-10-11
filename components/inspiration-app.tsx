@@ -17,7 +17,7 @@ import {
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
-const RIFFLE_MS = 1900;
+const RIFFLE_MS = 2400;
 /** How long the landed spread rests before the page expands into the card. */
 const LAND_MS = 900;
 
