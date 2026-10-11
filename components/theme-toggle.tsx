@@ -3,10 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 
-const MODES = ["light", "dark"] as const;
-type Mode = (typeof MODES)[number];
-
-const LABEL: Record<Mode, string> = { light: "Light", dark: "Dark" };
+type Mode = "light" | "dark";
 
 function Icon({ mode }: { mode: Mode }) {
   if (mode === "light")
@@ -24,9 +21,10 @@ function Icon({ mode }: { mode: Mode }) {
 }
 
 /**
- * Light / dark switch. The app starts on the device's preferred theme (see
- * Providers -> defaultTheme="system"), and tapping an icon pins it explicitly.
- * The highlight always reflects the currently resolved theme.
+ * Single-button light / dark switch: the icon shows the *current* theme
+ * (sun in light, moon in dark) and tapping it flips the theme — and with it
+ * the icon. The app starts on the device's preferred theme (see Providers ->
+ * defaultTheme="system"); the first tap pins it explicitly.
  */
 export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -38,32 +36,17 @@ export function ThemeToggle() {
   );
 
   const current: Mode | undefined = mounted ? (resolvedTheme as Mode) : undefined;
+  const next: Mode | undefined = current === "light" ? "dark" : current === "dark" ? "light" : undefined;
 
   return (
-    <div
-      role="radiogroup"
-      aria-label="Color theme"
-      className="flex items-center gap-0.5 rounded-full border border-border bg-surface/70 p-1 backdrop-blur"
+    <button
+      type="button"
+      onClick={() => next && setTheme(next)}
+      aria-label={next ? `Switch to ${next} theme` : "Toggle color theme"}
+      title={next ? `${next} theme` : "Toggle color theme"}
+      className="flex items-center justify-center rounded-full border border-border bg-surface/70 p-2 text-muted backdrop-blur transition-colors hover:text-foreground"
     >
-      {MODES.map((mode) => {
-        const active = current === mode;
-        return (
-          <button
-            key={mode}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            aria-label={`${LABEL[mode]} theme`}
-            title={`${LABEL[mode]} theme`}
-            onClick={() => setTheme(mode)}
-            className={`flex items-center justify-center rounded-full p-2 transition-colors ${
-              active ? "bg-accent text-accent-contrast" : "text-muted hover:text-foreground"
-            }`}
-          >
-            <Icon mode={mode} />
-          </button>
-        );
-      })}
-    </div>
+      {current ? <Icon mode={current} /> : <span className="block h-4 w-4" aria-hidden="true" />}
+    </button>
   );
 }
