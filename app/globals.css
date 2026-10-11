@@ -94,14 +94,11 @@ body {
   animation-iteration-count: infinite;
 }
 
-@keyframes riffle-settle {
-  0%,
-  85% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+/* Once the book lands, the turning pages settle under the page it landed on. */
+.flip-page-landed {
+  animation: none;
+  opacity: 0;
+  transition: opacity 220ms ease-out;
 }
 
 @keyframes text-riffle-in {
