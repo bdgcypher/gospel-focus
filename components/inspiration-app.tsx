@@ -145,8 +145,13 @@ export function InspirationApp() {
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
             {/* Filters as a sidebar from tablet width up, beside the book. */}
             {manifest && filtersOpen && (
-              <aside className="hidden w-64 shrink-0 lg:w-72 md:sticky md:top-24 md:block md:max-h-[calc(100vh-8rem)] md:overflow-y-auto">
-                <FilterPanel manifest={manifest} filters={filters} onChange={setFilters} />
+              <aside className="hidden w-64 shrink-0 lg:w-72 md:sticky md:top-24 md:block md:max-h-[calc(100vh-8rem)] md:overflow-y-auto md:pr-2">
+                <FilterPanel
+                  manifest={manifest}
+                  filters={filters}
+                  onChange={setFilters}
+                  onCollapse={() => setShowFilters(false)}
+                />
               </aside>
             )}
 
@@ -171,34 +176,39 @@ export function InspirationApp() {
                     {phase === "rifling" ? "Opening…" : "New passage"}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowFilters(!filtersOpen)}
-                    aria-expanded={filtersOpen}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-accent-strong"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 6h18M6 12h12M10 18h4" />
-                    </svg>
-                    {filtersOpen ? "Hide filters" : "Filters"}
-                    {summary && (
-                      <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
-                        {new Intl.NumberFormat("en-US").format(summary.verses + summary.paragraphs)} passages
-                      </span>
-                    )}
-                    <svg
-                      viewBox="0 0 24 24"
-                      className={`h-3.5 w-3.5 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2.2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
+                  {/* The sidebar carries its own collapse control, so this one
+                      is only for the inline panel — and for reopening the
+                      sidebar once it has been packed away. */}
+                  {(!wide || !filtersOpen) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowFilters(!filtersOpen)}
+                      aria-expanded={filtersOpen}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-accent-strong"
                     >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18M6 12h12M10 18h4" />
+                      </svg>
+                      {filtersOpen ? "Hide filters" : "Filters"}
+                      {summary && (
+                        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
+                          {new Intl.NumberFormat("en-US").format(summary.verses + summary.paragraphs)} passages
+                        </span>
+                      )}
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={`h-3.5 w-3.5 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
 
                 {nothingSelected && (
