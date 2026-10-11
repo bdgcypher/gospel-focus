@@ -50,6 +50,8 @@ export function InspirationApp() {
     setPhase("rifling");
     setError(null);
     setTeasers(getTeaserPool());
+    // Collapse the filters panel so the riffling book is fully visible.
+    setShowFilters(false);
 
     const started = performance.now();
     try {
