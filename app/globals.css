@@ -97,31 +97,19 @@ body {
   transform-style: preserve-3d;
 }
 
-/* The riffle loops pages over the spine. */
-.flip-page {
-  animation-name: page-flip;
-  animation-timing-function: cubic-bezier(0.4, 0.05, 0.55, 0.95);
-  animation-iteration-count: infinite;
-}
+/* The riffle turns its pages from script, off one shared clock, so nothing
+   here animates the sheets themselves. */
 
-/* The last page turns once, slowly, and stays where it comes to rest. */
+/* The last page turns once, slowly, and stays where it comes to rest. It eases
+   in and out like every page before it, so it reads as the same kind of turn. */
 .flip-page-settle {
   animation-name: page-flip-settle;
-  animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 
-/* Both halves of a turn are the same full half-rotation over the spine. */
-@keyframes page-flip {
-  0% {
-    transform: rotateY(0deg);
-  }
-  100% {
-    transform: rotateY(-180deg);
-  }
-}
-
+/* A turn is one full half-rotation over the spine. */
 @keyframes page-flip-settle {
   0% {
     transform: rotateY(0deg);
@@ -132,9 +120,10 @@ body {
 }
 
 /* A sheet has two sides, so a turn carries paper the whole way over the spine
-   instead of vanishing at 90 degrees. Both faces thin out as the sheet comes
-   to rest on the far side, which is what lets the page underneath — and so
-   the riffle, and finally the draw — keep showing through.
+   instead of vanishing at 90 degrees. A face's opacity rides its own turn (set
+   per frame from the riffle clock), thinning as the page comes to rest on the
+   far side so the page underneath — and so the riffle, and finally the draw —
+   keep showing through.
    Every face is rounded on all four corners by the same 1rem as the book
    itself, so a page keeps one shape the whole way over. */
 .page-face {
@@ -147,44 +136,18 @@ body {
   background: var(--page);
   backface-visibility: hidden;
   box-shadow: 0 6px 20px -12px rgb(0 0 0 / 0.5);
-  animation-name: page-face-fade;
-  /* A face fades on its sheet's own turn timeline. */
-  animation-delay: inherit;
-  animation-duration: inherit;
-  animation-timing-function: inherit;
-  animation-iteration-count: inherit;
-  animation-fill-mode: inherit;
 }
 
 .page-back {
   transform: rotateY(180deg);
 }
 
-/* The page the book comes to rest on carries what was drawn, so it keeps its
-   full strength rather than thinning out with the sheets still in the air. */
-.page-face-solid {
-  animation-name: none;
-}
-
-@keyframes page-face-fade {
-  0% {
-    opacity: 0.95;
-  }
-  85% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0.15;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
+  /* No riffle clock: the sheets just sit on the open book. */
   .flip-page {
-    animation: none;
     opacity: 0.4;
   }
-  .flip-page-settle,
-  .page-face {
+  .flip-page-settle {
     animation: none;
   }
   .turning-pages {
