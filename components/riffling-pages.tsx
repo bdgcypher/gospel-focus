@@ -8,23 +8,27 @@ import { PASSAGE_SHEET_ID, PASSAGE_SHEET_SPRING } from "./passage-card";
 interface Props {
   /** How long the pages turn before the book lands. */
   durationMs: number;
-  /** Snippets cycled through the facing page while riffling. */
+  /** Snippets cycled through the left-hand page while riffling. */
   teasers: string[];
   /**
-   * The drawn passage. While this is null the book is still riffling: the pages
-   * fan across the right-hand page and slow to barely one turn at a time. Once
-   * set, the turning pages settle, the book rests open with the drawn body text
-   * on the page the last turn landed on (the left-hand page), and that page is
-   * the shared element the passage card expands out of.
+   * The drawn passage. While this is null the book is still riffling: the
+   * sheets fan across the right-hand page and slow to barely one turn at a
+   * time. Once set, the sheets settle, the book rests open with the drawn body
+   * text on the page the last turn came to rest on (the left-hand page), and
+   * that page is the shared element the passage card expands out of.
    */
   passage: Passage | null;
 }
 
 /**
- * The "being opened to a random place" animation: a two-page book whose pages
+ * The "being opened to a random place" animation: a two-page book whose sheets
  * riffle quickly, slow down until they are turning barely one page at a time,
- * and then land open on the drawn passage. The page it lands on carries
- * {@link PASSAGE_SHEET_ID}, so the passage card grows straight out of it.
+ * and then settle open on the drawn passage.
+ *
+ * Each sheet is a genuine two-sided page, so a turn carries paper over the
+ * spine instead of the sheet vanishing at 90°. The last turn comes to rest on
+ * the left, which is where the draw appears — carrying just its body text,
+ * with the section continuing on the facing page.
  */
 export function RifflingPages({ durationMs, teasers, passage }: Props) {
   const landed = passage !== null;
@@ -32,7 +36,7 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
   const [flipSeconds, setFlipSeconds] = useState(0.55);
 
   useEffect(() => {
-    // Landed: stop driving the flip speed and freeze the facing-page snippet.
+    // Landed: stop driving the turn speed and freeze the page snippet.
     if (landed) return;
     const start = performance.now();
     let timeout: ReturnType<typeof setTimeout>;
@@ -45,9 +49,11 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
       const now = performance.now();
       if (now - lastFlip > 150) {
         lastFlip = now;
-        // Each flip stretches out hard at the end: a full page turn grows
-        // from 0.5s to 4s, so the last stretch turns barely one page at a time.
-        setFlipSeconds(0.5 + 3.5 * Math.pow(t, 1.5));
+        // A full turn stretches from 0.5s out to 2.6s, so the last stretch
+        // turns barely one page at a time. Capped there (rather than growing
+        // without bound) so the book comes to rest on a finished turn instead
+        // of the riffle being cut off part-way.
+        setFlipSeconds(0.5 + 2.1 * Math.pow(t, 1.7));
       }
       timeout = setTimeout(step, interval);
     };
@@ -57,10 +63,14 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
 
   const current = teasers.length ? teasers[tick % teasers.length] : "";
 
-  // Spread the five turning pages evenly across one flip cycle: at any speed
-  // there is always exactly one page turning at a time, instead of the pages
-  // clumping together as each flip gets slower.
+  // Spread the five sheets evenly across one turn cycle: at any speed they fan
+  // at a constant angle rather than clumping together as each turn slows.
   const turning = [0, 1, 2, 3, 4].map((i) => ({ i, delay: -(i * flipSeconds) / 5 }));
+
+  // The section carries on across the fold once the book has landed.
+  const lead = passage?.highlightVerse ?? 0;
+  const following = passage && lead > 0 ? passage.verses.slice(lead, lead + 3) : [];
+  const showVerseNumbers = passage?.kind === "scripture";
 
   return (
     <div className="riffling-stage w-full" aria-hidden="true">
@@ -73,44 +83,62 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
         {/* Spine */}
         <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-spine to-transparent" />
 
-        {/* Facing page: flickering snippet while rifling, frozen once landed */}
+        {/* Left page: the flickering snippet while riffling. Once the book
+            lands, the page it comes to rest on covers it. */}
         <div className="absolute inset-y-0 left-0 flex w-1/2 items-center overflow-hidden p-5 sm:p-6">
           <p key={tick} className="riffle-line font-serif text-[15px] leading-relaxed text-foreground/75">
             {current}
           </p>
         </div>
 
-        {/* Right-hand page, showing through behind the turning pages */}
-        <div className="absolute inset-y-0 right-0 w-1/2 space-y-3 p-5 sm:p-6">
-          {[92, 76, 88, 60, 80].map((w, i) => (
-            <div key={i} className="h-2.5 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
+        {/* Facing page: skeleton lines while riffling, then the verses that
+            follow the draw so the open spread is a real page, not a blank. */}
+        <div className="absolute inset-y-0 right-0 w-1/2 overflow-hidden p-5 sm:p-6">
+          {landed && following.length > 0 ? (
+            <div className="space-y-3">
+              {following.map((v) => (
+                <p key={v.number} className="font-serif text-[14px] leading-relaxed text-foreground/55">
+                  {showVerseNumbers && (
+                    <span className="mr-1.5 align-super text-[10px] font-semibold text-accent-strong/70">
+                      {v.number}
+                    </span>
+                  )}
+                  {v.text}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[92, 76, 88, 60, 80].map((w, i) => (
+                <div key={i} className="h-2.5 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Turning sheets. The stack keeps turning while it fades, so the riffle
+            settles rather than being cut off. */}
+        <div className={`turning-pages ${landed ? "turning-pages-done" : ""}`}>
+          {turning.map(({ i, delay }) => (
+            <div
+              key={i}
+              className="flip-page absolute inset-y-0 left-1/2 right-0"
+              style={{ animationDelay: `${delay}s`, animationDuration: `${flipSeconds}s` }}
+            >
+              <div className="page-face">
+                <SkeletonLines />
+              </div>
+              <div className="page-face page-back">
+                <SkeletonLines />
+              </div>
+            </div>
           ))}
         </div>
 
-        {/* Turning pages */}
-        {turning.map(({ i, delay }) => (
-          <div
-            key={i}
-            className={`flip-page absolute inset-y-0 left-1/2 right-0 rounded-r-2xl border border-l-0 border-page-edge bg-page ${
-              landed ? "flip-page-landed" : ""
-            }`}
-            style={{
-              animationDelay: `${delay}s`,
-              animationDuration: `${flipSeconds}s`,
-              boxShadow: "0 6px 20px -12px rgba(0,0,0,0.5)",
-            }}
-          >
-            <div className="space-y-3 p-5 opacity-70 sm:p-6">
-              {[80, 66, 90, 54].map((w, j) => (
-                <div key={j} className="h-2.5 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
-              ))}
-            </div>
-          </div>
-        ))}
-
-        {/* The page the book lands on: the last page turn comes to rest on the
-            left, carrying just the drawn body text. Same layoutId as the
-            passage card, so the card expands out of this page. */}
+        {/* The sheet the last turn leaves us on: the left-hand page, carrying
+            the drawn body text only, lying on top of the rest of the book.
+            Same layoutId as the passage card, so the card expands out of this
+            page. */}
         {passage && (
           <motion.div
             layoutId={PASSAGE_SHEET_ID}
@@ -126,6 +154,16 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
       <p className="sr-only" role="status">
         Opening to a passage…
       </p>
+    </div>
+  );
+}
+
+function SkeletonLines() {
+  return (
+    <div className="space-y-3 p-5 sm:p-6">
+      {[80, 66, 90, 54].map((w, i) => (
+        <div key={i} className="h-2.5 rounded-full bg-foreground/10" style={{ width: `${w}%` }} />
+      ))}
     </div>
   );
 }

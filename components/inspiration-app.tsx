@@ -16,10 +16,10 @@ import {
 } from "@/lib/picker";
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
-/** How long the book's pages turn before it lands on the draw. */
-const RIFFLE_MS = 2000;
-/** How long the landed page rests before it expands into the passage card. */
-const LAND_MS = 700;
+/** How long the book's sheets turn before it lands on the draw. */
+const RIFFLE_MS = 1900;
+/** How long the landed spread rests before the page expands into the card. */
+const LAND_MS = 900;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -138,7 +138,9 @@ export function InspirationApp() {
                   type="button"
                   onClick={() => void draw()}
                   disabled={!manifest || phase === "rifling" || nothingSelected}
-                  className="group inline-flex items-center gap-2.5 rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  // Full width on phones (where it is the primary action), back
+                  // to hugging its label from sm upwards.
+                  className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   <span className="text-accent-contrast">
                     <OpenBookLogo className="h-5 w-5" />
