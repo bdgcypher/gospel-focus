@@ -9,11 +9,6 @@ interface Props {
   manifest: Manifest;
   filters: Filters;
   onChange: (next: Filters) => void;
-  /**
-   * Set when the panel stands on its own (the wide-screen sidebar), so it
-   * carries its own control for packing itself away again.
-   */
-  onCollapse?: () => void;
 }
 
 const isOn = (map: Record<string, boolean>, key: string) => map[key] !== false;
@@ -23,7 +18,7 @@ const numberFmt = new Intl.NumberFormat("en-US");
 /** Ordering hint for the scripture list: Bible first, then the other works. */
 const BIBLE_VOLUMES = ["ot", "nt"];
 
-export function FilterPanel({ manifest, filters, onChange, onCollapse }: Props) {
+export function FilterPanel({ manifest, filters, onChange }: Props) {
   const [openVolume, setOpenVolume] = useState<string | null>(null);
   const [openConference, setOpenConference] = useState(false);
 
@@ -80,35 +75,11 @@ export function FilterPanel({ manifest, filters, onChange, onCollapse }: Props) 
 
   return (
     <section className="rounded-3xl border border-border bg-surface/80 p-5 backdrop-blur sm:p-6">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-serif text-lg font-semibold text-foreground">
-            What sources to include?
-          </h2>
-          <p className="text-sm text-muted">Select resources to draw inspiration from.</p>
-        </div>
-        {onCollapse && (
-          <button
-            type="button"
-            onClick={onCollapse}
-            aria-label="Hide filters"
-            className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-          >
-            {/* A panel with an arrow back into it: the sidebar packing itself away. */}
-            <svg
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M9 3v18M16 15l-3-3 3-3" />
-            </svg>
-          </button>
-        )}
+      <div>
+        <h2 className="font-serif text-lg font-semibold text-foreground">
+          What sources to include?
+        </h2>
+        <p className="text-sm text-muted">Select resources to draw inspiration from.</p>
       </div>
 
       {/* Presets */}

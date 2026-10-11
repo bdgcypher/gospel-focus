@@ -142,20 +142,18 @@ export function InspirationApp() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-            {/* Filters as a sidebar from tablet width up, beside the book. */}
+          <div className="flex flex-col gap-8 sm:flex-row">
+            {/* items-stretch (the default) lets the main column grow to the
+                sidebar's height, so the idle placeholder can fill it. */}
+            {/* Filters as a sidebar from tablet width up, beside the book. The
+                Filters row below is the only way to pack it away. */}
             {manifest && filtersOpen && (
-              <aside className="hidden w-64 shrink-0 lg:w-72 md:sticky md:top-24 md:block md:max-h-[calc(100vh-8rem)] md:overflow-y-auto md:pr-2">
-                <FilterPanel
-                  manifest={manifest}
-                  filters={filters}
-                  onChange={setFilters}
-                  onCollapse={() => setShowFilters(false)}
-                />
+              <aside className="hidden w-80 shrink-0 lg:w-96 md:sticky md:top-24 md:block md:max-h-[calc(100vh-8rem)] md:overflow-y-auto md:pr-4">
+                <FilterPanel manifest={manifest} filters={filters} onChange={setFilters} />
               </aside>
             )}
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 md:flex md:flex-col">
               <section className="text-center sm:text-left">
                 {/* Shrink-wrapped to the line above, so the button below can
                     match its width exactly. */}
@@ -191,15 +189,30 @@ export function InspirationApp() {
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 6h18M6 12h12M10 18h4" />
                       </svg>
-                      Filters
+                      {filtersOpen ? "Hide filters" : "Filters"}
                       {summary && (
                         <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
                           {new Intl.NumberFormat("en-US").format(summary.verses + summary.paragraphs)} passages
                         </span>
                       )}
+                      {/* On a phone this row folds the inline panel, so the caret
+                          flips up and down. Beside the sidebar it slides left and
+                          right instead: towards the panel while it is open. */}
                       <svg
                         viewBox="0 0 24 24"
-                        className={`h-3.5 w-3.5 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+                        className={`h-3.5 w-3.5 transition-transform md:hidden ${filtersOpen ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={`hidden h-3.5 w-3.5 transition-transform md:inline-block ${filtersOpen ? "rotate-90" : "-rotate-90"}`}
                         fill="none"
                         stroke="currentColor"
                         strokeWidth={2.2}
@@ -237,7 +250,7 @@ export function InspirationApp() {
                 )}
               </AnimatePresence>
 
-              <div className="relative mt-8">
+              <div className="relative mt-8 md:flex md:flex-1 md:flex-col">
                 {error && phase !== "rifling" && (
                   <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent-strong">
                     {error}
@@ -266,7 +279,7 @@ export function InspirationApp() {
                 </AnimatePresence>
 
                 {phase === "idle" && !error && (
-                  <div className="grid h-60 w-full place-items-center rounded-2xl border border-dashed border-border text-center">
+                  <div className="grid h-60 w-full place-items-center rounded-2xl border border-dashed border-border text-center md:h-auto md:min-h-60 md:flex-1">
                     <div className="px-6">
                       <span className="mx-auto block text-accent/50">
                         <OpenBookLogo className="mx-auto h-10 w-10" />
