@@ -16,6 +16,10 @@
  *    bitmap; Android stretches a bitmap window background to fill whatever
  *    window paints it, which showed the splash artwork squashed into the
  *    status-bar strip above the WebView.
+ *  - re-applies the no-title flags on the launch theme. On API 31+
+ *    `Theme.SplashScreen` re-parents to the platform DeviceDefault splash
+ *    theme, which has a window title bar, so without these the activity label
+ *    renders as a band above the WebView.
  *
  * Run after re-generating the light assets:
  *   npx @capacitor/assets generate android --assetPath app \
@@ -191,28 +195,59 @@ for (const name of ["ic_launcher.xml", "ic_launcher_round.xml"]) {
 // `android:background="@drawable/splash"` bitmap every time it runs, so undo
 // that here and keep both themes on the flat @color/splashBackground instead.
 
-const WINDOW_BACKGROUND_ITEM = `        <item name="android:windowBackground">@color/splashBackground</item>`;
-const stylesFile = join(RES, "values/styles.xml");
-const stylesBefore = readFileSync(stylesFile, "utf8");
+const WINDOW_BACKGROUND = [
+  "android:windowBackground",
+  `        <item name="android:windowBackground">@color/splashBackground</item>`,
+];
+// On API 31+ Theme.SplashScreen drops the no-title flags its pre-31 variant
+// inherits, leaving a platform title bar with the activity label above the app.
+const NO_TITLE = [
+  ["android:windowNoTitle", `        <item name="android:windowNoTitle">true</item>`],
+  ["windowNoTitle", `        <item name="windowNoTitle">true</item>`],
+  ["windowActionBar", `        <item name="windowActionBar">false</item>`],
+];
 
-const withWindowBackground = (xml, styleName) => {
+const withStyleItems = (xml, styleName, items) => {
   const block = new RegExp(`(<style name="${styleName}"[^>]*>)([\\s\\S]*?)(</style>)`);
-  return xml.replace(block, (match, open, body, close) =>
-    body.includes('name="android:windowBackground"')
-      ? match
-      : `${open}${body.replace(/\s*$/, "\n")}${WINDOW_BACKGROUND_ITEM}\n    ${close}`
-  );
+  return xml.replace(block, (match, open, body, close) => {
+    const missing = items.filter(([attr]) => !body.includes(`name="${attr}"`));
+    if (missing.length === 0) return match;
+    const added = missing.map(([, item]) => item).join("\n");
+    return `${open}${body.replace(/\s*$/, "\n")}${added}\n    ${close}`;
+  });
 };
 
-let styles = stylesBefore
-  .replace(/\s*<item name="android:background">@drawable\/splash<\/item>/g, "")
-  .replace(/\s*<item name="android:background">@null<\/item>/g, "");
-styles = withWindowBackground(styles, "AppTheme.NoActionBar");
-styles = withWindowBackground(styles, "AppTheme.NoActionBarLaunch");
+// values/styles.xml is rewritten by @capacitor/assets; values-v31/styles.xml
+// is ours, but keep both on the same item set.
+const stylePatches = [
+  {
+    file: join(RES, "values/styles.xml"),
+    stripLegacyBackground: true,
+    styles: [
+      { name: "AppTheme.NoActionBar", items: [WINDOW_BACKGROUND] },
+      { name: "AppTheme.NoActionBarLaunch", items: [WINDOW_BACKGROUND, ...NO_TITLE] },
+    ],
+  },
+  {
+    file: join(RES, "values-v31/styles.xml"),
+    stripLegacyBackground: false,
+    styles: [{ name: "AppTheme.NoActionBarLaunch", items: [WINDOW_BACKGROUND, ...NO_TITLE] }],
+  },
+];
 
-if (styles !== stylesBefore) {
-  writeFileSync(stylesFile, styles);
-  console.log("Launch theme: window background restored to @color/splashBackground");
+for (const { file, stripLegacyBackground, styles } of stylePatches) {
+  if (!existsSync(file)) continue;
+  const before = readFileSync(file, "utf8");
+  let xml = stripLegacyBackground
+    ? before
+        .replace(/\s*<item name="android:background">@drawable\/splash<\/item>/g, "")
+        .replace(/\s*<item name="android:background">@null<\/item>/g, "")
+    : before;
+  for (const style of styles) xml = withStyleItems(xml, style.name, style.items);
+  if (xml !== before) {
+    writeFileSync(file, xml);
+    console.log(`Window theme: window background/no-title restored in ${file.slice(RES.length + 1)}`);
+  }
 }
 
 // The flat background lives in these files; warn loudly if any went missing
