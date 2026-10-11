@@ -11,7 +11,7 @@ const SHEETS = 5;
 const MIN_TAP_MS = 150;
 
 /** Seconds for one full turn cycle at progress `t` through the riffle. */
-const turnSeconds = (t: number) => 0.5 + 2.1 * Math.pow(t, 1.7);
+const turnSeconds = (t: number) => 0.5 + 3.5 * Math.pow(t, 1.5);
 
 interface Props {
   /** How long the pages turn before the book lands. */
@@ -57,10 +57,8 @@ export function RifflingPages({ durationMs, teasers, passage }: Props) {
       const now = performance.now();
       if (now - lastFlip > 150) {
         lastFlip = now;
-        // A full turn stretches from 0.5s out to 2.6s, so the last stretch
-        // turns barely one page at a time. Capped there (rather than growing
-        // without bound) so the book comes to rest on a finished turn instead
-        // of the riffle being cut off part-way.
+        // A full turn stretches from 0.5s out to 4s, so the last stretch
+        // crawls to barely one page at a time before the book settles.
         setFlipSeconds(turnSeconds(t));
       }
       timeout = setTimeout(step, interval);
