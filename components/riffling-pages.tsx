@@ -17,8 +17,6 @@ interface Props {
   durationMs: number;
   /** How long the final page takes to turn onto the draw. */
   settleMs: number;
-  /** Snippets cycled through the left-hand page while riffling. */
-  teasers: string[];
   /**
    * The drawn passage. While this is null the book is still riffling: the
    * sheets fan across the right-hand page and slow to barely one turn at a
@@ -40,9 +38,8 @@ interface Props {
  * draw: its back is the drawn passage, so the text arrives with the flip and
  * comes to rest on the left, the one place it is ever shown.
  */
-export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props) {
+export function RifflingPages({ durationMs, settleMs, passage }: Props) {
   const landed = passage !== null;
-  const [tick, setTick] = useState(0);
   const [flipSeconds, setFlipSeconds] = useState(0.55);
 
   useEffect(() => {
@@ -53,8 +50,6 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
     let lastFlip = 0;
     const step = () => {
       const t = Math.min(1, (performance.now() - start) / durationMs);
-      setTick((n) => n + 1);
-      // Teaser flickers slow down as we approach the target.
       const interval = 55 + 900 * Math.pow(t, 2);
       const now = performance.now();
       if (now - lastFlip > 150) {
@@ -92,8 +87,6 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
     return () => clearTimeout(id);
   }, [landed, settleMs]);
 
-  const current = teasers.length ? teasers[tick % teasers.length] : "";
-
   // Spread the sheets evenly across one turn cycle: at any speed they fan at a
   // constant angle rather than clumping together as each turn slows.
   const turning = Array.from({ length: SHEETS }, (_, i) => ({ i, delay: -(i * flipSeconds) / SHEETS }));
@@ -107,12 +100,10 @@ export function RifflingPages({ durationMs, settleMs, teasers, passage }: Props)
         {/* Spine */}
         <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-spine to-transparent" />
 
-        {/* Left page: the flickering snippet while riffling. Once the book
-            lands, the page it comes to rest on covers it. */}
-        <div className="absolute inset-y-0 left-0 flex w-1/2 items-center overflow-hidden p-5 sm:p-6">
-          <p key={tick} className="riffle-line font-serif text-[15px] leading-relaxed text-foreground/75">
-            {current}
-          </p>
+        {/* Left page: placeholder lines like the facing page, so the book
+            holds no text at all until the draw arrives. */}
+        <div className="absolute inset-y-0 left-0 w-1/2 overflow-hidden">
+          <SkeletonLines />
         </div>
 
         {/* Facing page: placeholder lines, riffle and all — the draw only ever
