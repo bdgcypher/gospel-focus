@@ -120,14 +120,19 @@ body {
 }
 
 /* --- Native safe areas -------------------------------------------------- */
-/* In the Android shell the app is edge-to-edge (Android 15+ enforces it),
-   so pad the page by the real status bar / gesture bar insets that
-   Capacitor's SystemBars plugin passes through to the WebView. This keeps
-   the clock and status icons from overlapping the UI. iOS handles insets
-   natively via the Capacitor contentInset setting, and the web build has
-   no system bars to clear. */
-html[data-capacitor="android"] body {
+/* In the Android shell the app is edge-to-edge (Android 15+ enforces it).
+   The header itself absorbs the status bar inset (padding-top below), so its
+   background flows seamlessly under the clock/icons instead of leaving an
+   empty band above it — and when the sticky header pins while scrolling, its
+   content stays below the status bar. The body clears the gesture bar on the
+   bottom/sides. Insets come from Capacitor's SystemBars plugin as
+   env(safe-area-inset-*). iOS handles insets natively via the Capacitor
+   contentInset setting, and the web build has no system bars to clear. */
+html[data-capacitor="android"] header {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+html[data-capacitor="android"] body {
   padding-right: env(safe-area-inset-right, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
