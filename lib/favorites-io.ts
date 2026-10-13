@@ -1,6 +1,6 @@
 "use client";
 
-import { addFavorites, toFavorite, type Favorite } from "./favorites";
+import { addFavorites, selectionKey, toFavorite, toSelectionFavorite, type Favorite } from "./favorites";
 import { favoritesToCsv, readFavoritesCsv, type CandidateRow } from "./favorites-csv";
 import { resolveCitation } from "./picker";
 
@@ -25,25 +25,44 @@ export function exportFavoritesFile(favorites: Favorite[]): {
   };
 }
 
+/** How a row's citation reads, run, scattered pick or single, in the app's shapes. */
+function referenceForRow(
+  kind: "scripture" | "conference",
+  row: Pick<CandidateRow, "book" | "chapter" | "sections">
+): string {
+  const key = selectionKey(row.sections).replace(/,/g, ", ");
+  if (kind === "conference") {
+    return key ? `\u201c${row.chapter || row.book}\u201d \u00b6${key}` : `\u201c${row.chapter || row.book}\u201d`;
+  }
+  return key ? `${row.book} ${row.chapter}:${key}` : `${row.book} ${row.chapter}`;
+}
+
 /** Rebuild a favorite straight from a file row, for rows the library can't resolve. */
 function favoriteFromRow(row: CandidateRow): Favorite {
   const kind = row.kind ?? (/general conference/i.test(row.book) ? "conference" : "scripture");
-  const section = row.section ?? 0;
-  const reference =
-    kind === "conference" ? `\u201c${row.chapter || row.book}\u201d` : `${row.book} ${row.chapter}:${section}`;
+  const sections = row.sections;
+  const from = sections[0] ?? 0;
+  const to = sections[sections.length - 1] ?? 0;
+  const contiguous = sections.every((n, i) => i === 0 || n === sections[i - 1] + 1);
+  const reference = referenceForRow(kind, row);
 
   return {
-    id: `${kind}:${reference}:${section}`,
+    id: `${kind}:${reference}:${selectionKey(sections)}`,
     kind,
     reference,
     sourceLabel: row.source || (kind === "conference" ? "General Conference" : row.book),
     text: row.text,
     url: row.url,
-    urlLabel: kind === "conference" ? "Read the full talk" : "Open in Gospel Library",
+    // The same label for both kinds: a conference talk's link opens in the
+    // Gospel Library app just as a scripture link does.
+    urlLabel: "Open in Gospel Library",
     expansionTitle: kind === "conference" ? `\u201c${row.chapter}\u201d` : `${row.book} ${row.chapter}`,
     book: row.book,
     chapter: row.chapter,
-    section: row.section ?? undefined,
+    section: sections.length ? from : undefined,
+    sectionEnd: sections.length > 1 && contiguous ? to : undefined,
+    // No library to read the words from, so the row stays one block of text.
+    sections: sections.length > 1 ? sections : undefined,
     savedAt: Date.now(),
   };
 }
@@ -60,11 +79,14 @@ export async function importFavoritesText(text: string): Promise<ImportReport> {
   const incoming: Favorite[] = [];
 
   for (const row of rows) {
-    const section = row.section ?? Number.NaN;
-    const found = await resolveCitation(row.kind, row.book, row.chapter, section);
+    const first = row.sections[0] ?? Number.NaN;
+    const found = await resolveCitation(row.kind, row.book, row.chapter, first);
 
     if (found) {
-      const favorite = toFavorite(found);
+      // A multi-verse row is rebuilt from the library too, so the saved card
+      // reads exactly like one saved in the app rather than like the file.
+      const known = row.sections.length > 1 && row.sections.every((n) => found.verses.some((v) => v.number === n));
+      const favorite = known ? toSelectionFavorite(found, row.sections) : toFavorite(found);
       incoming.push({
         ...favorite,
         // The file is authoritative for its own words, source and link.

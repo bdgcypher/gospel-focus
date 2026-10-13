@@ -145,6 +145,30 @@ body {
   }
 }
 
+/* --- Floating action bar ------------------------------------------------ */
+/* The bar's own padding, widened by the device's safe-area insets. A fixed
+   element sits outside the body's safe-area padding, so the insets have to be
+   added here — which is what keeps the bar clear of the gesture bar on
+   Android. The plain values come first on purpose: a declaration the browser
+   can't resolve is dropped whole, and if the env() ones were the only padding
+   a browser without them would fall back to the padding utilities instead of
+   none at all. */
+.share-bar {
+  padding-right: 1rem;
+  padding-bottom: 1rem;
+  padding-left: 1rem;
+  padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+}
+
+/* The bar covers the foot of the page while it is up, so the scrolling content
+   is given a matching strip of room to clear it. Set from the card while the
+   bar is shown (see components/passage-card.tsx). */
+html[data-floating-bar="on"] main {
+  padding-bottom: 7.5rem;
+}
+
 /* --- Native safe areas -------------------------------------------------- */
 /* In the Android shell the app is edge-to-edge (Android 15+ enforces it).
    The header itself absorbs the status bar inset (padding-top below), so its

@@ -1,4 +1,4 @@
-import type { Favorite } from "./favorites";
+import { selectionKey, type Favorite } from "./favorites";
 
 /**
  * The favorites backup file: RFC 4180 CSV with a header row.
@@ -6,6 +6,8 @@ import type { Favorite } from "./favorites";
  *   kind,book,chapter,passage,text,source,url
  *   scripture,1 Nephi,3,7,"And it came to pass that I, Nephi, said...",Book of Mormon,https://...
  *
+ * `passage` holds one verse (`7`), a run (`7-9`), or a scattered pick
+ * (`3,7-9`) when the favorite was saved from several verses taken together.
  * `kind`, `text`, `source` and `url` are extras: on import a bare
  * `book,chapter,passage` line is enough, and the text is looked up in the
  * bundled library.
@@ -24,29 +26,36 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 
 const quoteCell = (value: string) => (/[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
+/**
+ * The passage cell: one verse, "7-9" for a run, or "3,7-9" for a scattered
+ * pick, so any selection survives the export-and-import round trip.
+ */
+const passageCell = (favorite: Favorite): string => {
+  if (favorite.sections && favorite.sections.length > 1) return selectionKey(favorite.sections);
+  const start = favorite.section != null ? String(favorite.section) : "";
+  return favorite.sectionEnd != null && start !== "" ? `${start}-${favorite.sectionEnd}` : start;
+};
+
 /** Pull a citation out of a favorite, for favorites saved before the parts existed. */
 export function citationOf(favorite: Favorite): { book: string; chapter: string; passage: string } {
+  const passage = passageCell(favorite);
   // Saved with citation parts: use them as-is.
   if (favorite.book !== undefined) {
-    return {
-      book: favorite.book,
-      chapter: favorite.chapter ?? "",
-      passage: favorite.section != null ? String(favorite.section) : "",
-    };
+    return { book: favorite.book, chapter: favorite.chapter ?? "", passage };
   }
   // Older favorites only carry the reference, so read the parts out of it.
   if (favorite.kind === "conference") {
     return {
       book: favorite.book ?? "General Conference",
       chapter: favorite.chapter ?? favorite.reference.replace(/^[“"]|[”"]$/g, ""),
-      passage: favorite.section != null ? String(favorite.section) : "",
+      passage,
     };
   }
   const match = /^(.*?)\s(\d+):(\d+)$/.exec(favorite.reference);
   if (match) {
-    return { book: favorite.book ?? match[1], chapter: favorite.chapter ?? match[2], passage: String(favorite.section ?? match[3]) };
+    return { book: favorite.book ?? match[1], chapter: favorite.chapter ?? match[2], passage: passage || match[3] };
   }
-  return { book: favorite.book ?? favorite.reference, chapter: favorite.chapter ?? "", passage: favorite.section != null ? String(favorite.section) : "" };
+  return { book: favorite.book ?? favorite.reference, chapter: favorite.chapter ?? "", passage };
 }
 
 export function favoritesToCsv(favorites: Favorite[]): string {
@@ -145,7 +154,8 @@ export interface CandidateRow {
   kind?: "scripture" | "conference";
   book: string;
   chapter: string;
-  section: number | null;
+  /** The verse/paragraph numbers the row covers, in order (empty when none). */
+  sections: number[];
   text: string;
   source: string;
   url: string;
@@ -154,6 +164,33 @@ export interface CandidateRow {
 export interface ReadResult {
   rows: CandidateRow[];
   errors: { line: number; reason: string }[];
+}
+
+/**
+ * The verse/paragraph numbers a passage cell names, in order: "7" is one,
+ * "7-9" expands to a run, and "3,7-9" mixes a single with a run. Null when the
+ * cell can't be read as numbers at all.
+ */
+export function parseSections(value: string): number[] | null {
+  const text = value.trim();
+  if (!text) return null;
+  const numbers: number[] = [];
+  for (const chunk of text.split(",")) {
+    const piece = chunk.trim();
+    const match = /^(\d+)\s*(?:[-\u2013\u2014]\s*(\d+))?$/.exec(piece);
+    if (!match) return null;
+    const start = Number.parseInt(match[1], 10);
+    if (!Number.isInteger(start) || start < 1) return null;
+    if (match[2]) {
+      const end = Number.parseInt(match[2], 10);
+      if (!Number.isInteger(end) || end < start) return null;
+      for (let n = start; n <= end; n += 1) numbers.push(n);
+    } else {
+      numbers.push(start);
+    }
+  }
+  if (!numbers.length) return null;
+  return [...new Set(numbers)].sort((a, b) => a - b);
 }
 
 /** Read a favorites file into candidate rows, reporting every row it can't use. */
@@ -202,14 +239,16 @@ export function readFavoritesCsv(text: string): ReadResult {
       continue;
     }
 
-    let section: number | null = null;
+    // "7" for one verse, "7-9" for a run, "3,7-9" for a scattered pick (an en
+    // dash, which a spreadsheet may have substituted, is read the same way).
+    let sections: number[] = [];
     if (passageRaw !== "") {
-      const parsedSection = Number.parseInt(passageRaw, 10);
-      if (!Number.isInteger(parsedSection) || parsedSection < 1) {
+      const parsed = parseSections(passageRaw);
+      if (!parsed) {
         errors.push({ line: row.line, reason: `“${passageRaw}” is not a passage number` });
         continue;
       }
-      section = parsedSection;
+      sections = parsed;
     }
 
     rows.push({
@@ -217,7 +256,7 @@ export function readFavoritesCsv(text: string): ReadResult {
       kind: kindRaw === "conference" ? "conference" : kindRaw === "scripture" ? "scripture" : undefined,
       book,
       chapter,
-      section,
+      sections,
       text: value(columns.text),
       source: value(columns.source),
       url: value(columns.url),

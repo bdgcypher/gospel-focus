@@ -177,8 +177,16 @@ export interface ShareImage {
   base64: string;
 }
 
-/** Render the card to a PNG at a shareable size, in the active theme. */
-export async function buildShareImage(card: ShareCard): Promise<ShareImage> {
+/**
+ * How tall one page may get before the next verse starts another. The card is
+ * 1080 wide, so this is a phone-screen-shaped page: still readable once a chat
+ * app fits it to the screen, where a whole chapter's worth (11,000px and up)
+ * would arrive as a sliver.
+ */
+export const PAGE_HEIGHT = 2400;
+
+/** Render one card to a PNG at a shareable size, in the active theme. */
+async function renderCard(card: ShareCard): Promise<ShareImage> {
   const probe = document.createElement("canvas").getContext("2d");
   if (!probe) throw new Error("Canvas is not available.");
 
@@ -232,6 +240,59 @@ export async function buildShareImage(card: ShareCard): Promise<ShareImage> {
   return { blob, dataUrl, base64: dataUrl.slice(dataUrl.indexOf(",") + 1) };
 }
 
+/**
+ * Pack a card's lines into pages, greedily: each page takes as many verses as
+ * fit under the height budget. A single verse taller than a whole page still
+ * gets one to itself — a verse is not split across images.
+ */
+function paginate(ctx: CanvasRenderingContext2D, card: ShareCard, palette: Palette): ShareCard["lines"][] {
+  const pages: ShareCard["lines"][] = [];
+  let page: ShareCard["lines"] = [];
+
+  for (const line of card.lines) {
+    if (page.length > 0) {
+      const candidate = [...page, line];
+      if (layout(ctx, { ...card, lines: candidate }, palette).height > PAGE_HEIGHT) {
+        pages.push(page);
+        page = [line];
+        continue;
+      }
+      page = candidate;
+      continue;
+    }
+    page = [line];
+  }
+  if (page.length) pages.push(page);
+  return pages.length ? pages : [[]];
+}
+
+/** The page's own card: the same heading and footer, with its place in the set. */
+function pageCard(card: ShareCard, lines: ShareCard["lines"], index: number, count: number): ShareCard {
+  return count > 1
+    ? { ...card, lines, footer: `${card.footer} · ${index + 1} of ${count}` }
+    : { ...card, lines };
+}
+
+/**
+ * Render a card to one or more PNGs: a short selection is a single image, and a
+ * long one is paged into screenfuls so every image stays readable — and so a
+ * set can be shared as a whole or one image at a time.
+ */
+export async function buildShareImages(card: ShareCard): Promise<ShareImage[]> {
+  const probe = document.createElement("canvas").getContext("2d");
+  if (!probe) throw new Error("Canvas is not available.");
+
+  const palette = readPalette();
+  const pages = paginate(probe, card, palette);
+
+  // One at a time: a page is a few megapixels, and a long selection is several.
+  const images: ShareImage[] = [];
+  for (let i = 0; i < pages.length; i += 1) {
+    images.push(await renderCard(pageCard(card, pages[i], i, pages.length)));
+  }
+  return images;
+}
+
 const slug = (text: string) =>
   text
     .toLowerCase()
@@ -239,9 +300,13 @@ const slug = (text: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "passage";
 
-/** The suggested file name for a card, e.g. "1-nephi-3-7.png". */
-export function cardFileName(title: string): string {
-  return `${slug(title)}.png`;
+/**
+ * The suggested file name for one image, e.g. "1-nephi-3-7.png" — or
+ * "1-nephi-3-7-2.png" for the second of several pages.
+ */
+export function cardFileName(title: string, page = 1, pages = 1): string {
+  const base = slug(title);
+  return pages > 1 ? `${base}-${page}.png` : `${base}.png`;
 }
 
 /**

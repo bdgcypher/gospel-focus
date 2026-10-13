@@ -141,7 +141,9 @@ export function SettingsPage() {
           <BackLink />
         </div>
 
-        <div className="mt-8 max-w-2xl space-y-8">
+        {/* Full column width, like the rest of the app's cards: the sections
+            used to stop at max-w-2xl and left the right of the page empty. */}
+        <div className="mt-8 space-y-8">
           <section>
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
               Appearance
@@ -195,9 +197,9 @@ export function SettingsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Favorites</h2>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Storage</h2>
             <div className="rounded-3xl border border-border bg-surface p-5">
-              <p className="text-sm font-medium text-foreground">Favorites backup</p>
+              <p className="text-sm font-medium text-foreground">Favorites</p>
               <p className="mt-0.5 text-xs text-muted">
                 {favorites.length === 0
                   ? "Nothing saved yet."

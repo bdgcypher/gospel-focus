@@ -65,7 +65,9 @@ export function MenuPanel({ open, onClose }: Props) {
               <MenuLink
                 href="/favorites"
                 onClick={onClose}
-                icon={<StarIcon />}
+                // The star is only filled in once something is saved, so the
+                // menu itself says whether the shelf is empty.
+                icon={<StarIcon filled={favorites.length > 0} />}
                 label="Favorites"
                 hint={
                   favorites.length === 0
@@ -133,9 +135,17 @@ function CloseIcon() {
   );
 }
 
-function StarIcon() {
+function StarIcon({ filled }: { filled: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
     </svg>
   );
