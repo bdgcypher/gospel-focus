@@ -8,8 +8,11 @@ import { registerPlugin } from "@capacitor/core";
  * None of the web APIs these replace work in the Capacitor WebView: there is no
  * download manager behind `<a download>`, no Web Share API to hand a file to,
  * and `navigator.clipboard.write` can't put an image on the clipboard. So on
- * device every file goes through the plugins instead — the file is written into
- * the app cache and then handed to the system's own share sheet or picker.
+ * device every file goes through the platform instead.
+ *
+ * A share card goes to the system share sheet (that's the point of sharing
+ * one), while a favorites backup is simply saved into Downloads — see
+ * `downloadNativeFile` — since there is nothing to choose about a backup file.
  */
 
 /** Where a native action ended up, so the UI can say something true. */
@@ -30,6 +33,14 @@ export interface NativeFile {
 const ImageClipboard = registerPlugin<{ copyImage(options: { uri: string; mime: string }): Promise<void> }>(
   "ImageClipboard"
 );
+
+/**
+ * Saves a file into the device's Downloads folder
+ * (android/app/.../FileDownloadPlugin.java).
+ */
+const FileDownload = registerPlugin<{
+  save(options: { name: string; base64: string; mime: string }): Promise<{ name: string; location: string }>;
+}>("FileDownload");
 
 /** Base64 of a UTF-8 string, as Capacitor's file writer expects it. */
 export function textToBase64(text: string): string {
@@ -100,6 +111,25 @@ export async function shareNativeFile(
   } catch (error) {
     return isCancellation(error) ? "cancelled" : "unavailable";
   }
+}
+
+/**
+ * Save a file straight into the device's Downloads folder and report what it
+ * ended up being called. No share sheet is involved: Android writes the file
+ * itself (MediaStore from API 29 on, the public Downloads folder before that).
+ *
+ * Rejects when the save can't happen — the caller decides what to do then.
+ */
+export async function downloadNativeFile(file: NativeFile & { mime: string }): Promise<NativeDownload> {
+  return FileDownload.save({ name: file.name, base64: file.base64, mime: file.mime });
+}
+
+/** Where a downloaded file ended up, as the UI should say it. */
+export interface NativeDownload {
+  /** The name it was saved under, which differs if that name was taken. */
+  name: string;
+  /** The folder in shared storage, e.g. "Downloads". */
+  location: string;
 }
 
 /** Put an image on the system clipboard. False when it can't be done. */

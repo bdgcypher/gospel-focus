@@ -76,13 +76,22 @@ Passage links open in the **Gospel Library app** on Android (via its official
 iOS, and in a new tab on the web — see `lib/external.ts`.
 
 Files do not leave the app the way they do on the web. A WebView has no download
-manager, no Web Share API and no image clipboard, so on device a share card or a
-favourites backup is written into the app cache (`@capacitor/filesystem`) and
-handed to the **system share sheet** (`@capacitor/share`), which is also where
-*save to Files / Drive / mail* lives. Backups are read back through the native
-file picker (`@capawesome/capacitor-file-picker`), which returns the file's own
-bytes rather than depending on a `content://` URI reaching a file input. Copying
-a card to the clipboard uses a small local plugin
+manager, no Web Share API and no image clipboard, so on device:
+
+- A **share card** is written into the app cache (`@capacitor/filesystem`) and
+  handed to the **system share sheet** (`@capacitor/share`).
+- A **favorites backup** is saved straight into **Downloads**, with no sheet to
+  click through — on Android 10+ through MediaStore, which needs no permission,
+  and on Android 9 and older as a file in the public Downloads folder, which
+  asks for storage access once. Either way the file lands in the user's own
+  storage and shows up in the Files app. Should the save fail, the app falls
+  back to the share sheet so the backup can still get out
+  (`FileDownloadPlugin.java`).
+- Backups are read back through the native file picker
+  (`@capawesome/capacitor-file-picker`), which returns the file's own bytes
+  rather than depending on a `content://` URI reaching a file input.
+
+Copying a card to the clipboard uses a small local plugin
 (`ImageClipboardPlugin.java`) that puts the cached PNG on the clipboard as a
 `content://` URI. All of it lives in `lib/native-files.ts`, with the browser
 paths left untouched.

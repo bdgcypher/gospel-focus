@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         EdgeToEdge.enable(this);
         registerPlugin(OpenUrlPlugin.class);
         registerPlugin(ImageClipboardPlugin.class);
+        registerPlugin(FileDownloadPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
