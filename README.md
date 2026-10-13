@@ -75,6 +75,18 @@ Passage links open in the **Gospel Library app** on Android (via its official
 (`@capacitor/browser`) when the app isn't installed), in the in-app browser on
 iOS, and in a new tab on the web — see `lib/external.ts`.
 
+Files do not leave the app the way they do on the web. A WebView has no download
+manager, no Web Share API and no image clipboard, so on device a share card or a
+favourites backup is written into the app cache (`@capacitor/filesystem`) and
+handed to the **system share sheet** (`@capacitor/share`), which is also where
+*save to Files / Drive / mail* lives. Backups are read back through the native
+file picker (`@capawesome/capacitor-file-picker`), which returns the file's own
+bytes rather than depending on a `content://` URI reaching a file input. Copying
+a card to the clipboard uses a small local plugin
+(`ImageClipboardPlugin.java`) that puts the cached PNG on the clipboard as a
+`content://` URI. All of it lives in `lib/native-files.ts`, with the browser
+paths left untouched.
+
 Add native app icons and splash screens with
 [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets) using
 `app/icon.svg` as the source:
@@ -188,8 +200,9 @@ only fetched when a draw actually lands there.
 
 ```
 app/                 layout, theme provider, home route
-components/          UI: logo, theme toggle, filters, passage card, riffling animation
+components/          UI: logo, filters, passage card, riffling animation, settings
 lib/picker.ts        manifest + random-draw engine, Gospel Library URL builder
+lib/native-files.ts  native sharing / file picking (Capacitor plugins)
 lib/types.ts         shared types
 scripts/build-data.mjs   dataset generator
 public/data/         generated passage library

@@ -173,6 +173,8 @@ export interface ShareImage {
   blob: Blob;
   /** The same PNG as a data URL, so the preview needs no object-URL lifecycle. */
   dataUrl: string;
+  /** The same PNG as base64 bytes, the form the native file plugins take. */
+  base64: string;
 }
 
 /** Render the card to a PNG at a shareable size, in the active theme. */
@@ -225,7 +227,9 @@ export async function buildShareImage(card: ShareCard): Promise<ShareImage> {
       "image/png"
     );
   });
-  return { blob, dataUrl: canvas.toDataURL("image/png") };
+
+  const dataUrl = canvas.toDataURL("image/png");
+  return { blob, dataUrl, base64: dataUrl.slice(dataUrl.indexOf(",") + 1) };
 }
 
 const slug = (text: string) =>
@@ -240,26 +244,12 @@ export function cardFileName(title: string): string {
   return `${slug(title)}.png`;
 }
 
-/** Hand the image to the OS share sheet. */
-export async function shareImage(
-  blob: Blob,
-  fileName: string,
-  title: string
-): Promise<"shared" | "cancelled" | "unsupported"> {
-  const file = new File([blob], fileName, { type: "image/png" });
-  const nav = navigator as Navigator & { canShare?: (data?: ShareData) => boolean };
-  if (typeof nav.share !== "function" || !nav.canShare?.({ files: [file] })) return "unsupported";
-
-  try {
-    await nav.share({ files: [file], title, text: title });
-    return "shared";
-  } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError") return "cancelled";
-    return "unsupported";
-  }
-}
-
-/** Copy the image itself to the clipboard. False when the browser can't. */
+/**
+ * Copy the image itself to the clipboard. False when the browser can't.
+ * This is the web half only — on device the image goes through the native
+ * clipboard plugin (see lib/native-files.ts), which the WebView's own
+ * clipboard API can't reach.
+ */
 export async function copyImage(blob: Blob): Promise<boolean> {
   const ctor = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
   if (!ctor || !navigator.clipboard?.write) return false;
@@ -271,7 +261,7 @@ export async function copyImage(blob: Blob): Promise<boolean> {
   }
 }
 
-/** Save the image as a file. */
+/** Save the image as a file. Web only — a WebView has no download manager. */
 export function downloadImage(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
