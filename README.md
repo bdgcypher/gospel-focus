@@ -23,6 +23,28 @@ _**Open to Inspiration**_ pulls in passages from all LDS standard works and gene
 - **Page rifle animation** as the passage is selected, to capture that feeling of opening a physical book.
 - **Expand to the whole chapter** (or the full conference talk) with the selected
   verse highlighted and auto-scrolled into view.
+- **Share what you pick** — tap verses (or paragraphs) in the expanded view to
+  share just those. The drawn passage comes up already selected, so a quick pick
+  can't quietly drop it, and a floating bar follows you down the page — collapse
+  the chapter, open the passage in the Gospel Library, share the selection, or
+  save a picked set to favorites — so a long chapter never has to be scrolled
+  back through. It steps aside again whenever the chapter's own row of controls
+  (the same jobs, at the foot of the chapter) comes into view.
+- **Favorites, with a backup file.** Star the passage you're reading, or pick
+  several verses (or paragraphs) in the expanded chapter — in a row or
+  scattered — and save them as **one** favorite, from the card's own star, the
+  chapter's row of controls or the floating bar. Its reference names what it
+  holds (`1 Nephi 3:7-9`, or `1 Nephi 3:3, 7-9` when the pick is scattered),
+  and the favorites page shows each verse on its own numbered line, folding
+  past a few behind a *Show all* toggle. The backup CSV keeps the same shape in
+  its `passage` cell (`7-9` or `3,7-9`), so a round trip through the file
+  restores exactly what was saved. The menu's star fills in as soon as anything
+  is saved.
+- **Long selections come out as a set of images.** A card is paged up to about a
+  screenful each (1080 × ≤2400 px), so a chapter's worth of verses stays
+  readable instead of arriving as a 1:11 sliver. The share dialog previews each
+  image, and the set can be shared or saved whole — the sheet takes every image
+  in one go — or one image at a time.
 - **Gospel Library deep link** for every passage, built from the official
   `churchofjesuschrist.org/study/...` URL scheme — on Android the link opens
   directly **in the Gospel Library app** when it's installed.

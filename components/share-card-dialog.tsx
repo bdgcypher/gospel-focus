@@ -4,9 +4,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { isNative } from "@/lib/external";
-import { copyNativeImage, shareNativeFile } from "@/lib/native-files";
+import { copyNativeImage, shareNativeFiles } from "@/lib/native-files";
+import { ShareIcon } from "./share-icon";
 import {
-  buildShareImage,
+  buildShareImages,
   cardFileName,
   copyImage,
   downloadImage,
@@ -20,11 +21,19 @@ interface Props {
   onClose: () => void;
 }
 
-/** The rendered image plus the card it was rendered from, so a preview is never
- *  shown next to a selection it doesn't match. */
+/**
+ * How far apart the whole-set downloads are fired. Browsers drop downloads that
+ * arrive in the same tick — a twelve-image set saved only the first ten — so
+ * they go out one every 200ms, well inside what a click's user activation and
+ * the download manager can take in turn.
+ */
+const DOWNLOAD_GAP_MS = 200;
+
+/** The rendered images plus the card they were rendered from, so a preview is
+ *  never shown next to a selection it doesn't match. */
 interface Rendered {
   key: string;
-  image: ShareImage;
+  images: ShareImage[];
 }
 
 export function ShareCardDialog({ open, card, onClose }: Props) {
@@ -32,20 +41,24 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Which image the preview (and the single-image actions) are pointed at. */
+  const [page, setPage] = useState(0);
   const native = isNative();
 
   const cardKey = JSON.stringify(card);
 
-  // Render whenever the dialog opens or the selection changes. The state lands
-  // in a promise callback (never synchronously in the effect body), and the
-  // preview below simply isn't shown until the render matches the current card.
+  // Render whenever the dialog opens or the selection changes. A long selection
+  // comes back as several pages. The state lands in a promise callback (never
+  // synchronously in the effect body), and the preview below simply isn't shown
+  // until the render matches the current card.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    buildShareImage(card)
-      .then((image) => {
+    buildShareImages(card)
+      .then((images) => {
         if (!cancelled) {
-          setRendered({ key: cardKey, image });
+          setRendered({ key: cardKey, images });
+          setPage(0);
           setError(null);
         }
       })
@@ -66,22 +79,31 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const image = rendered && rendered.key === cardKey ? rendered.image : null;
-  const fileName = cardFileName(card.title);
+  const images = rendered && rendered.key === cardKey ? rendered.images : null;
+  const pages = images?.length ?? 0;
+  const current = Math.min(page, Math.max(pages - 1, 0));
+  const image = images?.[current] ?? null;
+  /** Every image of the set, named in order, for the whole-set actions. */
+  const files = () =>
+    (images ?? []).map((each, i) => ({ name: cardFileName(card.title, i + 1, pages), base64: each.base64 }));
+  const fileName = cardFileName(card.title, current + 1, pages);
+  const many = pages > 1;
 
-  // On device the image is written to the app cache and handed to the system
-  // share sheet, which is also how it reaches the user's own storage (Files,
+  // On device the images are written to the app cache and handed to the system
+  // share sheet, which is also how they reach the user's own storage (Files,
   // Drive, Photos…). The browser half of each action stays as it was.
-  const onShare = async () => {
-    if (!image) return;
+  const onShare = async (which: "all" | "one") => {
+    if (!images || !image) return;
     setBusy(true);
-    const outcome = await shareNativeFile(
-      { name: fileName, base64: image.base64 },
-      { title: card.title, dialogTitle: "Share passage" }
-    );
+    const outcome = await shareNativeFiles(which === "all" ? files() : [{ name: fileName, base64: image.base64 }], {
+      title: card.title,
+      dialogTitle: "Share passage",
+    });
     setStatus(
       outcome === "done"
-        ? "Shared."
+        ? which === "all" && many
+          ? `Shared ${pages} images.`
+          : "Shared."
         : outcome === "cancelled"
           ? null
           : "Sharing isn't available on this device — try Copy image instead."
@@ -105,10 +127,20 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
     setBusy(false);
   };
 
-  const onDownload = () => {
-    if (!image) return;
-    downloadImage(image.blob, fileName);
-    setStatus("Saved the image.");
+  const onDownload = (which: "all" | "one") => {
+    if (!images || !image) return;
+    if (which === "all") {
+      // Spaced out: see DOWNLOAD_GAP_MS. The status still reports the whole
+      // set, because every one of them has been handed to the browser by then.
+      images.forEach((each, i) => {
+        const name = cardFileName(card.title, i + 1, pages);
+        if (i === 0) downloadImage(each.blob, name);
+        else window.setTimeout(() => downloadImage(each.blob, name), i * DOWNLOAD_GAP_MS);
+      });
+    } else {
+      downloadImage(image.blob, fileName);
+    }
+    setStatus(which === "all" && many ? `Saved ${pages} images.` : "Saved the image.");
   };
 
   // The card lives inside an animated, overflow-hidden article; a portal keeps
@@ -167,16 +199,45 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
                 )}
               </div>
 
+              {/* A long selection comes back as a set: the strip picks which
+                  image to look at, and which one the single-image actions act
+                  on. */}
+              {many && images && (
+                <>
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                    {images.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setPage(i)}
+                        aria-pressed={i === current}
+                        aria-label={`Show image ${i + 1} of ${pages}`}
+                        className={`h-8 min-w-8 rounded-full border px-2.5 text-xs font-semibold tabular-nums transition-colors ${
+                          i === current
+                            ? "border-accent/60 bg-accent/15 text-accent-strong"
+                            : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-center text-xs text-muted">
+                    Image {current + 1} of {pages}
+                  </p>
+                </>
+              )}
+
               <div className="mt-4 flex flex-col gap-2.5">
                 {native && (
                   <button
                     type="button"
-                    onClick={() => void onShare()}
+                    onClick={() => void onShare("all")}
                     disabled={!image || busy}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ShareIcon />
-                    Share…
+                    {many ? `Share all ${pages} images` : "Share…"}
                   </button>
                 )}
 
@@ -199,12 +260,25 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
                 {!native && (
                   <button
                     type="button"
-                    onClick={onDownload}
+                    onClick={() => onDownload("all")}
                     disabled={!image}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <DownloadIcon />
-                    Download PNG
+                    {many ? `Download all ${pages} images` : "Download PNG"}
+                  </button>
+                )}
+
+                {/* The set is the default, so one image at a time is the
+                    quieter, secondary choice. */}
+                {many && (
+                  <button
+                    type="button"
+                    onClick={() => (native ? void onShare("one") : onDownload("one"))}
+                    disabled={!image || busy}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-accent-strong transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {native ? "Share just this image" : "Download just this image"}
                   </button>
                 )}
               </div>
@@ -223,15 +297,6 @@ function CloseIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 15V4m0 0L8 8m4-4 4 4" />
-      <path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" />
     </svg>
   );
 }

@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
 import { isNative, openExternal } from "@/lib/external";
-import { clearFavorites, removeFavorite, useFavorites } from "@/lib/favorites";
+import { clearFavorites, removeFavorite, useFavorites, type Favorite } from "@/lib/favorites";
+
+/** How many verses a card shows before it offers to expand. */
+const COLLAPSE_AFTER = 3;
 
 export function FavoritesPage() {
   const favorites = useFavorites();
@@ -47,52 +51,7 @@ export function FavoritesPage() {
           <>
             <ul className="grid gap-3 sm:grid-cols-2">
               {favorites.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex flex-col rounded-3xl border border-border bg-surface p-5 shadow-[0_20px_50px_-40px_rgba(0,0,0,0.7)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="font-serif text-lg font-semibold text-accent-strong">
-                        {f.reference}
-                      </h2>
-                      <p className="mt-0.5 text-xs text-muted">{f.sourceLabel}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFavorite(f.id)}
-                      aria-label={`Remove ${f.reference} from favorites`}
-                      title="Remove from favorites"
-                      className="-mr-1 -mt-1 shrink-0 rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
-                    >
-                      <TrashIcon />
-                    </button>
-                  </div>
-
-                  <blockquote className="mt-3 flex-1 border-l-2 border-accent/40 pl-3">
-                    <p className="font-serif text-[0.98rem] leading-relaxed text-foreground/85">
-                      {f.text}
-                    </p>
-                  </blockquote>
-
-                  {f.url && (
-                    <a
-                      href={f.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (isNative()) {
-                          e.preventDefault();
-                          void openExternal(f.url);
-                        }
-                      }}
-                      className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
-                    >
-                      <LinkIcon />
-                      {f.urlLabel}
-                    </a>
-                  )}
-                </li>
+                <FavoriteCard key={f.id} favorite={f} />
               ))}
             </ul>
 
@@ -110,6 +69,87 @@ export function FavoritesPage() {
         )}
       </main>
     </AppShell>
+  );
+}
+
+/**
+ * One saved favorite. A multi-verse favorite shows each verse on its own line,
+ * labelled like the share preview; once it runs past a few, only the first few
+ * are shown and the rest wait behind an expand toggle.
+ */
+function FavoriteCard({ favorite }: { favorite: Favorite }) {
+  const [expanded, setExpanded] = useState(false);
+  const parts = favorite.parts ?? [];
+  const multi = parts.length > 1;
+  const collapsible = parts.length > COLLAPSE_AFTER;
+  const shown = collapsible && !expanded ? parts.slice(0, COLLAPSE_AFTER) : parts;
+  const unit = favorite.kind === "scripture" ? "verse" : "paragraph";
+
+  return (
+    <li className="flex flex-col rounded-3xl border border-border bg-surface p-5 shadow-[0_20px_50px_-40px_rgba(0,0,0,0.7)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-serif text-lg font-semibold text-accent-strong">{favorite.reference}</h2>
+          <p className="mt-0.5 text-xs text-muted">{favorite.sourceLabel}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => removeFavorite(favorite.id)}
+          aria-label={`Remove ${favorite.reference} from favorites`}
+          title="Remove from favorites"
+          className="-mr-1 -mt-1 shrink-0 rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+        >
+          <TrashIcon />
+        </button>
+      </div>
+
+      <blockquote className="mt-3 flex-1 border-l-2 border-accent/40 pl-3">
+        {multi ? (
+          <div className="space-y-2">
+            {shown.map((part) => (
+              <p key={part.number} className="flex gap-2 font-serif text-[0.98rem] leading-relaxed text-foreground/85">
+                <span className="mt-0.5 w-5 shrink-0 select-none text-xs font-semibold tabular-nums text-accent-strong">
+                  {favorite.kind === "scripture" ? part.number : `\u00b6${part.number}`}
+                </span>
+                <span>{part.text}</span>
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="font-serif text-[0.98rem] leading-relaxed text-foreground/85">
+            {favorite.text}
+          </p>
+        )}
+      </blockquote>
+
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-3 self-start text-xs font-medium text-accent-strong hover:underline"
+        >
+          {expanded ? "Show less" : `Show all ${parts.length} ${unit}s`}
+        </button>
+      )}
+
+      {favorite.url && (
+        <a
+          href={favorite.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            if (isNative()) {
+              e.preventDefault();
+              void openExternal(favorite.url);
+            }
+          }}
+          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
+        >
+          <LinkIcon />
+          {favorite.urlLabel}
+        </a>
+      )}
+    </li>
   );
 }
 

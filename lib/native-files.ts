@@ -88,29 +88,39 @@ async function writeCacheFile({ name, base64 }: NativeFile): Promise<string> {
  * mail live, so the file lands wherever the user wants it — and the cache file
  * it points at is covered by the app's FileProvider.
  */
-export async function shareNativeFile(
-  file: NativeFile,
+export async function shareNativeFiles(
+  files: NativeFile[],
   options: { title: string; text?: string; dialogTitle: string }
 ): Promise<NativeOutcome> {
-  let uri: string;
+  let uris: string[];
   try {
-    uri = await writeCacheFile(file);
+    uris = await Promise.all(files.map((file) => writeCacheFile(file)));
   } catch {
     return "unavailable";
   }
 
   try {
     const { Share } = await import("@capacitor/share");
+    // The sheet takes the whole set at once, so a paged share arrives as one
+    // batch rather than one sheet per image.
     await Share.share({
       title: options.title,
       text: options.text,
-      files: [uri],
+      files: uris,
       dialogTitle: options.dialogTitle,
     });
     return "done";
   } catch (error) {
     return isCancellation(error) ? "cancelled" : "unavailable";
   }
+}
+
+/** The single-file form of the above, for callers that have exactly one file. */
+export async function shareNativeFile(
+  file: NativeFile,
+  options: { title: string; text?: string; dialogTitle: string }
+): Promise<NativeOutcome> {
+  return shareNativeFiles([file], options);
 }
 
 /**

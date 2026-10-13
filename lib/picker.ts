@@ -244,7 +244,7 @@ function buildConferencePassage(
     sourceLabel: "General Conference",
     text: talk.paragraphs[paragraph],
     url: talk.url,
-    urlLabel: "Read the full talk",
+    urlLabel: "Open in Gospel Library",
     expansionTitle: `“${talk.title}”`,
     expansionSubtitle: [speakerLine, conference.label].filter(Boolean).join(" · "),
     verses,
