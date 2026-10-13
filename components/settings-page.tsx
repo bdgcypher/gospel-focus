@@ -10,6 +10,7 @@ import { clearFavorites, useFavorites } from "@/lib/favorites";
 import { exportFavoritesFile, importFavoritesText, type ImportReport } from "@/lib/favorites-io";
 import {
   FAVORITES_FILE_TYPES,
+  downloadNativeFile,
   pickNativeTextFile,
   shareNativeFile,
   textToBase64,
@@ -46,18 +47,28 @@ export function SettingsPage() {
     setStatus(null);
 
     if (native) {
-      // The WebView can't download, so the backup leaves through the share
-      // sheet, which is also where "save to Files/Drive" lives.
-      const outcome = await shareNativeFile(
-        { name, base64: textToBase64(text) },
-        { title: "Favorites backup", dialogTitle: "Save favorites backup" }
-      );
+      const file = { name, mime, base64: textToBase64(text) };
+      try {
+        // The WebView can't download, so the platform saves the file into
+        // Downloads itself — no chooser, which is what a backup wants.
+        const saved = await downloadNativeFile(file);
+        setStatus(`Saved to ${saved.location}/${saved.name}.`);
+        return;
+      } catch {
+        // Refused storage permission on an older Android, or no Downloads
+        // folder to write to. The share sheet is the only other way off the
+        // device, so fall back to it instead of failing flat.
+      }
+      const outcome = await shareNativeFile(file, {
+        title: "Favorites backup",
+        dialogTitle: "Save favorites backup",
+      });
       setStatus(
         outcome === "done"
-          ? "Backup saved or sent."
+          ? "Saved or sent through the share sheet."
           : outcome === "cancelled"
             ? null
-            : "Couldn't open the share sheet — nothing was exported."
+            : "Couldn't save the backup file — nothing was exported."
       );
       return;
     }

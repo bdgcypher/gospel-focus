@@ -32,4 +32,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Saving a favorites backup into Downloads needs shared storage on
+         Android 9 and older; from API 29 on MediaStore writes it without any
+         permission, so this is capped to where it is actually needed. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 </manifest>
