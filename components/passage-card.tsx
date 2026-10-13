@@ -1,9 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Passage } from "@/lib/types";
 import { isNative, openExternal } from "@/lib/external";
+import { ShareCardDialog } from "./share-card-dialog";
+import { favoriteId, toggleFavorite, useFavorites } from "@/lib/favorites";
+import { usePreferences } from "@/lib/preferences";
+import type { ShareCard } from "@/lib/share-image";
 
 interface Props {
   passage: Passage;
@@ -13,8 +17,17 @@ interface Props {
 
 export function PassageCard({ passage, drawKey }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const highlightRef = useRef<HTMLParagraphElement | null>(null);
+  /** Verse/paragraph numbers picked to share while the chapter is open. */
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [shareOpen, setShareOpen] = useState(false);
+  const highlightRef = useRef<HTMLButtonElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const favorites = useFavorites();
+  const prefs = usePreferences();
+  const saved = useMemo(() => favorites.some((f) => f.id === favoriteId(passage)), [favorites, passage]);
+
+  const isScripture = passage.kind === "scripture";
 
   useEffect(() => {
     if (expanded && highlightRef.current) {
@@ -27,7 +40,59 @@ export function PassageCard({ passage, drawKey }: Props) {
     }
   }, [expanded]);
 
-  const isScripture = passage.kind === "scripture";
+  const toggleExpanded = () => {
+    setExpanded((v) => {
+      // A collapsed card shares only the passage itself, so a stale selection
+      // would be a surprise the next time the chapter opens.
+      if (v) setSelected(new Set());
+      return !v;
+    });
+  };
+
+  const toggleSelected = (number: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(number)) next.delete(number);
+      else next.add(number);
+      return next;
+    });
+  };
+
+  /** Collapsed, share just the drawn passage; expanded, share whatever is
+   *  selected — falling back to the drawn passage when nothing is picked. */
+  const shareSpec = useMemo<ShareCard>(() => {
+    const lines =
+      expanded && selected.size > 0
+        ? passage.verses
+            .filter((v) => selected.has(v.number))
+            .map((v) => ({
+              label: isScripture ? String(v.number) : undefined,
+              text: v.text,
+            }))
+        : [
+            {
+              label: isScripture && passage.highlightVerse ? String(passage.highlightVerse) : undefined,
+              text: passage.text,
+            },
+          ];
+
+    return {
+      title: passage.reference,
+      // The volume (or the speaker and conference) — deliberately without the
+      // chapter's verse count, which says nothing about the words shared.
+      subtitle:
+        passage.kind === "conference"
+          ? passage.expansionSubtitle ?? passage.sourceLabel
+          : passage.sourceLabel,
+      lines,
+      footer: "Open to Inspiration",
+    };
+  }, [expanded, selected, passage, isScripture]);
+
+  const shareLabel =
+    expanded && selected.size > 0
+      ? `Share ${selected.size} ${selected.size === 1 ? "verse" : "verses"}`
+      : "Share image";
 
   return (
     <motion.article
@@ -35,8 +100,9 @@ export function PassageCard({ passage, drawKey }: Props) {
       // Rises into place as the landed page settles away, rather than morphing
       // out of it: travelling between the page and the card means scaling the
       // card, which stretched the passage text on the way. Fading up with a
-      // short drift keeps every glyph at its final size.
-      initial={{ opacity: 0, y: 24 }}
+      // short drift keeps every glyph at its final size — and with reduced
+      // motion the card is simply there, already at rest.
+      initial={prefs.reduceMotion ? false : { opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 200, damping: 26, mass: 0.9 }}
       className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-[0_24px_70px_-40px_rgba(0,0,0,0.6)]"
@@ -44,15 +110,32 @@ export function PassageCard({ passage, drawKey }: Props) {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
 
       <div className="p-6 sm:p-8">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {passage.chips.map((chip) => (
-            <span
-              key={chip}
-              className="rounded-full border border-border bg-surface-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted"
-            >
-              {chip}
-            </span>
-          ))}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {passage.chips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-border bg-surface-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => toggleFavorite(passage)}
+            aria-pressed={saved}
+            aria-label={saved ? "Remove from favorites" : "Save to favorites"}
+            title={saved ? "Remove from favorites" : "Save to favorites"}
+            className={`-mr-1 -mt-1 shrink-0 rounded-full border p-2 transition-colors ${
+              saved
+                ? "border-accent/50 bg-accent/15 text-accent-strong"
+                : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
+            }`}
+          >
+            <StarIcon filled={saved} />
+          </button>
         </div>
 
         <h2 className="font-serif text-xl font-semibold text-accent-strong sm:text-2xl">
@@ -66,15 +149,26 @@ export function PassageCard({ passage, drawKey }: Props) {
         </blockquote>
 
         <div className="mt-6 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            className="inline-flex items-center gap-2 self-start rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
-          >
-            {expanded ? <CollapseIcon /> : <BookIcon />}
-            {expanded ? "Collapse" : "Read more"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleExpanded}
+              aria-expanded={expanded}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+            >
+              {expanded ? <CollapseIcon /> : <BookIcon />}
+              {expanded ? "Collapse" : "Read more"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+            >
+              <ShareIcon />
+              {shareLabel}
+            </button>
+          </div>
 
           <a
             href={passage.url}
@@ -111,48 +205,149 @@ export function PassageCard({ passage, drawKey }: Props) {
                 <p className="mt-1 text-sm text-muted">{passage.expansionSubtitle}</p>
               )}
 
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted">
+                  Tap verses to select
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set(passage.verses.map((v) => v.number)))}
+                  className="text-xs font-medium text-accent-strong hover:underline"
+                >
+                  Select all
+                </button>
+                {selected.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    className="text-xs font-medium text-accent-strong hover:underline"
+                  >
+                    Clear ({selected.size})
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-3 space-y-3">
                 {passage.verses.map((v) => {
                   const active = passage.highlightVerse === v.number;
+                  const picked = selected.has(v.number);
                   return (
-                    <p
+                    <button
+                      type="button"
                       key={v.number}
                       ref={active ? highlightRef : undefined}
-                      className={`flex gap-3 rounded-lg px-2 py-1 font-serif text-[1.02rem] leading-relaxed transition-colors ${
-                        active
-                          ? "bg-accent/15 text-foreground ring-1 ring-accent/40"
-                          : "text-foreground/80"
+                      onClick={() => toggleSelected(v.number)}
+                      aria-pressed={picked}
+                      className={`flex w-full gap-3 rounded-lg px-2 py-1 text-left font-serif text-[1.02rem] leading-relaxed transition-colors ${
+                        picked
+                          ? "bg-accent/20 text-foreground ring-1 ring-accent/60"
+                          : active
+                            ? "bg-accent/15 text-foreground ring-1 ring-accent/40"
+                            : "text-foreground/80 hover:bg-accent/5"
                       }`}
                     >
-                      <span className="mt-0.5 shrink-0 select-none text-xs font-semibold tabular-nums text-accent-strong">
+                      <span
+                        className={`mt-1.5 shrink-0 ${
+                          picked ? "text-accent-strong" : "text-muted/60"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {picked ? <CheckCircleIcon /> : <CircleIcon />}
+                      </span>
+                      <span className="mt-0.5 w-5 shrink-0 select-none text-xs font-semibold tabular-nums text-accent-strong">
                         {isScripture ? v.number : ""}
                       </span>
                       <span>{v.text}</span>
-                    </p>
+                    </button>
                   );
                 })}
               </div>
 
-              <a
-                href={passage.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  if (isNative()) {
-                    e.preventDefault();
-                    void openExternal(passage.url);
-                  }
-                }}
-                className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
-              >
-                <LinkIcon />
-                Continue in the Gospel Library
-              </a>
+              <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <a
+                  href={passage.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    if (isNative()) {
+                      e.preventDefault();
+                      void openExternal(passage.url);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
+                >
+                  <LinkIcon />
+                  Continue in the Gospel Library
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(true)}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
+                >
+                  <ShareIcon />
+                  {selected.size > 0 ? `Share ${selected.size} selected` : "Share this passage"}
+                </button>
+              </div>
             </div>
           </motion.section>
         )}
       </AnimatePresence>
+
+      {/* Portalled to the body (see the dialog) so the card's own transform and
+          overflow can never clip or offset it. */}
+      <ShareCardDialog open={shareOpen} card={shareSpec} onClose={() => setShareOpen(false)} />
     </motion.article>
+  );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 15V4m0 0L8 8m4-4 4 4" />
+      <path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" />
+    </svg>
+  );
+}
+
+function CircleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="12" cy="12" r="8.5" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12.2 2.4 2.4 4.6-4.9" />
+    </svg>
   );
 }
 

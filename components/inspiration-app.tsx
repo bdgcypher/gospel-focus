@@ -2,12 +2,13 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ThemeToggle } from "./theme-toggle";
 import { OpenBookLogo } from "./logo";
 import { FilterPanel } from "./filter-panel";
 import { RifflingPages } from "./riffling-pages";
 import { PassageCard } from "./passage-card";
+import { AppShell } from "./app-shell";
 import { NoSourcesError, loadManifest, pickPassage, summarize } from "@/lib/picker";
+import { usePreferences } from "@/lib/preferences";
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
@@ -49,6 +50,9 @@ export function InspirationApp() {
   const [error, setError] = useState<string | null>(null);
   /** null until the Filters button is used: until then the layout decides. */
   const [showFilters, setShowFilters] = useState<boolean | null>(null);
+  /** Feeding back that a reduced-motion draw is in flight, without the book. */
+  const [loading, setLoading] = useState(false);
+  const prefs = usePreferences();
   const riflingRef = useRef(false);
 
   // On tablets and desktops the filters are a sidebar beside the book, open by
@@ -72,16 +76,32 @@ export function InspirationApp() {
   const draw = useCallback(async () => {
     if (!manifest || riflingRef.current) return;
     riflingRef.current = true;
-    setPhase("rifling");
-    setLandedPassage(null);
+    // With reduced motion the book is never mounted at all — not even for the
+    // moment the draw takes to resolve.
+    const skipRiffle = prefs.reduceMotion;
     setError(null);
     // On a phone the filter panel sits above the book, so close it to give the
     // riffle the full width; the sidebar leaves the book alone.
     if (!wide) setShowFilters(false);
 
+    if (skipRiffle) {
+      setLoading(true);
+    } else {
+      setPhase("rifling");
+      setLandedPassage(null);
+    }
+
     const started = performance.now();
     try {
       const next = await pickPassage(manifest, filters);
+      if (skipRiffle) {
+        // Straight onto the passage: no riffle, no settle, no landing page.
+        setLandedPassage(next);
+        setPassage(next);
+        setDrawKey((k) => k + 1);
+        setPhase("result");
+        return;
+      }
       const untilLand = RIFFLE_MS - (performance.now() - started);
       if (untilLand > 0) await sleep(untilLand);
       setLandedPassage(next);
@@ -100,9 +120,10 @@ export function InspirationApp() {
       setError(message);
       setPhase(passage ? "result" : "idle");
     } finally {
+      if (skipRiffle) setLoading(false);
       riflingRef.current = false;
     }
-  }, [manifest, filters, passage, wide]);
+  }, [manifest, filters, passage, wide, prefs.reduceMotion]);
 
   // Space / Enter draws another passage when the app is focused on the page body.
   useEffect(() => {
@@ -118,24 +139,7 @@ export function InspirationApp() {
   }, [draw]);
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:max-w-5xl sm:px-6">
-          <span className="text-accent-strong">
-            <OpenBookLogo className="h-8 w-8" />
-          </span>
-          <div className="flex-1">
-            <h1 className="font-serif text-lg font-semibold leading-tight text-foreground sm:text-xl">
-              Open to Inspiration
-            </h1>
-            <p className="hidden text-xs text-muted sm:block">
-              Random passages from the Scriptures &amp; General Conference
-            </p>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
-
+    <AppShell>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
         {loadError ? (
           <div className="rounded-3xl border border-border bg-surface p-6 text-sm text-foreground">
@@ -187,9 +191,8 @@ export function InspirationApp() {
 
             <div className="min-w-0 flex-1 md:flex md:flex-col">
               <section className="text-center sm:text-left">
-                {/* Shrink-wrapped to the line above, so the button below can
-                    match its width exactly. */}
-                <div className="mx-auto w-full sm:mx-0 sm:w-fit">
+                {/* The full column width, so the draw button below spans it. */}
+                <div className="mx-auto w-full">
                   <p className="font-serif text-sm italic text-muted">
                     Find inspiration from the Lord&apos;s words.
                   </p>
@@ -198,15 +201,14 @@ export function InspirationApp() {
                     <button
                       type="button"
                       onClick={() => void draw()}
-                      disabled={!manifest || phase === "rifling" || nothingSelected}
-                      // Full width on phones, and from there on as wide as the
-                      // line above it.
+                      disabled={!manifest || phase === "rifling" || loading || nothingSelected}
+                      // Full width at every size.
                       className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="text-accent-contrast">
                         <OpenBookLogo className="h-5 w-5" />
                       </span>
-                      {phase === "rifling" ? "Opening…" : "New passage"}
+                      {phase === "rifling" || loading ? "Opening…" : "New passage"}
                     </button>
 
                     {/* Stays put whatever the layout: it carries the passage
@@ -325,13 +327,6 @@ export function InspirationApp() {
           </div>
         )}
       </main>
-
-      <footer className="border-t border-border/70 px-4 py-5 text-center text-xs text-muted sm:px-6">
-        <p>
-          Scripture text is public domain; passages link to the Church&apos;s Gospel Library. This app is not
-          sponsored by or affiliated with The Church of Jesus Christ of Latter-day Saints.
-        </p>
-      </footer>
-    </div>
+    </AppShell>
   );
 }

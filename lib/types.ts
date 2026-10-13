@@ -75,4 +75,10 @@ export interface Passage {
   highlightVerse: number | null;
   /** Small chips shown on the card */
   chips: string[];
+  /** Where this sits: the book name ("1 Nephi", or "General Conference"). */
+  book?: string;
+  /** Chapter number, or the talk title for conference. */
+  chapter?: string;
+  /** The verse or paragraph number within the chapter/talk. */
+  section?: number;
 }
