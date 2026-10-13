@@ -4,12 +4,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { isNative } from "@/lib/external";
+import { copyNativeImage, shareNativeFile } from "@/lib/native-files";
 import {
   buildShareImage,
   cardFileName,
   copyImage,
   downloadImage,
-  shareImage,
   type ShareCard,
   type ShareImage,
 } from "@/lib/share-image";
@@ -69,16 +69,22 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
   const image = rendered && rendered.key === cardKey ? rendered.image : null;
   const fileName = cardFileName(card.title);
 
+  // On device the image is written to the app cache and handed to the system
+  // share sheet, which is also how it reaches the user's own storage (Files,
+  // Drive, Photos…). The browser half of each action stays as it was.
   const onShare = async () => {
     if (!image) return;
     setBusy(true);
-    const result = await shareImage(image.blob, fileName, card.title);
+    const outcome = await shareNativeFile(
+      { name: fileName, base64: image.base64 },
+      { title: card.title, dialogTitle: "Share passage" }
+    );
     setStatus(
-      result === "shared"
+      outcome === "done"
         ? "Shared."
-        : result === "cancelled"
+        : outcome === "cancelled"
           ? null
-          : "Sharing isn't available here — copy or save the image instead."
+          : "Sharing isn't available on this device — try Copy image instead."
     );
     setBusy(false);
   };
@@ -86,15 +92,23 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
   const onCopy = async () => {
     if (!image) return;
     setBusy(true);
-    const ok = await copyImage(image.blob);
-    setStatus(ok ? "Copied to the clipboard." : "Copying isn't available here — save the image instead.");
+    const ok = native
+      ? await copyNativeImage({ name: fileName, base64: image.base64 })
+      : await copyImage(image.blob);
+    setStatus(
+      ok
+        ? "Copied to the clipboard."
+        : native
+          ? "Copying isn't available on this device — use Share instead."
+          : "Copying isn't available here — save the image instead."
+    );
     setBusy(false);
   };
 
   const onDownload = () => {
     if (!image) return;
     downloadImage(image.blob, fileName);
-    setStatus(native ? "Saved. Check your Downloads." : "Saved the image.");
+    setStatus("Saved the image.");
   };
 
   // The card lives inside an animated, overflow-hidden article; a portal keeps
@@ -180,15 +194,19 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
                   Copy image
                 </button>
 
-                <button
-                  type="button"
-                  onClick={onDownload}
-                  disabled={!image}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <DownloadIcon />
-                  {native ? "Save image" : "Download PNG"}
-                </button>
+                {/* A WebView has no download manager, so on device the share
+                    sheet above is the way a card leaves the app. */}
+                {!native && (
+                  <button
+                    type="button"
+                    onClick={onDownload}
+                    disabled={!image}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <DownloadIcon />
+                    Download PNG
+                  </button>
+                )}
               </div>
 
               {status && <p className="mt-3 text-center text-xs text-muted">{status}</p>}

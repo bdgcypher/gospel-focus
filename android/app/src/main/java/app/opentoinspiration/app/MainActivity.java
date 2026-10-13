@@ -12,6 +12,7 @@ public class MainActivity extends BridgeActivity {
         // and gesture bar insets the web content pads against.
         EdgeToEdge.enable(this);
         registerPlugin(OpenUrlPlugin.class);
+        registerPlugin(ImageClipboardPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

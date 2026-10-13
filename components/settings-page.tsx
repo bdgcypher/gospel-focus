@@ -5,8 +5,15 @@ import { useTheme } from "next-themes";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
 import { Switch } from "./switch";
+import { isNative } from "@/lib/external";
 import { clearFavorites, useFavorites } from "@/lib/favorites";
 import { exportFavoritesFile, importFavoritesText, type ImportReport } from "@/lib/favorites-io";
+import {
+  FAVORITES_FILE_TYPES,
+  pickNativeTextFile,
+  shareNativeFile,
+  textToBase64,
+} from "@/lib/native-files";
 import { setPreference, usePreferences } from "@/lib/preferences";
 
 type ThemeChoice = "light" | "dark" | "system";
@@ -23,10 +30,38 @@ export function SettingsPage() {
   const favorites = useFavorites();
   const [report, setReport] = useState<ImportReport | null>(null);
   const [importing, setImporting] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const native = isNative();
 
-  const onExport = () => {
+  /** What to tell the reader when reading their file went wrong. */
+  const reasonOf = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message ? error.message : fallback;
+
+  const reportFailure = (reason: string) =>
+    setReport({ imported: 0, duplicates: 0, skipped: [{ line: 0, reason }] });
+
+  const onExport = async () => {
     const { name, text, mime } = exportFavoritesFile(favorites);
+    setStatus(null);
+
+    if (native) {
+      // The WebView can't download, so the backup leaves through the share
+      // sheet, which is also where "save to Files/Drive" lives.
+      const outcome = await shareNativeFile(
+        { name, base64: textToBase64(text) },
+        { title: "Favorites backup", dialogTitle: "Save favorites backup" }
+      );
+      setStatus(
+        outcome === "done"
+          ? "Backup saved or sent."
+          : outcome === "cancelled"
+            ? null
+            : "Couldn't open the share sheet — nothing was exported."
+      );
+      return;
+    }
+
     const url = URL.createObjectURL(new Blob([text], { type: mime }));
     const link = document.createElement("a");
     link.href = url;
@@ -35,6 +70,28 @@ export function SettingsPage() {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    setStatus("Saved the backup file.");
+  };
+
+  /** Open whichever picker this platform has; both hand back the file's text. */
+  const onImport = async () => {
+    if (!native) {
+      fileRef.current?.click();
+      return;
+    }
+
+    setImporting(true);
+    setStatus(null);
+    try {
+      const picked = await pickNativeTextFile(FAVORITES_FILE_TYPES);
+      // Nothing is cleared up front: backing out of the picker leaves the
+      // previous result on screen instead of blanking it.
+      if (picked) setReport(await importFavoritesText(picked.text));
+    } catch (error) {
+      reportFailure(reasonOf(error, "the file couldn't be read"));
+    } finally {
+      setImporting(false);
+    }
   };
 
   const onImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,10 +102,11 @@ export function SettingsPage() {
 
     setImporting(true);
     setReport(null);
+    setStatus(null);
     try {
       setReport(await importFavoritesText(await file.text()));
-    } catch {
-      setReport({ imported: 0, duplicates: 0, skipped: [{ line: 0, reason: "the file couldn't be read" }] });
+    } catch (error) {
+      reportFailure(reasonOf(error, "the file couldn't be read"));
     } finally {
       setImporting(false);
     }
@@ -138,7 +196,7 @@ export function SettingsPage() {
               <div className="mt-4 flex flex-wrap gap-2.5">
                 <button
                   type="button"
-                  onClick={onExport}
+                  onClick={() => void onExport()}
                   disabled={favorites.length === 0}
                   className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -147,7 +205,7 @@ export function SettingsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() => void onImport()}
                   disabled={importing}
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -159,6 +217,7 @@ export function SettingsPage() {
                   onClick={() => {
                     clearFavorites();
                     setReport(null);
+                    setStatus(null);
                   }}
                   disabled={favorites.length === 0}
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
@@ -176,6 +235,7 @@ export function SettingsPage() {
                 />
               </div>
 
+              {status && <p className="mt-3 text-xs text-muted">{status}</p>}
               {report && <ImportSummary report={report} />}
             </div>
           </section>
