@@ -179,9 +179,21 @@ async function pickScripture(volume: VolumeInfo, filters: Filters): Promise<Pass
   const chosen = flat[Math.floor(Math.random() * flat.length)];
 
   const { book, chapter, verse } = chosen;
+  return buildScripturePassage(data, book, chapter, verse);
+}
+
+type ScriptureBook = VolumeData["books"][number];
+type ScriptureChapter = ScriptureBook["chapters"][number];
+
+/** Build the passage for one verse of a chapter — shared by the draw and by imports. */
+function buildScripturePassage(
+  data: VolumeData,
+  book: ScriptureBook,
+  chapter: ScriptureChapter,
+  verse: number
+): Passage {
   const verses: Verse[] = chapter.verses.map((text, i) => ({ number: i + 1, text }));
   const reference = `${book.name} ${chapter.n}:${verse}`;
-
   const url = `${GOSPEL_LIBRARY}/study/scriptures/${book.path}/${chapter.n}?lang=eng&id=p${verse}#p${verse}`;
 
   return {
@@ -195,6 +207,9 @@ async function pickScripture(volume: VolumeInfo, filters: Filters): Promise<Pass
     expansionSubtitle: `${data.title} · ${chapter.verses.length} verses`,
     verses,
     highlightVerse: verse,
+    book: book.name,
+    chapter: String(chapter.n),
+    section: verse,
     // Some volumes (e.g. the Doctrine and Covenants) use the volume title as
     // their only book name, so drop any duplicate chip.
     chips: [data.title, book.name].filter((c, i, arr) => arr.indexOf(c) === i),
@@ -209,7 +224,17 @@ async function pickConference(conference: ConferenceInfo): Promise<Passage> {
   }
   if (!flat.length) throw new NoSourcesError();
   const { talk, paragraph } = flat[Math.floor(Math.random() * flat.length)];
+  return buildConferencePassage(conference, talk, paragraph);
+}
 
+type ConferenceTalk = ConferenceData["talks"][number];
+
+/** Build the passage for one paragraph of a talk — shared by the draw and by imports. */
+function buildConferencePassage(
+  conference: ConferenceInfo,
+  talk: ConferenceTalk,
+  paragraph: number
+): Passage {
   const verses: Verse[] = talk.paragraphs.map((text, i) => ({ number: i + 1, text }));
   const speakerLine = [talk.speaker, talk.calling].filter(Boolean).join(" · ");
 
@@ -224,6 +249,9 @@ async function pickConference(conference: ConferenceInfo): Promise<Passage> {
     expansionSubtitle: [speakerLine, conference.label].filter(Boolean).join(" · "),
     verses,
     highlightVerse: paragraph + 1,
+    book: "General Conference",
+    chapter: talk.title,
+    section: paragraph + 1,
     chips: ["General Conference", conference.label],
   };
 }
@@ -242,5 +270,76 @@ export function getTeaserPool(): string[] {
 }
 
 const resolvedVolumes = new Map<string, VolumeData>();
+
+/** ---------- Citations ---------- */
+
+const normaliseTitle = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/^[\u201c"']+|[\u201d"']+$/g, "")
+    .replace(/\s+/g, " ");
+
+async function resolveScriptureCitation(
+  bookName: string,
+  chapter: string,
+  section: number
+): Promise<Passage | null> {
+  const chapterNumber = Number.parseInt(chapter, 10);
+  if (!Number.isInteger(chapterNumber)) return null;
+
+  const manifest = await loadManifest();
+  const wanted = bookName.trim().toLowerCase();
+
+  for (const volume of manifest.volumes) {
+    const listed = volume.books.find(
+      (b) => b.name.toLowerCase() === wanted || b.slug.toLowerCase() === wanted
+    );
+    if (!listed) continue;
+
+    const data = await loadVolume(volume.id);
+    const book = data.books.find((b) => b.slug === listed.slug);
+    const chapterData = book?.chapters.find((c) => c.n === chapterNumber);
+    if (!book || !chapterData) continue;
+    if (!Number.isInteger(section) || section < 1 || section > chapterData.verses.length) continue;
+
+    return buildScripturePassage(data, book, chapterData, section);
+  }
+  return null;
+}
+
+async function resolveConferenceCitation(title: string, section: number): Promise<Passage | null> {
+  if (!title.trim()) return null;
+
+  const manifest = await loadManifest();
+  const wanted = normaliseTitle(title);
+
+  for (const conference of manifest.conferences) {
+    const data = await loadConference(conference.id);
+    const talk = data.talks.find((t) => normaliseTitle(t.title) === wanted);
+    if (!talk) continue;
+    if (!Number.isInteger(section) || section < 1 || section > talk.paragraphs.length) continue;
+
+    return buildConferencePassage(conference, talk, section - 1);
+  }
+  return null;
+}
+
+/**
+ * Turn a citation from an imported favorites file into a passage, looking the
+ * text up in the library this build ships. Returns null when nothing matches.
+ */
+export async function resolveCitation(
+  kind: "scripture" | "conference" | undefined,
+  book: string,
+  chapter: string,
+  section: number
+): Promise<Passage | null> {
+  if (kind !== "conference") {
+    const scripture = await resolveScriptureCitation(book, chapter, section);
+    if (scripture || kind === "scripture") return scripture;
+  }
+  return resolveConferenceCitation(chapter, section);
+}
 
 export { FALLBACK_TEASERS };
