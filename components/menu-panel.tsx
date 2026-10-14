@@ -80,7 +80,7 @@ export function MenuPanel({ open, onClose }: Props) {
                 onClick={onClose}
                 icon={<SettingsIcon />}
                 label="Settings"
-                hint="Theme, motion, and saved passages"
+                hint="Theme, motion, reminders, and saved passages"
               />
             </nav>
           </motion.aside>

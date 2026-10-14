@@ -1,3 +1,4 @@
+import { dailyRandom, type Random } from "./daily";
 import { buildTeasers, FALLBACK_TEASERS } from "./teasers";
 import type { ConferenceInfo, Filters, Manifest, Passage, Verse, VolumeInfo } from "./types";
 
@@ -121,10 +122,18 @@ export function summarize(manifest: Manifest, filters: Filters): EligibleSummary
 
 /** ---------- Random pick ---------- */
 
-function weightedPick<T>(items: T[], weight: (t: T) => number): T | null {
+/**
+ * The randomness a draw runs on. `Math.random` for the everyday "New passage",
+ * and a day-seeded generator for the daily passage — see lib/daily.ts. Passing
+ * it in is what lets the same day draw the same passage twice, in two places
+ * that never share state.
+ */
+const unseeded: Random = Math.random;
+
+function weightedPick<T>(items: T[], weight: (t: T) => number, random: Random): T | null {
   const total = items.reduce((a, i) => a + weight(i), 0);
   if (total <= 0) return null;
-  let r = Math.random() * total;
+  let r = random() * total;
   for (const item of items) {
     r -= weight(item);
     if (r <= 0) return item;
@@ -139,7 +148,11 @@ export class NoSourcesError extends Error {
   }
 }
 
-export async function pickPassage(manifest: Manifest, filters: Filters): Promise<Passage> {
+export async function pickPassage(
+  manifest: Manifest,
+  filters: Filters,
+  random: Random = unseeded
+): Promise<Passage> {
   const volumes = manifest.volumes.filter((v) => eligibleVolumeVerseCount(v, filters) > 0);
   const conferences = eligibleConferences(manifest, filters).filter((c) => c.paragraphs > 0);
 
@@ -151,18 +164,35 @@ export async function pickPassage(manifest: Manifest, filters: Filters): Promise
   // Weight the draw by how many eligible sections each source contributes.
   const drawScripture =
     conferenceWeight <= 0 ||
-    (scriptureWeight > 0 && Math.random() * (scriptureWeight + conferenceWeight) < scriptureWeight);
+    (scriptureWeight > 0 && random() * (scriptureWeight + conferenceWeight) < scriptureWeight);
 
   if (drawScripture) {
-    const volume = weightedPick(volumes, (v) => eligibleVolumeVerseCount(v, filters));
-    if (volume) return pickScripture(volume, filters);
+    const volume = weightedPick(volumes, (v) => eligibleVolumeVerseCount(v, filters), random);
+    if (volume) return pickScripture(volume, filters, random);
   }
-  const conference = weightedPick(conferences, (c) => c.paragraphs);
-  if (conference) return pickConference(conference);
+  const conference = weightedPick(conferences, (c) => c.paragraphs, random);
+  if (conference) return pickConference(conference, random);
   throw new NoSourcesError();
 }
 
-async function pickScripture(volume: VolumeInfo, filters: Filters): Promise<Passage> {
+/**
+ * The passage for one local day — what the daily reminder quotes, and what the
+ * app shows if it is opened before drawing anything else.
+ *
+ * The day does the choosing, not `Math.random`, so the reminder (scheduled days
+ * ahead) and the app (opened whenever) land on the same verse without sharing
+ * any state. It follows the reader's filters, so a day never quotes a source
+ * they have switched off.
+ */
+export function pickDailyPassage(
+  manifest: Manifest,
+  filters: Filters,
+  day: string
+): Promise<Passage> {
+  return pickPassage(manifest, filters, dailyRandom(day));
+}
+
+async function pickScripture(volume: VolumeInfo, filters: Filters, random: Random): Promise<Passage> {
   const data = await loadVolume(volume.id);
   const books = data.books.filter((b) => isEnabled(filters.books, bookKey(volume.id, b.slug)));
 
@@ -176,7 +206,7 @@ async function pickScripture(volume: VolumeInfo, filters: Filters): Promise<Pass
     }
   }
   if (!flat.length) throw new NoSourcesError();
-  const chosen = flat[Math.floor(Math.random() * flat.length)];
+  const chosen = flat[Math.floor(random() * flat.length)];
 
   const { book, chapter, verse } = chosen;
   return buildScripturePassage(data, book, chapter, verse);
@@ -216,14 +246,14 @@ function buildScripturePassage(
   };
 }
 
-async function pickConference(conference: ConferenceInfo): Promise<Passage> {
+async function pickConference(conference: ConferenceInfo, random: Random): Promise<Passage> {
   const data = await loadConference(conference.id);
   const flat: { talk: ConferenceData["talks"][number]; paragraph: number }[] = [];
   for (const talk of data.talks) {
     for (let i = 0; i < talk.paragraphs.length; i++) flat.push({ talk, paragraph: i });
   }
   if (!flat.length) throw new NoSourcesError();
-  const { talk, paragraph } = flat[Math.floor(Math.random() * flat.length)];
+  const { talk, paragraph } = flat[Math.floor(random() * flat.length)];
   return buildConferencePassage(conference, talk, paragraph);
 }
 
