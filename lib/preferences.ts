@@ -1,20 +1,72 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import type { Filters } from "./types";
 
 export interface Preferences {
   /** Skip the page-riffle animation and drop straight onto the draw. */
   reduceMotion: boolean;
+  /** Whether the daily passage reminder is wanted on this device. */
+  dailyReminder: boolean;
+  /** The hour (0–23) the daily reminder fires, in the device's local time. */
+  reminderHour: number;
+  /**
+   * Which sources the draw may use. Kept here rather than in the picker's
+   * state so the daily reminder picks from the same set the reader chose —
+   * otherwise a device with a book switched off would still be notified about
+   * it, and the app would show a different verse than the reminder did.
+   */
+  filters: Filters;
 }
 
 const KEY = "open-to-inspiration:preferences:v1";
 
+/** Every source on, which is what a fresh install should draw from. */
+export const defaultFilters = (): Filters => ({
+  volumes: {},
+  books: {},
+  conferences: {},
+  conferenceMaster: true,
+});
+
 /** One shared default snapshot, so the server render and first client render agree. */
-const DEFAULTS: Preferences = { reduceMotion: false };
+const DEFAULTS: Preferences = {
+  reduceMotion: false,
+  dailyReminder: false,
+  reminderHour: 7,
+  filters: { volumes: {}, books: {}, conferences: {}, conferenceMaster: true },
+};
 
 let cache: Preferences | null = null;
 let listening = false;
 const listeners = new Set<() => void>();
+
+/**
+ * A stored filter set, checked enough to trust: the records have to be records
+ * of booleans. Anything else is dropped back to the default rather than left
+ * to decide whether a book is enabled.
+ */
+function readFilters(value: unknown): Filters {
+  if (!value || typeof value !== "object") return defaultFilters();
+  const candidate = value as Partial<Filters>;
+
+  const flags = (input: unknown): Record<string, boolean> => {
+    if (!input || typeof input !== "object") return {};
+    const out: Record<string, boolean> = {};
+    for (const [key, entry] of Object.entries(input as Record<string, unknown>)) {
+      if (typeof entry === "boolean") out[key] = entry;
+    }
+    return out;
+  };
+
+  return {
+    volumes: flags(candidate.volumes),
+    books: flags(candidate.books),
+    conferences: flags(candidate.conferences),
+    conferenceMaster:
+      typeof candidate.conferenceMaster === "boolean" ? candidate.conferenceMaster : true,
+  };
+}
 
 function read(): Preferences {
   if (cache) return cache;
@@ -27,6 +79,7 @@ function read(): Preferences {
     stored = {};
   }
 
+  const hour = Number(stored.reminderHour);
   cache = {
     reduceMotion:
       typeof stored.reduceMotion === "boolean"
@@ -34,6 +87,11 @@ function read(): Preferences {
         : // Unset preferences follow the device: someone already asking their OS
           // for less motion shouldn't have to ask again here.
           window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    // The reminder is opt-in: defaulting it on would have the app ask for
+    // notification permission the moment it is first opened.
+    dailyReminder: stored.dailyReminder === true,
+    reminderHour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : DEFAULTS.reminderHour,
+    filters: readFilters(stored.filters),
   };
   return cache;
 }
@@ -60,6 +118,11 @@ function ensureStorageListener(): void {
 
 export function setPreference<K extends keyof Preferences>(key: K, value: Preferences[K]): void {
   write({ ...read(), [key]: value });
+}
+
+/** The stored preferences, outside React — for the reminder scheduler. */
+export function readPreferences(): Preferences {
+  return read();
 }
 
 function subscribe(onChange: () => void): () => void {

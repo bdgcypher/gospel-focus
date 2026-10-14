@@ -7,8 +7,11 @@ import { FilterPanel } from "./filter-panel";
 import { RifflingPages } from "./riffling-pages";
 import { PassageCard } from "./passage-card";
 import { AppShell } from "./app-shell";
-import { NoSourcesError, loadManifest, pickPassage, summarize } from "@/lib/picker";
-import { usePreferences } from "@/lib/preferences";
+import { StreakBadge } from "./streak-badge";
+import { dayKey } from "@/lib/daily";
+import { NoSourcesError, loadManifest, pickDailyPassage, pickPassage, summarize } from "@/lib/picker";
+import { setPreference, usePreferences } from "@/lib/preferences";
+import { syncDailyReminders } from "@/lib/reminders";
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
@@ -38,10 +41,33 @@ const getIsWide = () => window.matchMedia(WIDE_QUERY).matches;
 /** Phones are what get prerendered, so that is the server's answer. */
 const getIsWideOnServer = () => false;
 
+function CalendarIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 9.5h17M8 3.5V6m8-2.5V6" />
+    </svg>
+  );
+}
+
 export function InspirationApp() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({ volumes: {}, books: {}, conferences: {}, conferenceMaster: true });
+  // The filters are remembered between visits, not just for the session: the
+  // daily reminder draws from whatever is chosen here, so a fresh launch has to
+  // restore the same set or the reminder and the app would disagree.
+  const prefs = usePreferences();
+  const filters = prefs.filters;
+  const setFilters = useCallback((next: Filters) => setPreference("filters", next), []);
   const [phase, setPhase] = useState<"idle" | "rifling" | "result">("idle");
   const [passage, setPassage] = useState<Passage | null>(null);
   /** The passage the book has landed on, shown on the page before it opens up. */
@@ -52,7 +78,6 @@ export function InspirationApp() {
   const [showFilters, setShowFilters] = useState<boolean | null>(null);
   /** Feeding back that a reduced-motion draw is in flight, without the book. */
   const [loading, setLoading] = useState(false);
-  const prefs = usePreferences();
   const riflingRef = useRef(false);
 
   // On tablets and desktops the filters are a sidebar beside the book, open by
@@ -73,7 +98,11 @@ export function InspirationApp() {
   );
   const nothingSelected = summary ? !summary.hasScriptures && !summary.hasConference : false;
 
-  const draw = useCallback(async () => {
+  /**
+   * Draw a passage. Given a day, it draws that day's passage — the one the
+   * reminder quoted — instead of a random one.
+   */
+  const draw = useCallback(async (day?: string) => {
     if (!manifest || riflingRef.current) return;
     riflingRef.current = true;
     // With reduced motion the book is never mounted at all — not even for the
@@ -93,7 +122,9 @@ export function InspirationApp() {
 
     const started = performance.now();
     try {
-      const next = await pickPassage(manifest, filters);
+      const next = day
+        ? await pickDailyPassage(manifest, filters, day)
+        : await pickPassage(manifest, filters);
       if (skipRiffle) {
         // Straight onto the passage: no riffle, no settle, no landing page.
         setLandedPassage(next);
@@ -124,6 +155,21 @@ export function InspirationApp() {
       riflingRef.current = false;
     }
   }, [manifest, filters, passage, wide, prefs.reduceMotion]);
+
+  // Keep the daily reminder's window of scheduled days topped up. It lives
+  // here because the manifest is already loaded here, and because the verses
+  // have to be drawn while the app is open — see lib/reminders.ts. Debounced,
+  // so flicking through the filters schedules once rather than per toggle.
+  useEffect(() => {
+    if (!manifest || !prefs.dailyReminder) return;
+    const timer = window.setTimeout(() => {
+      void syncDailyReminders({ manifest, filters, hour: prefs.reminderHour }).catch(() => {
+        // A reminder that couldn't be scheduled shouldn't interrupt reading;
+        // Settings is where that gets explained and re-tried.
+      });
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [manifest, filters, prefs.dailyReminder, prefs.reminderHour]);
 
   // Space / Enter draws another passage when the app is focused on the page body.
   useEffect(() => {
@@ -257,6 +303,21 @@ export function InspirationApp() {
                         <path d="m6 9 6 6 6-6" />
                       </svg>
                     </button>
+
+                    {/* The daily habit, below the draw itself: the passage the
+                        reminder pointed at, and how long the run has lasted. */}
+                    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-start">
+                      <button
+                        type="button"
+                        onClick={() => void draw(dayKey())}
+                        disabled={!manifest || phase === "rifling" || loading || nothingSelected}
+                        className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <CalendarIcon />
+                        Today&apos;s passage
+                      </button>
+                      <StreakBadge />
+                    </div>
                   </div>
                 </div>
 

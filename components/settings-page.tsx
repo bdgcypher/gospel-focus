@@ -1,11 +1,21 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
 import { Switch } from "./switch";
 import { isNative } from "@/lib/external";
+import { loadManifest } from "@/lib/picker";
+import {
+  cancelDailyReminders,
+  reminderPermission,
+  remindersSupported,
+  requestReminderPermission,
+  syncDailyReminders,
+  type ReminderPermission,
+} from "@/lib/reminders";
+import { countedToday, streakInForce, useStreak } from "@/lib/streak";
 import { clearFavorites, useFavorites } from "@/lib/favorites";
 import { exportFavoritesFile, importFavoritesText, type ImportReport } from "@/lib/favorites-io";
 import {
@@ -18,6 +28,13 @@ import {
 import { setPreference, usePreferences } from "@/lib/preferences";
 
 type ThemeChoice = "light" | "dark" | "system";
+
+/** An hour of the day as the reader would say it, e.g. 7 -> "7:00 AM". */
+function formatHour(hour: number): string {
+  const suffix = hour < 12 ? "AM" : "PM";
+  const shown = hour % 12 === 0 ? 12 : hour % 12;
+  return `${shown}:00 ${suffix}`;
+}
 
 const THEMES: { id: ThemeChoice; label: string; hint: string }[] = [
   { id: "light", label: "Light", hint: "Paper and ink" },
@@ -32,8 +49,26 @@ export function SettingsPage() {
   const [report, setReport] = useState<ImportReport | null>(null);
   const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [reminderStatus, setReminderStatus] = useState<string | null>(null);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  /** Where the OS permission stands, so a revoked one can be pointed out. */
+  const [permission, setPermission] = useState<ReminderPermission | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const native = isNative();
+  const streak = useStreak();
+  const run = streakInForce(streak);
+
+  // Whether the reminder is actually allowed is the system's answer, not the
+  // stored preference — it can be revoked from outside the app at any time.
+  useEffect(() => {
+    let live = true;
+    void reminderPermission().then((state) => {
+      if (live) setPermission(state);
+    });
+    return () => {
+      live = false;
+    };
+  }, [prefs.dailyReminder]);
 
   /** What to tell the reader when reading their file went wrong. */
   const reasonOf = (error: unknown, fallback: string) =>
@@ -41,6 +76,63 @@ export function SettingsPage() {
 
   const reportFailure = (reason: string) =>
     setReport({ imported: 0, duplicates: 0, skipped: [{ line: 0, reason }] });
+
+  /**
+   * Turn the daily reminder on or off.
+   *
+   * The permission is asked for here, in response to the tap, rather than on
+   * launch: a system prompt that arrives unexplained on first open is the
+   * quickest way to a permanent "don't allow".
+   */
+  const onToggleReminder = async (value: boolean) => {
+    setReminderBusy(true);
+    setReminderStatus(null);
+    try {
+      if (!value) {
+        setPreference("dailyReminder", false);
+        await cancelDailyReminders();
+        setPermission(await reminderPermission());
+        return;
+      }
+
+      if (!remindersSupported()) {
+        setReminderStatus("Reminders only work in the installed app, not in the browser.");
+        return;
+      }
+
+      const granted = await requestReminderPermission();
+      setPermission(granted);
+      if (granted !== "granted") {
+        setReminderStatus(
+          granted === "denied"
+            ? "Notifications are blocked for Open to Inspiration. Allow them in your device settings, then try again."
+            : "Notifications weren't allowed, so the reminder is still off."
+        );
+        return;
+      }
+
+      setPreference("dailyReminder", true);
+      const manifest = await loadManifest();
+      const result = await syncDailyReminders({
+        manifest,
+        filters: prefs.filters,
+        hour: prefs.reminderHour,
+      });
+      setReminderStatus(
+        result
+          ? `Set — a passage arrives each day at ${formatHour(prefs.reminderHour)}, for the next ${result.scheduled} days.`
+          : "Set. The reminder will be scheduled the next time the app opens."
+      );
+    } catch (error) {
+      setReminderStatus(reasonOf(error, "the reminder couldn't be scheduled"));
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  /** The reminder is on, but the system says notifications aren't allowed. */
+  const reminderBlocked =
+    prefs.dailyReminder && permission !== null && permission !== "granted" && permission !== "unsupported";
 
   const onExport = async () => {
     const { name, text, mime } = exportFavoritesFile(favorites);
@@ -129,6 +221,11 @@ export function SettingsPage() {
     () => false
   );
   const current = mounted ? (theme as ThemeChoice | undefined) : undefined;
+  // Whether the reminder can work here is only known on the client. Until
+  // then this says what the prerendered page said (a browser), so hydration
+  // has nothing to disagree with — the app shell is the same page in both
+  // cases, only the sentence differs.
+  const reminderUsable = mounted && remindersSupported();
 
   return (
     <AppShell>
@@ -136,7 +233,7 @@ export function SettingsPage() {
         <div className="mt-6 flex items-start justify-between gap-3">
           <div className="min-w-0 max-w-2xl">
             <h2 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">Settings</h2>
-            <p className="mt-0.5 text-sm text-muted">How the app looks and moves</p>
+            <p className="mt-0.5 text-sm text-muted">How the app looks, moves, and reminds you</p>
           </div>
           <BackLink />
         </div>
@@ -193,6 +290,69 @@ export function SettingsPage() {
                 onChange={(value) => setPreference("reduceMotion", value)}
                 label="Reduce motion"
               />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Daily</h2>
+            <div className="space-y-3">
+              <div className="rounded-3xl border border-border bg-surface p-5">
+                <p className="text-sm font-medium text-foreground">Streak</p>
+
+                {run === 0 ? (
+                  <p className="mt-2 text-xs text-muted">
+                    Nothing running yet. Opening the app on two days in a row starts a streak.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-2 flex items-baseline gap-2">
+                      <span className="font-serif text-3xl font-semibold text-foreground">{run}</span>
+                      <span className="text-sm text-muted">
+                        {run === 1 ? "day in a row" : "days in a row"}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {countedToday(streak)
+                        ? "Today counts."
+                        : "Today hasn't been counted yet — open a passage to keep it going."}
+                    </p>
+                  </>
+                )}
+
+                {streak.days > 0 && (
+                  <p className="mt-3 border-t border-border/70 pt-3 text-xs text-muted">
+                    Best: {streak.best} {streak.best === 1 ? "day" : "days"} · opened on {streak.days}{" "}
+                    {streak.days === 1 ? "day" : "days"} in all
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-border bg-surface p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">Daily passage reminder</p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {reminderUsable
+                        ? `One verse a day at ${formatHour(prefs.reminderHour)}, drawn from the sources you have selected.`
+                        : "Only works in the installed app — a browser can't deliver reminders while it is closed."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={prefs.dailyReminder}
+                    onChange={(value) => void onToggleReminder(value)}
+                    label="Daily passage reminder"
+                    disabled={!reminderUsable || reminderBusy}
+                  />
+                </div>
+
+                {reminderBlocked && (
+                  <p className="mt-3 rounded-2xl border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent-strong">
+                    Notifications are switched off for Open to Inspiration in your device settings, so no reminder
+                    can arrive. Turn them back on there and it will resume.
+                  </p>
+                )}
+                {reminderStatus && <p className="mt-3 text-xs text-muted">{reminderStatus}</p>}
+              </div>
             </div>
           </section>
 
