@@ -4,16 +4,23 @@ import { useSyncExternalStore } from "react";
 import { dayKey, daysBetween } from "./daily";
 
 /**
- * The reading streak: how many days in a row the app has been opened.
+ * The reading streak: how many days in a row the day's study goal was reached.
  *
  * All local, no account — which is what the roadmap calls for. A day counts
- * once, however many times the app is opened during it, and the chain only
- * breaks when a whole day goes by without one.
+ * once, when that day's goal is met, however many sessions it took to get there,
+ * and the chain only breaks when a whole day goes by without one.
+ *
+ * What counts is deliberately not "the app was opened". A chain a tap in the
+ * morning could keep alive says nothing about the reading, and it leaves the
+ * number climbing on days the goal is never touched — the streak and the goal
+ * would be two unrelated readings of the same day. So the day is recorded from
+ * the moment the goal is met (components/streak-tracker.tsx), and this store
+ * simply keeps the chain.
  */
 export interface Streak {
-  /** The last day that counted, or null before the first open. */
+  /** The last day that counted — the day its goal was met — or null before the first. */
   lastDay: string | null;
-  /** Consecutive days ending on `lastDay`. */
+  /** Consecutive goal-met days ending on `lastDay`. */
   current: number;
   /** The longest run ever reached. */
   best: number;
@@ -21,7 +28,13 @@ export interface Streak {
   days: number;
 }
 
-const KEY = "open-to-inspiration:streak:v1";
+/**
+ * Bumped to v2 when a counted day changed from "the app was opened" to "the
+ * goal was reached". The numbers stored under v1 mean the other thing, so they
+ * are left where they are rather than read as if they meant this one — which is
+ * also the clean slate the new rule is easiest to see from.
+ */
+const KEY = "gospel-focus:streak:v2";
 
 /** One shared empty snapshot, so the server render and first client render agree. */
 const EMPTY: Streak = { lastDay: null, current: 0, best: 0, days: 0 };
@@ -79,12 +92,14 @@ function ensureStorageListener(): void {
 }
 
 /**
- * Count today as a day of use, and return the streak that leaves behind.
+ * Count today as a day the goal was reached, and return the streak that leaves
+ * behind.
  *
- * Called once when the app starts. Opening it twice in a day changes nothing;
- * a day with no open breaks the chain, and the next open starts it again at 1.
+ * Called whenever the day's goal is met. Reaching it twice in a day changes
+ * nothing — this store will not count a day it has already counted — and a day
+ * with no met goal breaks the chain, so the next one starts it again at 1.
  */
-export function recordVisit(today: string = dayKey()): Streak {
+export function recordGoalMetDay(today: string = dayKey()): Streak {
   const previous = read();
   if (previous.lastDay === today) return previous;
 
@@ -106,8 +121,13 @@ export function recordVisit(today: string = dayKey()): Streak {
 
 /**
  * The streak as it stands today, for display: a chain is still intact on the
- * day after its last open, so yesterday's run keeps showing until midnight
- * passes. After that it is over, and 0 is the honest number.
+ * day after its last counted day, so yesterday's run keeps showing until
+ * midnight passes. After that it is over, and 0 is the honest number.
+ *
+ * Note what this does *not* do: it never counts today until today is in. The
+ * run through yesterday is what a reader has, and it is shown as it stands —
+ * whether or not today's goal is done is a separate question, and one the UI
+ * answers separately (see status-tray.tsx).
  */
 export function streakInForce(streak: Streak, today: string = dayKey()): number {
   if (!streak.lastDay) return 0;
@@ -115,7 +135,10 @@ export function streakInForce(streak: Streak, today: string = dayKey()): number 
   return gap === 0 || gap === 1 ? streak.current : 0;
 }
 
-/** Whether a day is already counted, so the UI can say "today is in". */
+/**
+ * Whether today is in the chain — its goal has been reached, today or at any
+ * point since midnight, so the UI can say "today is in".
+ */
 export function countedToday(streak: Streak, today: string = dayKey()): boolean {
   return streak.lastDay === today;
 }

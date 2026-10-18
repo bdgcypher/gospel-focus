@@ -40,6 +40,19 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <!-- Dictation in the journal (see lib/dictation.ts) listens through the
+         device's own speech recognizer, so the microphone is the one thing it
+         needs. The query below is what makes the recognizer visible to the app
+         on Android 11+, where a package has to declare the intents it looks
+         for; without it `SpeechRecognizer` reports itself unavailable. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <!-- The daily reminder (see lib/reminders.ts) never asks for an exact
          alarm: it schedules inexact ones on purpose, so the system can batch
          them and never opens the "Alarms & reminders" screen at the reader.

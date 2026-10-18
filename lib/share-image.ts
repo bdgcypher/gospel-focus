@@ -7,7 +7,7 @@ export interface ShareCard {
   subtitle?: string;
   /** The passage body — one entry per shared verse/paragraph. */
   lines: { label?: string; text: string }[];
-  /** Small footer line, e.g. "Open to Inspiration". */
+  /** Small footer line, e.g. "Gospel Focus". */
   footer: string;
 }
 

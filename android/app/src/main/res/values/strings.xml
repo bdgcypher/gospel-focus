@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Open to Inspiration</string>
-    <string name="title_activity_main">Open to Inspiration</string>
-    <string name="package_name">app.opentoinspiration.app</string>
-    <string name="custom_url_scheme">app.opentoinspiration.app</string>
+    <string name="app_name">Gospel Focus</string>
+    <string name="title_activity_main">Gospel Focus</string>
+    <string name="package_name">app.gospelfocus.app</string>
+    <string name="custom_url_scheme">app.gospelfocus.app</string>
 </resources>

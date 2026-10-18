@@ -1,5 +1,5 @@
 /**
- * Build the bundled passage dataset for "Open to Inspiration".
+ * Build the bundled passage dataset for "Gospel Focus".
  *
  * Sources:
  *  - Standard Works (public domain, 2013 edition): https://github.com/bcbooks/scriptures-json
@@ -9,12 +9,16 @@
  *  - manifest.json                      lightweight index used for filtering/picking
  *  - scriptures/<volume>.json           full verse text, lazily loaded per volume
  *  - conference/<year>-<month>.json     talk paragraphs, lazily loaded per conference
+ *  - search.json.gz                     the full-text index /search queries
+ *  - words.json                         four-to-six-letter words, for the daily puzzle
  *
  * Run: node scripts/build-data.mjs
  */
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildSearchIndex } from "./search-index.mjs";
+import { buildWordList } from "./build-words.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -229,6 +233,15 @@ async function main() {
     conferences,
   };
   await fs.writeFile(path.join(DATA_DIR, "manifest.json"), JSON.stringify(manifest, null, 2));
+  // Last, and from what has just been written rather than from the structures
+  // above: the index is a reader of the passage data, so it can only ever
+  // describe what actually shipped.
+  console.log("Building the search index...");
+  await buildSearchIndex({ dataDir: DATA_DIR });
+  // The daily puzzle's vocabulary is read out of the same written files, for the
+  // same reason: what ships is what the build describes.
+  console.log("Building the word list...");
+  await buildWordList({ dataDir: DATA_DIR });
   console.log("Written to public/data");
 }
 

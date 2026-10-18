@@ -9,6 +9,13 @@ interface Props {
   manifest: Manifest;
   filters: Filters;
   onChange: (next: Filters) => void;
+  /**
+   * The line under the heading. The panel is one component used on two pages, and
+   * what the selection is *for* differs between them: on the passage page it is
+   * what gets drawn from, on the search page it is what gets searched — and it is
+   * the same selection either way, which is worth saying in each place.
+   */
+  subtitle?: string;
 }
 
 const isOn = (map: Record<string, boolean>, key: string) => map[key] !== false;
@@ -18,7 +25,12 @@ const numberFmt = new Intl.NumberFormat("en-US");
 /** Ordering hint for the scripture list: Bible first, then the other works. */
 const BIBLE_VOLUMES = ["ot", "nt"];
 
-export function FilterPanel({ manifest, filters, onChange }: Props) {
+export function FilterPanel({
+  manifest,
+  filters,
+  onChange,
+  subtitle = "Select resources to draw inspiration from.",
+}: Props) {
   const [openVolume, setOpenVolume] = useState<string | null>(null);
   const [openConference, setOpenConference] = useState(false);
 
@@ -77,9 +89,9 @@ export function FilterPanel({ manifest, filters, onChange }: Props) {
     <section className="rounded-3xl border border-border bg-surface/80 p-5 backdrop-blur sm:p-6">
       <div>
         <h2 className="font-serif text-lg font-semibold text-foreground">
-          What sources to include?
+          What Sources To Include?
         </h2>
-        <p className="text-sm text-muted">Select resources to draw inspiration from.</p>
+        <p className="text-sm text-muted">{subtitle}</p>
       </div>
 
       {/* Presets */}
@@ -130,7 +142,7 @@ export function FilterPanel({ manifest, filters, onChange }: Props) {
       {/* General conference */}
       <div className="mt-6">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          General conference
+          General Conference
         </h3>
         <div className="mt-3 rounded-2xl border border-border bg-surface/60">
           <div className="flex items-center gap-3 px-3 py-2.5">

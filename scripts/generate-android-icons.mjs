@@ -1,5 +1,5 @@
 /**
- * Generate the dark-mode Android icon resources for Open to Inspiration.
+ * Generate the dark-mode Android icon resources for Gospel Focus.
  *
  * Produces, from app/icon.svg (the single source of truth):
  *

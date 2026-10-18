@@ -1,4 +1,4 @@
-package app.opentoinspiration.app;
+package app.gospelfocus.app;
 
 import android.content.ClipData;
 import android.content.ClipDescription;
@@ -59,7 +59,7 @@ public class ImageClipboardPlugin extends Plugin {
 
             // The description (not the provider's guess) is what the pasting
             // app filters on, so set the type explicitly.
-            ClipDescription description = new ClipDescription("Open to Inspiration", new String[] { mime });
+            ClipDescription description = new ClipDescription("Gospel Focus", new String[] { mime });
             ClipData clip = new ClipData(description, new ClipData.Item(contentUri));
             clipboard.setPrimaryClip(clip);
             call.resolve();

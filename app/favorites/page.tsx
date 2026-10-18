@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { FavoritesPage } from "@/components/favorites-page";
 
 export const metadata: Metadata = {
-  title: "Favorites · Open to Inspiration",
-  description: "Passages you starred in Open to Inspiration.",
+  title: "Favorites · Gospel Focus",
+  description: "Passages you starred in Gospel Focus.",
 };
 
 export default function Page() {

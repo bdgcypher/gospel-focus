@@ -80,5 +80,5 @@ export function seededRandom(seed: number): Random {
  * device, in any timezone that agrees on the date.
  */
 export function dailyRandom(day: string): Random {
-  return seededRandom(seedFromString(`open-to-inspiration:${day}`));
+  return seededRandom(seedFromString(`gospel-focus:${day}`));
 }

@@ -1,11 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
+import { Glyph } from "./glyph";
+import { GoalPicker } from "./goal-picker";
 import { Switch } from "./switch";
 import { isNative } from "@/lib/external";
+import { featureById } from "@/lib/features";
 import { loadManifest } from "@/lib/picker";
 import {
   cancelDailyReminders,
@@ -16,6 +20,7 @@ import {
   type ReminderPermission,
 } from "@/lib/reminders";
 import { countedToday, streakInForce, useStreak } from "@/lib/streak";
+import { setGoalMinutes, studyProgress, useStudy } from "@/lib/study";
 import { clearFavorites, useFavorites } from "@/lib/favorites";
 import { exportFavoritesFile, importFavoritesText, type ImportReport } from "@/lib/favorites-io";
 import {
@@ -57,6 +62,10 @@ export function SettingsPage() {
   const native = isNative();
   const streak = useStreak();
   const run = streakInForce(streak);
+  const study = useStudy();
+  const progress = studyProgress(study);
+  /** The widget's catalog entry, so this row and its page can't disagree. */
+  const widget = featureById("widget");
 
   // Whether the reminder is actually allowed is the system's answer, not the
   // stored preference — it can be revoked from outside the app at any time.
@@ -105,7 +114,7 @@ export function SettingsPage() {
       if (granted !== "granted") {
         setReminderStatus(
           granted === "denied"
-            ? "Notifications are blocked for Open to Inspiration. Allow them in your device settings, then try again."
+            ? "Notifications are blocked for Gospel Focus. Allow them in your device settings, then try again."
             : "Notifications weren't allowed, so the reminder is still off."
         );
         return;
@@ -230,7 +239,8 @@ export function SettingsPage() {
   return (
     <AppShell>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
-        <div className="mt-6 flex items-start justify-between gap-3">
+        {/* The page's padding is the whole of the gap under the app bar. */}
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 max-w-2xl">
             <h2 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">Settings</h2>
             <p className="mt-0.5 text-sm text-muted">How the app looks, moves, and reminds you</p>
@@ -247,7 +257,7 @@ export function SettingsPage() {
             </h2>
             <div className="rounded-3xl border border-border bg-surface p-5">
               <p className="text-sm font-medium text-foreground">Theme</p>
-              <p className="mt-0.5 text-xs text-muted">Choose how Open to Inspiration looks</p>
+              <p className="mt-0.5 text-xs text-muted">Choose how Gospel Focus looks</p>
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 {THEMES.map((option) => {
                   const active = current === option.id;
@@ -296,12 +306,30 @@ export function SettingsPage() {
           <section>
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Daily</h2>
             <div className="space-y-3">
+              {/* The goal's one home. The stats page links straight to this
+                  card (its Edit button, carrying a pencil), which is why the id
+                  and the scroll margin are here rather than on the section: the
+                  sticky app bar would otherwise cover the heading it landed on. */}
+              <div id="study-goal" className="scroll-mt-24 rounded-3xl border border-border bg-surface p-5">
+                <p className="text-sm font-medium text-foreground">Daily study goal</p>
+
+                <p className="mt-2 text-xs text-muted">
+                  {progress.target === 0
+                    ? "No goal yet. Pick how long you want to give the scriptures each day — the time you spend reading and studying counts on its own."
+                    : `${progress.target} minutes a day. The timer runs whenever you are reading or studying, and the day joins your streak once the goal is met.`}
+                </p>
+
+                <div className="mt-3">
+                  <GoalPicker onPick={setGoalMinutes} current={progress.target || undefined} />
+                </div>
+              </div>
+
               <div className="rounded-3xl border border-border bg-surface p-5">
                 <p className="text-sm font-medium text-foreground">Streak</p>
 
                 {run === 0 ? (
                   <p className="mt-2 text-xs text-muted">
-                    Nothing running yet. Opening the app on two days in a row starts a streak.
+                    Nothing running yet. Reaching your daily goal on two days in a row starts a streak.
                   </p>
                 ) : (
                   <>
@@ -314,14 +342,14 @@ export function SettingsPage() {
                     <p className="mt-1 text-xs text-muted">
                       {countedToday(streak)
                         ? "Today counts."
-                        : "Today hasn't been counted yet — open a passage to keep it going."}
+                        : "Today isn't in yet — a day counts when that day's goal is reached."}
                     </p>
                   </>
                 )}
 
                 {streak.days > 0 && (
                   <p className="mt-3 border-t border-border/70 pt-3 text-xs text-muted">
-                    Best: {streak.best} {streak.best === 1 ? "day" : "days"} · opened on {streak.days}{" "}
+                    Best: {streak.best} {streak.best === 1 ? "day" : "days"} · reached the goal on {streak.days}{" "}
                     {streak.days === 1 ? "day" : "days"} in all
                   </p>
                 )}
@@ -347,11 +375,30 @@ export function SettingsPage() {
 
                 {reminderBlocked && (
                   <p className="mt-3 rounded-2xl border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent-strong">
-                    Notifications are switched off for Open to Inspiration in your device settings, so no reminder
+                    Notifications are switched off for Gospel Focus in your device settings, so no reminder
                     can arrive. Turn them back on there and it will resume.
                   </p>
                 )}
                 {reminderStatus && <p className="mt-3 text-xs text-muted">{reminderStatus}</p>}
+              </div>
+
+              {/* The widget's own row, where a reader goes looking for it. It
+                  has no card on the hub — it isn't a first move, it is set up
+                  on the device — so the menu and this row are how it is found.
+                  The copy is the catalog's, so this, the menu and the page
+                  can't describe it three ways. */}
+              <div className="rounded-3xl border border-border bg-surface p-5">
+                <p className="text-sm font-medium text-foreground">Home-Screen Widgets</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {widget?.blurb ?? "Verse of the day, streak, and a one-tap draw"} — not built yet.
+                </p>
+                <Link
+                  href="/widgets"
+                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+                >
+                  See the plan
+                  <Glyph name="arrow" className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
           </section>

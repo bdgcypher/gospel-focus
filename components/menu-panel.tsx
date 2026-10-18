@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
+import { Glyph } from "./glyph";
 import { useFavorites } from "@/lib/favorites";
+import { featureById } from "@/lib/features";
 
 interface Props {
   open: boolean;
@@ -13,6 +15,9 @@ interface Props {
 /** The hamburger sheet: navigation to the pages behind the picker. */
 export function MenuPanel({ open, onClose }: Props) {
   const favorites = useFavorites();
+  // The stats entry's own name and line come from the catalog, so the menu and
+  // the page it opens cannot describe it differently.
+  const stats = featureById("stats");
 
   // Escape closes the pane, like any other dialog.
   useEffect(() => {
@@ -63,6 +68,13 @@ export function MenuPanel({ open, onClose }: Props) {
 
             <nav className="space-y-2 px-5 py-4">
               <MenuLink
+                href={stats?.href ?? "/stats"}
+                onClick={onClose}
+                icon={<Glyph name={stats?.icon ?? "chart"} />}
+                label={stats?.title ?? "Stats & Progress"}
+                hint={stats?.blurb ?? "Streaks, passages, cards, and time studied"}
+              />
+              <MenuLink
                 href="/favorites"
                 onClick={onClose}
                 // The star is only filled in once something is saved, so the
@@ -74,6 +86,13 @@ export function MenuPanel({ open, onClose }: Props) {
                     ? "No passages saved yet"
                     : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`
                 }
+              />
+              <MenuLink
+                href="/journal"
+                onClick={onClose}
+                icon={<Glyph name="journal" />}
+                label="Journal"
+                hint="Notes and highlights — not built yet"
               />
               <MenuLink
                 href="/settings"

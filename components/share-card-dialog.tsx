@@ -165,7 +165,7 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-label="Share passage"
+            aria-label="Share Passage"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -173,7 +173,7 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
             className="relative z-10 flex max-h-[92vh] w-full max-w-sm flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl sm:max-w-2xl lg:max-w-3xl"
           >
             <header className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-3.5">
-              <h2 className="font-serif text-lg font-semibold text-foreground">Share passage</h2>
+              <h2 className="font-serif text-lg font-semibold text-foreground">Share Passage</h2>
               <button
                 type="button"
                 onClick={onClose}

@@ -1,5 +1,5 @@
-import { InspirationApp } from "@/components/inspiration-app";
+import { HomePage } from "@/components/home-page";
 
 export default function Home() {
-  return <InspirationApp />;
+  return <HomePage />;
 }

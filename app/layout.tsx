@@ -8,12 +8,12 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 const sourceSerif = Source_Serif_4({ variable: "--font-source-serif", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Open to Inspiration",
+  title: "Gospel Focus",
   description:
     "Open to a random passage from the standard works and general conference — then read the whole chapter in the Gospel Library.",
-  applicationName: "Open to Inspiration",
+  applicationName: "Gospel Focus",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Open to Inspiration", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Gospel Focus", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

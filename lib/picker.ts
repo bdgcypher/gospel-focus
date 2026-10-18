@@ -240,9 +240,6 @@ function buildScripturePassage(
     book: book.name,
     chapter: String(chapter.n),
     section: verse,
-    // Some volumes (e.g. the Doctrine and Covenants) use the volume title as
-    // their only book name, so drop any duplicate chip.
-    chips: [data.title, book.name].filter((c, i, arr) => arr.indexOf(c) === i),
   };
 }
 
@@ -282,7 +279,6 @@ function buildConferencePassage(
     book: "General Conference",
     chapter: talk.title,
     section: paragraph + 1,
-    chips: ["General Conference", conference.label],
   };
 }
 
@@ -300,6 +296,24 @@ export function getTeaserPool(): string[] {
 }
 
 const resolvedVolumes = new Map<string, VolumeData>();
+
+/**
+ * A book's chapters and how many verses each one holds.
+ *
+ * The quiz's pickers have to know what a book contains before an answer is
+ * given, and the manifest only counts chapters and verses per volume — the
+ * volume file is the honest source. The read goes through the same cache as
+ * every other one, so a second look at the same book costs nothing.
+ */
+export async function chapterSizes(
+  volumeId: string,
+  bookName: string
+): Promise<{ chapter: number; verses: number }[]> {
+  const data = await loadVolume(volumeId);
+  const book = data.books.find((b) => b.name === bookName);
+  if (!book) return [];
+  return book.chapters.map((c) => ({ chapter: c.n, verses: c.verses.length }));
+}
 
 /** ---------- Citations ---------- */
 
@@ -338,13 +352,22 @@ async function resolveScriptureCitation(
   return null;
 }
 
-async function resolveConferenceCitation(title: string, section: number): Promise<Passage | null> {
+async function resolveConferenceCitation(
+  title: string,
+  section: number,
+  conferenceId?: string
+): Promise<Passage | null> {
   if (!title.trim()) return null;
 
   const manifest = await loadManifest();
   const wanted = normaliseTitle(title);
+  // A caller that already knows which session it means — a search result does,
+  // from its own id — names it, and one file is loaded instead of ten.
+  const candidates = conferenceId
+    ? manifest.conferences.filter((c) => c.id === conferenceId)
+    : manifest.conferences;
 
-  for (const conference of manifest.conferences) {
+  for (const conference of candidates) {
     const data = await loadConference(conference.id);
     const talk = data.talks.find((t) => normaliseTitle(t.title) === wanted);
     if (!talk) continue;
@@ -356,6 +379,32 @@ async function resolveConferenceCitation(title: string, section: number): Promis
 }
 
 /**
+ * The reader's address for a passage, as the search page writes it.
+ *
+ * A citation in a page's strapline is a way into the words, not a label: the
+ * reader takes a passage from `?action=cite` (see components/inspiration-app.tsx)
+ * rather than being made to find it again in the picker, so every such link
+ * says exactly which passage it means.
+ */
+export function citationHref(citation: {
+  kind: "scripture" | "conference";
+  book: string;
+  chapter: string;
+  section: number;
+  conferenceId?: string;
+}): string {
+  const params = new URLSearchParams({
+    action: "cite",
+    kind: citation.kind,
+    book: citation.book,
+    chapter: citation.chapter,
+    section: String(citation.section),
+  });
+  if (citation.conferenceId) params.set("session", citation.conferenceId);
+  return `/read?${params.toString()}`;
+}
+
+/**
  * Turn a citation from an imported favorites file into a passage, looking the
  * text up in the library this build ships. Returns null when nothing matches.
  */
@@ -363,13 +412,60 @@ export async function resolveCitation(
   kind: "scripture" | "conference" | undefined,
   book: string,
   chapter: string,
-  section: number
+  section: number,
+  /** The session a conference talk belongs to, when the caller already knows it. */
+  conferenceId?: string
 ): Promise<Passage | null> {
   if (kind !== "conference") {
     const scripture = await resolveScriptureCitation(book, chapter, section);
     if (scripture || kind === "scripture") return scripture;
   }
-  return resolveConferenceCitation(chapter, section);
+  return resolveConferenceCitation(chapter, section, conferenceId);
+}
+
+/**
+ * The ids the search index is built from (`scripts/search-index.mjs`), and so
+ * the ids a search result carries: `s/<volume>/<book slug>/<chapter>/<verse>`,
+ * and `c/<conference>/<talk index>/<paragraph>`. One definition, read by both
+ * the module that makes a hit out of a result (lib/search.ts) and the module
+ * that reads a passage back out of one (below).
+ */
+export const SCRIPTURE_ID = /^s\/([^/]+)\/([^/]+)\/([0-9]+)\/([0-9]+)$/;
+export const CONFERENCE_ID = /^c\/([^/]+)\/([0-9]+)\/([0-9]+)$/;
+
+/**
+ * The text of one passage, by the id a search result carries.
+ *
+ * The search's phrase rule has to read a candidate's words *before* the page can
+ * decide what to show (see lib/search.ts), and it may have hundreds of candidates
+ * to look at, so this goes straight at the file the id names rather than hunting
+ * for the passage: no manifest scan, no title matching, and the one conference
+ * session a talk belongs to instead of every session. Loading goes through the
+ * caches everything else uses, so the first candidate from a volume pays for the
+ * fetch and the rest are answered from memory — the same files, and the same
+ * fetches, that the search page's snippets and the reader itself make.
+ *
+ * Returns null for an id this library doesn't hold, which is a fact about the
+ * candidate rather than an error.
+ */
+export async function loadPassageText(id: string): Promise<string | null> {
+  const scripture = SCRIPTURE_ID.exec(id);
+  if (scripture) {
+    const [, volumeId, bookSlug, chapter, verse] = scripture;
+    const data = await loadVolume(volumeId);
+    const book = data.books.find((b) => b.slug === bookSlug);
+    const text = book?.chapters.find((c) => c.n === Number(chapter))?.verses[Number(verse) - 1];
+    return text ?? null;
+  }
+
+  const conference = CONFERENCE_ID.exec(id);
+  if (conference) {
+    const [, conferenceId, talkIndex, paragraph] = conference;
+    const data = await loadConference(conferenceId);
+    return data.talks[Number(talkIndex)]?.paragraphs[Number(paragraph) - 1] ?? null;
+  }
+
+  return null;
 }
 
 export { FALLBACK_TEASERS };

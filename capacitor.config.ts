@@ -11,8 +11,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * and kept in sync with the web build via `npm run cap:sync`.
  */
 const config: CapacitorConfig = {
-  appId: "app.opentoinspiration.app",
-  appName: "Open to Inspiration",
+  appId: "app.gospelfocus.app",
+  appName: "Gospel Focus",
   webDir: "out",
   backgroundColor: "#f7f2e7",
   ios: {

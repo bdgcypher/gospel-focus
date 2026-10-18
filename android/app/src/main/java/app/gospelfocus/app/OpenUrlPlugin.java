@@ -1,4 +1,4 @@
-package app.opentoinspiration.app;
+package app.gospelfocus.app;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;

@@ -73,8 +73,6 @@ export interface Passage {
   verses: Verse[];
   /** Verse number to highlight in the expansion (null for conference) */
   highlightVerse: number | null;
-  /** Small chips shown on the card */
-  chips: string[];
   /** Where this sits: the book name ("1 Nephi", or "General Conference"). */
   book?: string;
   /** Chapter number, or the talk title for conference. */

@@ -36,7 +36,7 @@ export interface Favorite {
   savedAt: number;
 }
 
-const KEY = "open-to-inspiration:favorites:v1";
+const KEY = "gospel-focus:favorites:v1";
 
 /** One shared empty snapshot, so the server render and first client render agree. */
 const EMPTY: Favorite[] = [];
@@ -256,6 +256,24 @@ export function toggleFavorite(passage: Passage): boolean {
   const saved = list.some((f) => f.id === id);
   write(saved ? list.filter((f) => f.id !== id) : [toFavorite(passage), ...list]);
   return !saved;
+}
+
+/**
+ * Star a passage if it isn't already, and hand back the saved row either way.
+ *
+ * This is what lets an action that *needs* a favorite — writing a note, which
+ * hangs off one — take the star itself, rather than asking the reader to star
+ * the passage first and then come back. Starring twice is not an error here, so
+ * the returned row is the one that is stored, not a second copy.
+ */
+export function ensureFavorite(passage: Passage): Favorite {
+  const id = favoriteId(passage);
+  const list = read();
+  const existing = list.find((f) => f.id === id);
+  if (existing) return existing;
+  const favorite = toFavorite(passage);
+  write([favorite, ...list]);
+  return favorite;
 }
 
 export function removeFavorite(id: string): void {

@@ -4,7 +4,7 @@ import { addFavorites, selectionKey, toFavorite, toSelectionFavorite, type Favor
 import { favoritesToCsv, readFavoritesCsv, type CandidateRow } from "./favorites-csv";
 import { resolveCitation } from "./picker";
 
-export const FAVORITES_FILE_NAME = "open-to-inspiration-favorites.csv";
+export const FAVORITES_FILE_NAME = "gospel-focus-favorites.csv";
 
 export interface ImportReport {
   imported: number;

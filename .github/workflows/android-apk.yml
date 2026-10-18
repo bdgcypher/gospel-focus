@@ -84,7 +84,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: open-to-inspiration-${{ github.ref_name }}
+          name: gospel-focus-${{ github.ref_name }}
           path: ${{ env.APK }}
           if-no-files-found: error
 
@@ -97,5 +97,5 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" "$APK" --clobber
           else
             gh release create "$GITHUB_REF_NAME" "$APK" \
-              --title "Open to Inspiration $GITHUB_REF_NAME" --generate-notes
+              --title "Gospel Focus $GITHUB_REF_NAME" --generate-notes
           fi

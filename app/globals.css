@@ -13,9 +13,30 @@
   --accent: #9a6b1f;
   --accent-strong: #7c5514;
   --accent-contrast: #fffdf7;
+  /* The word puzzle's two marks: green for a letter in its place, yellow for a
+     letter that is in the word somewhere else. Their own tokens rather than the
+     accent, because these two mean something specific and must stay legible
+     against both the parchment and the dark page. The pair is held to WCAG AA:
+     white clears 4.5:1 on the green, and the yellow carries the app's ink,
+     because no yellow bright enough to read as yellow can hold white text at
+     that ratio. */
+  --correct: #17873f;
+  --correct-contrast: #ffffff;
+  /* The green as type rather than a tile. It shares the light-theme value,
+     but the dark page needs a lighter green to clear 4.5:1 on the surface. */
+  --correct-text: #17873f;
+  --present: #e4b009;
+  --present-contrast: #241b09;
+  /* The result card's losing tone. Its own token so the red can be tuned for
+     the parchment and the dark page separately, like the two marks above. */
+  --wrong: #b3261e;
   --page: #fffefb;
   --page-edge: #e8dcc3;
   --spine: #d9c9a6;
+  /* The bottom navigation's own height, without the safe-area inset. One number
+     for the navigation itself, the room reserved for it under the page, and the
+     floating action bar that has to clear it — so they cannot drift apart. */
+  --bottom-nav-height: 3.75rem;
 }
 
 .dark {
@@ -28,6 +49,12 @@
   --accent: #e0b45c;
   --accent-strong: #f0c877;
   --accent-contrast: #1a150d;
+  --correct: #17873f;
+  --correct-contrast: #ffffff;
+  --correct-text: #4caf72;
+  --present: #e4b009;
+  --present-contrast: #241b09;
+  --wrong: #ff9a90;
   --page: #221d15;
   --page-edge: #33291a;
   --spine: #3d3222;
@@ -43,6 +70,12 @@
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-contrast: var(--accent-contrast);
+  --color-correct: var(--correct);
+  --color-correct-contrast: var(--correct-contrast);
+  --color-correct-text: var(--correct-text);
+  --color-present: var(--present);
+  --color-present-contrast: var(--present-contrast);
+  --color-wrong: var(--wrong);
   --color-page: var(--page);
   --color-page-edge: var(--page-edge);
   --color-spine: var(--spine);
@@ -145,6 +178,323 @@ body {
   }
 }
 
+/* --- Flashcard ---------------------------------------------------------- */
+/* A flashcard is one card with two faces, and the reader turns it over rather
+   than being shown the answer underneath the question. Both faces are laid in
+   the same grid cell, so the card is one size whichever side is up and nothing
+   on the page moves when it turns; the sheet carries the turn, and each face
+   hides its own back so only the side coming round is painted.
+
+   The turn is head-over-heels: the card tips about the line across its middle,
+   so it is the card the reader watches turn rather than the words sliding
+   sideways. The answer face is pre-turned by the same 180deg on that same
+   axis, so once the sheet has come round the two cancel out and the words on
+   the card arrive the right way up — nothing on either face is ever mirrored or
+   seen upside down.
+
+   Perspective sits on the card itself rather than the page, so the turn is
+   felt from where the card is. A card tipping towards the reader projects a
+   touch wider than its box — the edge coming round is nearer — so the turn is
+   clipped across. That keeps the card on the page it is drawn on and stops the
+   turn widening the page or letting it be panned sideways; the card's shadow
+   sits inside its box, so nothing of it is lost. */
+.flashcard {
+  perspective: 1600px;
+  overflow-x: clip;
+}
+
+.flashcard-sheet {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 550ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.flashcard-face {
+  /* One cell for both faces: the taller of the two sets the card's height, so
+     a card of words and a card of a citation are the same card. */
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+}
+
+/* The answer waits on the far side, arriving when the sheet comes round. Its
+   pre-turn has to be on the same axis as the sheet's, or the reader would be
+   handed the answer upside down. */
+.flashcard-answer {
+  transform: rotateX(180deg);
+}
+
+/* With motion turned off the card simply is its other side. */
+.flashcard-sheet-still {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-sheet {
+    transition: none;
+  }
+}
+
+/* --- Journal ------------------------------------------------------------ */
+/* The journal's body, in the editor and in the entry itself: one set of styles
+   for both, so what is written is what is read, down to the spacing.
+
+   It has to be written out because the body is HTML the app didn't render — a
+   paragraph, a bullet, a link — and the page's Tailwind utilities can't reach
+   inside it. The reset that comes with Tailwind strips a list's markers, so the
+   lists are given theirs back here; without that a bulleted list would arrive as
+   a column of unmarked lines.
+
+   The placeholder is drawn by the editor's own attribute rather than by a
+   wrapping element: a `:empty` element is where the caret goes, and an element
+   with a text node in it is not empty. */
+.journal-body > * + * {
+  margin-top: 0.75rem;
+}
+
+.journal-body p:empty::after {
+  /* An empty paragraph still takes a line, so pressing Enter twice leaves the
+     space the reader asked for instead of collapsing to nothing. */
+  content: "\a0";
+}
+
+.journal-body ul,
+.journal-body ol {
+  padding-left: 1.35rem;
+}
+
+.journal-body ul {
+  list-style: disc;
+}
+
+.journal-body ol {
+  list-style: decimal;
+}
+
+.journal-body li + li {
+  margin-top: 0.25rem;
+}
+
+.journal-body li::marker {
+  color: var(--accent-strong);
+}
+
+.journal-body ul ul {
+  list-style: circle;
+}
+
+.journal-body blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 0.75rem;
+  color: var(--muted);
+}
+
+.journal-body a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.journal-body[data-empty="true"]::before {
+  content: "Start writing — or tap Dictate and speak.";
+  color: var(--muted);
+  pointer-events: none;
+  position: absolute;
+}
+
+/* The editor's own box is the positioning context for that placeholder. */
+.journal-body[contenteditable] {
+  position: relative;
+  overflow-wrap: anywhere;
+}
+
+/* --- Navigation --------------------------------------------------------- */
+/* The wordmark in the header. On a phone the mark beside it is the whole of the
+   way home: the name is hidden — but only visually. It stays in the page as the
+   heading, and as the name of the link it sits in, so the header still says
+   where it goes. It comes back with the top bar, on the same rule, because it is
+   the bar the name belongs to: a phone has the mark and the lights, and a screen
+   with width has room for its name. */
+.app-wordmark {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The way home, and how much of the bar it takes. On a phone it is only as wide
+   as the mark: with no top nav to balance there is nothing for it to grow into,
+   and a grown link would stretch the target across empty bar and push the status
+   lights out of the corner they belong in. Where the top bar is on screen it
+   takes its half of the bar back, which is what centres the sections between
+   the two flanks. */
+.app-home-link {
+  flex: 0 0 auto;
+}
+
+/* Even spacing across a phone's bar. There is nothing between the mark and the
+   status lights on a phone — no sections, no menu button — so the wrappers
+   around them are wrappers around nothing the row can space: they step out of
+   the way with `display: contents`, which puts the mark and each light into the
+   row itself, and the row spreads all of them with equal gaps. What is left is
+   one row of five marks that fills the bar, rather than a mark at one end and
+   four lights bunched at the other.
+
+   Where the top bar is on screen the wrappers come back (see the media query
+   below): the sections sit between two flanks of equal width, and that is what
+   holds them on the middle of the bar. */
+.app-header-row {
+  justify-content: space-between;
+  /* Five marks share a narrow bar, so the gap they are spaced apart by is kept
+     small: on a 320px phone it is the difference between the last light landing
+     inside the page's padding and hanging off the end of the bar. */
+  gap: 0.5rem;
+}
+
+.app-header-flank,
+.app-status-tray {
+  display: contents;
+}
+
+/* Two navigations, one of them on screen at a time. The top bar wants width
+   and, on a tablet, width in the right direction — an upright tablet is a
+   phone as far as a thumb is concerned, so it gets the bottom bar too. Which
+   one shows is decided here rather than in JavaScript: reading the viewport in
+   React would flash on load and disagree with the prerender. */
+/* The menu button in the header is the top bar's counterpart to the bottom
+   bar's last entry: where the bottom bar is showing, the menu is down there as
+   "More", and this button is taken off the page entirely — which is also what
+   keeps it out of the tab order. Same rule as the bars, and decided here for the
+   same reason: no flash, and nothing for the prerender to disagree with. */
+.app-menu-button {
+  display: none;
+}
+
+.app-nav-top {
+  display: none;
+}
+
+.app-nav-bottom {
+  display: flex;
+  /* A fixed size rather than a grown one, so the page's clearance below and the
+     floating action bar's offset above both know exactly what they are working
+     around. A fixed element sits outside the body's safe-area padding, so the
+     navigation clears the gesture bar itself. */
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Room for the bar under the page. Relative to the body's own inset padding,
+   the navigation covers exactly its own height — so that is what the page
+   reserves, and the footer rides above it. `data-floating-bar` adds whatever
+   the passage card's own bar needs on top (see below).
+
+   This padding sits at the end of the page, so it can only do its job while
+   the shell it is on is free to grow with the content inside it (see
+   components/app-shell.tsx): a shell pinned to a viewport's height puts its own
+   bottom padding at the foot of the *screen*, which on a page that scrolls is
+   somewhere up behind its own content. */
+.app-shell-content {
+  padding-bottom: var(--bottom-nav-height);
+}
+
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  /* Back to the two-flank bar: the wrappers are boxes again, the mark takes its
+     half of the bar, and the lights hold the other half rather than being spread
+     along it. */
+  .app-header-row {
+    justify-content: flex-start;
+    gap: 0.75rem;
+  }
+
+  .app-header-flank,
+  .app-status-tray {
+    display: flex;
+  }
+
+  .app-home-link {
+    flex: 1 1 0%;
+  }
+
+  .app-wordmark {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .app-menu-button {
+    display: inline-flex;
+  }
+
+  .app-nav-top {
+    display: flex;
+  }
+
+  .app-nav-bottom {
+    display: none;
+  }
+
+  .app-shell-content {
+    padding-bottom: 0;
+  }
+}
+
+/* --- The way into memorization ------------------------------------------ */
+/* One control, drawn two ways. Where there is width the way in is a card in the
+   page's own flow, and the whole card is the button — there are no controls
+   inside it, so a tap anywhere on it is the same tap. On a phone the card is
+   gone and the same button floats in the bottom-right corner, over the content
+   and clear of the tab bar below it, where a thumb can reach it.
+
+   The switch is the navigation's own breakpoint, and made in CSS rather than by
+   reading the viewport: the card and the floating button are never both on the
+   page, and neither is decided after a render. */
+.memorize-add-card {
+  display: none;
+}
+
+/* The floating button answers to the same geometry as the app's floating bar:
+   the bottom navigation's height, then the device's own inset, then a breath of
+   margin. The plain value comes first so a browser that can't resolve env()
+   still gets a position rather than none at all.
+
+   The two gaps are the same number: the one above the button, to the top edge of
+   the navigation, and the one beside it, to the edge of the screen. The bar's own
+   height already includes the bottom inset, so the first of those is measured
+   from there down; the second is whatever the right inset turned out to be. Same
+   expression on both sides, so a device with an honest inset gets an honest
+   corner rather than a button riding high on one side and tucked in on the
+   other. */
+.memorize-add-fab {
+  display: flex;
+  right: 1rem;
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--bottom-nav-height) + 1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(
+    var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 1rem +
+      env(safe-area-inset-right, 0px)
+  );
+  /* Its own shadow, rather than a utility's: the button has to lift off the
+     parchment in the light theme and off the near-black in the dark one, and a
+     single tight shadow does neither. A soft spread carries it on the first and
+     a hairline of dark holds its edge on the second. */
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 8px 20px -6px rgb(0 0 0 / 0.4);
+}
+
+/* Room under the last card, so the floating button never sits on top of one a
+   reader is trying to read. */
+.memorize-page {
+  padding-bottom: 4.5rem;
+}
+
 /* --- Floating action bar ------------------------------------------------ */
 /* The bar's own padding, widened by the device's safe-area insets. A fixed
    element sits outside the body's safe-area padding, so the insets have to be
@@ -158,8 +508,36 @@ body {
   padding-bottom: 1rem;
   padding-left: 1rem;
   padding-right: calc(1rem + env(safe-area-inset-right, 0px));
-  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+  /* The bar rides above the bottom navigation, and that is what keeps it clear
+     of the gesture bar — the navigation carries the bottom inset itself (see
+     app-nav-bottom above). Adding the inset here as well would lift the bar a
+     gesture bar's worth higher than it has any business being. */
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  .share-bar {
+    /* Nothing underneath the bar, so it clears the gesture bar itself. */
+    bottom: 0;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* The card is back, so the floating button goes and the page's own flow has
+   nothing to reserve room for. */
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  .memorize-add-card {
+    display: block;
+  }
+
+  .memorize-add-fab {
+    display: none;
+  }
+
+  .memorize-page {
+    padding-bottom: 0;
+  }
 }
 
 /* The bar covers the foot of the page while it is up, so the scrolling content

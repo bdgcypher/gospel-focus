@@ -5,15 +5,20 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { Passage } from "@/lib/types";
 import { isNative, openExternal } from "@/lib/external";
+import { Glyph } from "./glyph";
+import { NoteDialog } from "./note-dialog";
+import { SaveToMemorizeDialog } from "./save-to-memorize-dialog";
 import { ShareCardDialog } from "./share-card-dialog";
 import { ShareIcon } from "./share-icon";
 import {
+  ensureFavorite,
   favoriteId,
   isSelectionSaved,
   toggleFavorite,
   toggleSelectionFavorite,
   useFavorites,
 } from "@/lib/favorites";
+import { noteFor, removeNote, saveNote, useNotes } from "@/lib/notes";
 import { usePreferences } from "@/lib/preferences";
 import type { ShareCard } from "@/lib/share-image";
 
@@ -28,6 +33,10 @@ export function PassageCard({ passage, drawKey }: Props) {
   /** Verse/paragraph numbers picked to share while the chapter is open. */
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [shareOpen, setShareOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  /** The memorize sheet, and the verses it was opened with. */
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [memorySections, setMemorySections] = useState<number[]>([]);
   const highlightRef = useRef<HTMLButtonElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   /** The card's own share button, watched to know when it has been scrolled past. */
@@ -36,8 +45,12 @@ export function PassageCard({ passage, drawKey }: Props) {
   const [sectionControls, setSectionControls] = useState<HTMLElement | null>(null);
 
   const favorites = useFavorites();
+  const notes = useNotes();
   const prefs = usePreferences();
-  const saved = useMemo(() => favorites.some((f) => f.id === favoriteId(passage)), [favorites, passage]);
+  const savedId = favoriteId(passage);
+  const saved = useMemo(() => favorites.some((f) => f.id === savedId), [favorites, savedId]);
+  /** The note on this draw, if the reader has written one on it. */
+  const note = noteFor(notes, savedId);
 
   const isScripture = passage.kind === "scripture";
   /** The verse (or paragraph) the draw landed on — what the card is showing. */
@@ -100,6 +113,18 @@ export function PassageCard({ passage, drawKey }: Props) {
     [favorites, passage, selection]
   );
 
+  /**
+   * The verses the reader has picked out, sorted, for the memorize sheet.
+   *
+   * One verse or several: a card is built from the whole set either way, so a
+   * single verse goes through the same door as a run. Empty means nothing is
+   * picked, which is what the sheet is only ever opened with after a check.
+   */
+  const picked = useMemo(
+    () => (selected.size > 0 ? [...selected].sort((a, b) => a - b) : []),
+    [selected]
+  );
+
   /** What a selection's members are called: verses in scripture, paragraphs in a talk. */
   const unit = isScripture ? "verse" : "paragraph";
   /** With several verses picked, the star saves them rather than the one passage. */
@@ -143,7 +168,7 @@ export function PassageCard({ passage, drawKey }: Props) {
           ? passage.expansionSubtitle ?? passage.sourceLabel
           : passage.sourceLabel,
       lines,
-      footer: "Open to Inspiration",
+      footer: "Gospel Focus",
     };
   }, [expanded, selected, passage, isScripture]);
 
@@ -185,32 +210,52 @@ export function PassageCard({ passage, drawKey }: Props) {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
 
       <div className="p-6 sm:p-8">
+        {/* The volume, and only the volume: the reference below already names
+            the book and the chapter, so a second badge would only say it
+            twice — and on a phone it is exactly what pushes a short reference
+            onto a line of its own. */}
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {passage.chips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full border border-border bg-surface-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted"
-              >
-                {chip}
-              </span>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted">
+              {passage.sourceLabel}
+            </span>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleStar}
-            aria-pressed={starred}
-            aria-label={starLabel}
-            title={starLabel}
-            className={`-mr-1 -mt-1 shrink-0 rounded-full border p-2 transition-colors ${
-              starred
-                ? "border-accent/50 bg-accent/15 text-accent-strong"
-                : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
-            }`}
-          >
-            <StarIcon filled={starred} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {/* Writing a note stars the passage on the way (see the dialog's
+                onSave): a note is kept, and what the app keeps is favorites. */}
+            <button
+              type="button"
+              onClick={() => setNoteOpen(true)}
+              aria-label={note ? `Edit the note on ${passage.reference}` : `Add a note to ${passage.reference}`}
+              title={note ? "Edit note" : "Add a note"}
+              className={`-mt-1 shrink-0 rounded-full border p-2 transition-colors ${
+                note
+                  ? "border-accent/50 bg-accent/15 text-accent-strong"
+                  : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
+              }`}
+            >
+              {/* The star beside it is a 20px mark in the same 8px padding, so
+                  this one matches: two controls in a row of the same job should
+                  be the same size. */}
+              <Glyph name="journal" className="h-5 w-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleStar}
+              aria-pressed={starred}
+              aria-label={starLabel}
+              title={starLabel}
+              className={`-mr-1 -mt-1 shrink-0 rounded-full border p-2 transition-colors ${
+                starred
+                  ? "border-accent/50 bg-accent/15 text-accent-strong"
+                  : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
+              }`}
+            >
+              <StarIcon filled={starred} />
+            </button>
+          </div>
         </div>
 
         <h2 className="font-serif text-xl font-semibold text-accent-strong sm:text-2xl">
@@ -375,6 +420,24 @@ export function PassageCard({ passage, drawKey }: Props) {
                       {selectionSaved ? `Saved ${count} ${unit}s` : `Save ${count} ${unit}s`}
                     </button>
                   )}
+
+                  {/* The same picked verses as learning material: a card can
+                      hold a run, so the whole selection becomes one card rather
+                      than a card per verse. */}
+                  {picked.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemorySections(picked);
+                        setMemoryOpen(true);
+                      }}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
+                    >
+                      <Glyph name="cards" className="h-4 w-4" />
+                      Memorize {picked.length} {unit}
+                      {picked.length === 1 ? "" : "s"}
+                    </button>
+                  )}
                 </div>
 
                 {/* self-start: a flex child would otherwise stretch, leaving a
@@ -425,12 +488,12 @@ export function PassageCard({ passage, drawKey }: Props) {
                     favorites, or share it. Each is an icon and a single word,
                     and the tighter gaps plus p-1 are what keep all four on one
                     line on a phone. */}
-                <div className="pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-2xl border border-border bg-surface/95 p-1 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.75)] backdrop-blur">
+                <div className="pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-full border border-border bg-surface/95 p-1 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.75)] backdrop-blur">
                   <button
                     type="button"
                     onClick={toggleExpanded}
                     aria-expanded={expanded}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
+                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
                   >
                     {expanded ? <CollapseIcon /> : <BookIcon />}
                     {expanded ? "Collapse" : "Read more"}
@@ -447,7 +510,7 @@ export function PassageCard({ passage, drawKey }: Props) {
                         void openExternal(passage.url);
                       }
                     }}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
+                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
                   >
                     <LinkIcon />
                     Gospel Library
@@ -462,7 +525,7 @@ export function PassageCard({ passage, drawKey }: Props) {
                     aria-pressed={starred}
                     aria-label={starLabel}
                     title={starLabel}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
+                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
                   >
                     <StarIcon filled={starred} />
                     Favorite
@@ -472,7 +535,7 @@ export function PassageCard({ passage, drawKey }: Props) {
                     type="button"
                     onClick={() => setShareOpen(true)}
                     aria-label={shareLabel}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
+                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
                   >
                     <ShareIcon />
                     Share
@@ -487,6 +550,26 @@ export function PassageCard({ passage, drawKey }: Props) {
       {/* Portalled to the body (see the dialog) so the card's own transform and
           overflow can never clip or offset it. */}
       <ShareCardDialog open={shareOpen} card={shareSpec} onClose={() => setShareOpen(false)} />
+
+      <SaveToMemorizeDialog
+        open={memoryOpen}
+        onClose={() => setMemoryOpen(false)}
+        passage={passage}
+        sections={memorySections}
+      />
+
+      <NoteDialog
+        // Remounted per opening so the field starts from the stored note.
+        key={noteOpen ? `${savedId}:${note?.text ?? ""}` : "note-closed"}
+        open={noteOpen}
+        title={passage.reference}
+        source={passage.sourceLabel}
+        passage={passage.text}
+        initial={note?.text ?? ""}
+        onSave={(text) => saveNote(ensureFavorite(passage), text)}
+        onDelete={note ? () => removeNote(savedId) : undefined}
+        onClose={() => setNoteOpen(false)}
+      />
     </motion.article>
   );
 }

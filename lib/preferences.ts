@@ -3,6 +3,13 @@
 import { useSyncExternalStore } from "react";
 import type { Filters } from "./types";
 
+/**
+ * Which face of a flashcard comes up first: the citation, to recall the words,
+ * or the words, to name the citation. Kept here rather than on the memorize
+ * page so a run opens on the side the reader chose last time.
+ */
+export type CardSide = "reference" | "passage";
+
 export interface Preferences {
   /** Skip the page-riffle animation and drop straight onto the draw. */
   reduceMotion: boolean;
@@ -17,9 +24,33 @@ export interface Preferences {
    * it, and the app would show a different verse than the reminder did.
    */
   filters: Filters;
+  /** Which side of a flashcard is shown first. */
+  flashcardSide: CardSide;
+  /**
+   * Whether the home-screen widget has been put to the reader already, after a
+   * study session finished the day's goal. Once per device, not once a day: an
+   * invitation that comes back every evening is an advert, and the settings row
+   * is where a reader goes when they want it.
+   */
+  widgetPromptSeen: boolean;
+  /**
+   * Whether the daily puzzle's "How to play" card has been shown. Once per
+   * device, like `widgetPromptSeen`: the card explains the colours, and a
+   * reader who has read it once should not have it over the board each day.
+   * The page keeps its own "How to play" button for anyone who wants it again.
+   */
+  wordleHelpSeen: boolean;
+  /**
+   * Whether the hub's Focus Lock invitation has been dismissed. Kept here
+   * rather than in lib/focus.ts because it is not a fact about the gate — the
+   * gate is armed or it isn't, and the banner reads that directly. It is a fact
+   * about a card the reader has already answered, which is the same kind of
+   * thing as `widgetPromptSeen` above (see components/focus-banner.tsx).
+   */
+  focusBannerDismissed: boolean;
 }
 
-const KEY = "open-to-inspiration:preferences:v1";
+const KEY = "gospel-focus:preferences:v1";
 
 /** Every source on, which is what a fresh install should draw from. */
 export const defaultFilters = (): Filters => ({
@@ -35,6 +66,12 @@ const DEFAULTS: Preferences = {
   dailyReminder: false,
   reminderHour: 7,
   filters: { volumes: {}, books: {}, conferences: {}, conferenceMaster: true },
+  // Recalling the words from the reference is the harder half, so that is what
+  // a fresh install asks for first.
+  flashcardSide: "reference",
+  widgetPromptSeen: false,
+  wordleHelpSeen: false,
+  focusBannerDismissed: false,
 };
 
 let cache: Preferences | null = null;
@@ -92,6 +129,10 @@ function read(): Preferences {
     dailyReminder: stored.dailyReminder === true,
     reminderHour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : DEFAULTS.reminderHour,
     filters: readFilters(stored.filters),
+    flashcardSide: stored.flashcardSide === "passage" ? "passage" : "reference",
+    widgetPromptSeen: stored.widgetPromptSeen === true,
+    wordleHelpSeen: stored.wordleHelpSeen === true,
+    focusBannerDismissed: stored.focusBannerDismissed === true,
   };
   return cache;
 }

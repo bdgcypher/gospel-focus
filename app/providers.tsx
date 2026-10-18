@@ -3,17 +3,14 @@
 import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect, type ReactNode } from "react";
-import { recordVisit } from "@/lib/streak";
 
 function NativeEffects() {
   const { resolvedTheme } = useTheme();
 
-  // Every page counts as a visit: the streak is about opening the app, not
-  // about which screen it happened to open on. Recording it here also means it
-  // is done once, before any page decides what to show.
-  useEffect(() => {
-    recordVisit();
-  }, []);
+  // Nothing here records the streak any more: a day counts when the day's goal
+  // is reached, which is a fact about the reader's studying rather than about
+  // the app being launched. components/streak-tracker.tsx watches for it where
+  // the minutes are, and lib/streak.ts keeps the chain.
 
   // Let the CSS know we're inside the Android shell so the safe-area
   // padding for the status bar / gesture bar is applied (see globals.css).
