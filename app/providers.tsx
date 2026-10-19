@@ -3,6 +3,7 @@
 import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect, type ReactNode } from "react";
+import { NativeBack } from "@/components/native-back";
 
 function NativeEffects() {
   const { resolvedTheme } = useTheme();
@@ -37,6 +38,10 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <NativeEffects />
+      {/* The Android back gesture, routed into the app's history instead of
+          out of it — see components/native-back.tsx. Mounted here so it holds
+          on every screen, including the ones that draw no chrome. */}
+      <NativeBack />
       {children}
     </ThemeProvider>
   );

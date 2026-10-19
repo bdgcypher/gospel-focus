@@ -9,7 +9,7 @@
  *  - manifest.json                      lightweight index used for filtering/picking
  *  - scriptures/<volume>.json           full verse text, lazily loaded per volume
  *  - conference/<year>-<month>.json     talk paragraphs, lazily loaded per conference
- *  - search.json.gz                     the full-text index /search queries
+ *  - search.snapshot                    the full-text index /search queries
  *  - words.json                         four-to-six-letter words, for the daily puzzle
  *
  * Run: node scripts/build-data.mjs

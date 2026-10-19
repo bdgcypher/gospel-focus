@@ -45,8 +45,15 @@ import type { Filters, Manifest } from "./types";
  * session keeps them.
  */
 
-/** Where the build writes the snapshot (scripts/search-index.mjs). */
-const INDEX_PATH = "data/search.json.gz";
+/**
+ * Where the build writes the snapshot (scripts/search-index.mjs).
+ *
+ * Not `search.json.gz`: Android's asset packer gunzips those on the way into
+ * the APK and renames them to `search.json`, so the request below 404s on
+ * device while the web build is unaffected. The suffix is neutral on purpose —
+ * see the note beside `INDEX_FILE`.
+ */
+const INDEX_PATH = "data/search.snapshot";
 
 /**
  * The file, as the build writes it. Every one of these is used: the options and

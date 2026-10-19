@@ -440,7 +440,8 @@ writes:
 - `public/data/manifest.json` — lightweight index (~8 KB) used for filtering and weighted draws
 - `public/data/scriptures/<volume>.json` — verse text, loaded lazily per volume
 - `public/data/conference/<year>-<month>.json` — talk paragraphs, loaded lazily
-- `public/data/search.json.gz` — the MiniSearch index `/search` queries
+- `public/data/search.snapshot` — the MiniSearch index `/search` queries (gzipped; the
+  name avoids `.gz` because Android's asset packer gunzips those into the APK)
 - `public/data/words.json` — the six-letter vocabulary the daily puzzle builds
   from (`scripts/build-words.mjs`), so guessing is checked against the library
 

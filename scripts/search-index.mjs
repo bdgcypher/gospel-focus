@@ -1,7 +1,7 @@
 /**
  * Build the full-text index the /search page queries.
  *
- * The index is a plain MiniSearch snapshot, written to public/data/search.json.gz
+ * The index is a plain MiniSearch snapshot, written to public/data/search.snapshot
  * and shipped with the app like the passage data itself, because the build is a
  * static export — there is no server to search on.
  *
@@ -55,8 +55,16 @@ export const INDEX_VERSION = 1;
  * compressed and the page inflates it with `DecompressionStream` — see
  * lib/search.ts. Both numbers are measured, not guessed: `npm run build:search`
  * prints them.
+ *
+ * The name deliberately does not end in `.gz`. Android's asset packer gunzips
+ * `*.gz` files as it packages them and drops the suffix, so the shipped APK
+ * carried `data/search.json` — inflated, 11.9 MB — while the app asked for
+ * `data/search.json.gz` and got a 404. That made search work on the web and
+ * fail only on Android, which is exactly the shape of bug a green build never
+ * shows. A neutral suffix is left alone, and the file stays one compressed
+ * asset inside the APK.
  */
-export const INDEX_FILE = "search.json.gz";
+export const INDEX_FILE = "search.snapshot";
 
 /** Fields searched. `reference` is boosted at query time (see lib/search.ts). */
 export const INDEX_FIELDS = ["text", "reference"];
