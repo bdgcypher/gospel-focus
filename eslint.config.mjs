@@ -12,8 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Capacitor native shell + toolchain (generated/build outputs):
+    // Capacitor native shells + toolchain (generated/build outputs, including
+    // the web bundle `cap sync` copies under ios/App/App/public):
     "android/**",
+    "ios/**",
     ".toolchain/**",
   ]),
 ]);

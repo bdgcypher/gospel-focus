@@ -196,9 +196,35 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
 ## Getting started
 
 ```bash
-npm install
+npm run bootstrap    # JDK 21 + Android SDK + npm ci + web build + cap sync
 npm run dev          # http://localhost:3000
 ```
+
+`npm run bootstrap` is the one command that makes a machine able to build the
+app, and it is what makes this checkout portable. A clone already carries
+everything that can travel through git — the source, the lockfile, the passage
+library, the Gradle wrapper, and both native projects. What it cannot carry is
+what is per-machine or secret, so the script provisions the rest:
+
+- **Node 22** is expected (`.nvmrc`, and `engines` in `package.json`).
+- **JDK 21 and the Android SDK** (`platform-tools`, `platforms;android-36`,
+  `build-tools;36.0.0`) are downloaded for this OS and CPU from Adoptium and
+  Google into the gitignored `.toolchain/` — unless `JAVA_HOME` /
+  `ANDROID_HOME` already point at usable ones.
+- **npm packages** come from `package-lock.json` (`npm ci`);
+- **the release key**, if `ANDROID_KEYSTORE_B64` and its three companions are in
+  the environment, is written exactly as CI does (see
+  [signing](#building-a-sideloadable-apk)); with none set the build is unsigned
+  rather than broken.
+- `android/local.properties` and `.toolchain/env.sh` (`.ps1` on Windows) are
+  written for Android Studio and for shells that build without npm.
+
+`npm run bootstrap -- --build` goes on to assemble the release APK (and the iOS
+simulator build on macOS). `--toolchain <dir>` provisions somewhere other than
+`.toolchain/` — export `GOSPEL_FOCUS_TOOLCHAIN` to that path afterwards so the
+other npm scripts find it — and `--force-install` re-runs `npm ci`. The
+directory is relocatable and deletable: copy it to another machine of the same
+OS and CPU, or delete it and run the script again.
 
 Other commands:
 
@@ -212,31 +238,34 @@ npm run build:search # rebuild just the search index from public/data on disk
 npm run build:words  # rebuild just the daily puzzle's word list from public/data
 ```
 
-## Cross-platform (web & Android)
+## Cross-platform (web, Android & iOS)
 
 The app is configured for **static export** (`output: "export"` in
 `next.config.ts`), which is what Capacitor bundles into native shells. Everything
 runs client-side, so there are no server actions or API routes to work around.
 
-**Android is the target that ships today.** iOS is not set up: `@capacitor/ios` is
-installed as a dependency, but there is no `ios/` project in the repo, so
-`npm run cap:add:ios` is the first step for anyone going there.
+**Android is the target that ships today.** The iOS project is committed as well
+(`ios/`, using Swift Package Manager — no CocoaPods, so it syncs on any OS), and
+`npx cap sync ios` keeps it current. Compiling it needs macOS with Xcode:
+`npm run ios:build` produces an unsigned simulator `.app`, a check that the web
+bundle and plugins fit together rather than something to sideload. A device
+build is Xcode's job, with a signing team.
 
 ```bash
-# one-time: generate the native project (Android exists already)
-npm run cap:add:android  # or: npm run cap:add:ios, which then needs macOS + Xcode
-
-# build the web app and copy it into the native project
+# build the web app and copy it into both native projects
 npm run cap:sync
 
-# open it in Android Studio
+# open the Android project in Android Studio (Xcode for iOS: npm run cap:ios)
 npm run cap:android
 ```
 
+`npm run cap:add:android` / `npm run cap:add:ios` regenerate a native project
+from scratch and are only needed if one is ever deleted.
+
 Passage links open in the **Gospel Library app** on Android (via its official
 `gospellibrary://content` custom scheme, falling back to the in-app browser
-(`@capacitor/browser`) when the app isn't installed), in the in-app browser on iOS
-once that project exists, and in a new tab on the web — see `lib/external.ts`.
+(`@capacitor/browser`) when the app isn't installed), in the in-app browser on
+iOS, and in a new tab on the web — see `lib/external.ts`.
 
 Files do not leave the app the way they do on the web. A WebView has no download
 manager, no Web Share API and no image clipboard, so on device:
@@ -281,20 +310,28 @@ npx @capacitor/assets generate android --assetPath app \
 
 ### Building a sideloadable APK
 
-Prerequisites: a JDK (17+, 21 recommended) and the Android SDK with
-`platforms;android-36` + `build-tools;36.0.0`. Android Studio installs both, or
-you can keep a portable toolchain in a gitignored directory (e.g. `.toolchain/`)
-and point `android/local.properties` at it with `sdk.dir=...`.
+Prerequisites: Node 22 and a JDK 21 plus the Android SDK with
+`platforms;android-36` + `build-tools;36.0.0`. `npm run bootstrap` provisions
+both into the gitignored `.toolchain/` for this OS and CPU — or uses ones already
+installed via `JAVA_HOME` / `ANDROID_HOME`.
 
 ```bash
-npm run cap:apk      # = build + cap sync + gradlew assembleRelease
+npm run cap:apk      # = build + cap sync + gradle assembleRelease
 # output: android/app/build/outputs/apk/release/app-release.apk
 ```
 
-(`gradlew.bat` instead of `./gradlew` on Windows.)
+The Gradle step runs through `scripts/gradle.mjs`, which sets `JAVA_HOME` and
+`ANDROID_HOME` from that toolchain and picks `gradlew.bat` on Windows — the same
+npm command on every OS.
 
-The APK is release-signed, targets API 36, and has `minSdkVersion 24`
-(Android 7.0+). To sideload: copy it to the device, allow *Install unknown apps*
+Without the release key the build still succeeds, as
+`app-release-unsigned.apk`: `android/app/build.gradle` signs only when both
+`android/keystore.properties` and the keystore it names are present. Signing is
+the one piece a clone cannot supply; restore it from a password manager (or set
+the four `ANDROID_KEYSTORE_*` variables and re-run `npm run bootstrap`).
+
+The APK is release-signed when the key is present, targets API 36, and has
+`minSdkVersion 24` (Android 7.0+). To sideload: copy it to the device, allow *Install unknown apps*
 for your file manager or browser, open the file, and install.
 
 Signing setup (already configured in `android/app/build.gradle`):
@@ -303,6 +340,12 @@ Signing setup (already configured in `android/app/build.gradle`):
   you can never push an update to an installed app.
 - Credentials: `android/keystore.properties` (both are gitignored).
 - Bump `versionCode` in `android/app/build.gradle` for every release.
+
+`npm run bootstrap` restores both from the same secrets CI uses —
+`ANDROID_KEYSTORE_B64` (the base64 of the keystore), `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEYSTORE_KEY_ALIAS`, `ANDROID_KEYSTORE_KEY_PASSWORD` — so a new machine
+does not need the files copied by hand. Those secrets are write-only on GitHub,
+so the password-manager copy is the real one.
 
 Dark/night icon variants and the Android 13+ monochrome themed-icon layer are
 generated from `app/icon.svg` as well:
@@ -358,6 +401,23 @@ keystore as local builds via repo secrets:
 `ANDROID_KEYSTORE_B64` (base64-encoded keystore), `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEYSTORE_KEY_ALIAS`, `ANDROID_KEYSTORE_KEY_PASSWORD` — set with
 `gh secret set <name>`.
+
+### Building the iOS app
+
+```bash
+npm run ios:build    # macOS only: unsigned simulator .app via xcodebuild
+```
+
+The iOS project syncs anywhere (`npx cap sync ios`), but the Swift compile needs
+macOS with Xcode — the one part of this setup that is not portable. The script
+builds for the simulator with `CODE_SIGNING_ALLOWED=NO` and writes
+`ios/App/build/Build/Products/Release-iphonesimulator/App.app`; that verifies the
+web bundle, the Swift package and all seven plugins fit together, but it is not a
+sideloadable IPA. A device build means opening `npm run cap:ios` and signing with
+your own team.
+
+CI runs the same script on `macos-latest`
+(`.github/workflows/ios-build.yml`), so a broken iOS project shows up on push.
 
 ## Data
 
@@ -457,6 +517,10 @@ lib/share-image.ts        drafting the share cards
 lib/native-files.ts       native sharing / file picking / downloads (Capacitor)
 lib/external.ts           the Gospel Library URL builder and browser opener
 lib/types.ts              shared types
+scripts/bootstrap.mjs     provision JDK + SDK, install, build, sync — any OS
+scripts/toolchain.mjs     find JAVA_HOME / ANDROID_HOME, or the .toolchain copy
+scripts/gradle.mjs        cross-platform gradlew runner for the npm scripts
+scripts/ios-build.mjs     unsigned simulator build via xcodebuild (macOS only)
 scripts/build-data.mjs    the dataset generator (and the search index with it)
 scripts/search-index.mjs  the MiniSearch index: its shape, its stopwords, and
                           the check that the page can still read it
@@ -464,6 +528,7 @@ scripts/build-search.mjs  rebuild just the index, from public/data on disk
 scripts/build-words.mjs   the daily puzzle's six-letter list, from public/data
 public/data/              the generated passage library, indexes, and word list
 android/                  the Capacitor Android project (signed release builds)
+ios/                      the Capacitor iOS project (Swift Package Manager)
 capacitor.config.ts       native shell configuration
 next.config.ts            static export configuration
 ```

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "bootstrap": "node scripts/bootstrap.mjs",
     "dev": "next dev",
     "build": "next build",
     "lint": "eslint",
@@ -16,8 +17,12 @@
     "cap:add:android": "cap add android",
     "cap:ios": "npm run build && cap sync ios && cap open ios",
     "cap:android": "npm run build && cap sync android && cap open android",
-    "cap:apk": "npm run cap:sync && cd android && ./gradlew assembleRelease",
+    "cap:apk": "npm run cap:sync && node scripts/gradle.mjs assembleRelease",
+    "ios:build": "npm run build && cap sync ios && node scripts/ios-build.mjs",
     "preview": "npx --yes serve out"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

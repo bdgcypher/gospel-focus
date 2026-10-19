@@ -1,8 +1,25 @@
 apply plugin: 'com.android.application'
 
+// Resolve the release key once. A properties file alone is not enough — the
+// keystore it points at has to be there too, or Gradle fails validation.
+// Both are gitignored, so on a fresh clone this is false and the release build
+// is unsigned instead of broken.
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file('keystore.properties')
+def hasReleaseKey = keystorePropsFile.exists()
+if (hasReleaseKey) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+    def store = keystoreProps['storeFile']
+    hasReleaseKey = store != null && rootProject.file(store).exists()
+}
+
 android {
     namespace = "app.gospelfocus.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    // Pin the build tools too. Left unset, AGP uses its own default (35.0.0),
+    // which is a version neither this repo's docs nor CI install — Gradle then
+    // downloads it mid-build on a fresh machine. One pinned version instead.
+    buildToolsVersion = "36.0.0"
     defaultConfig {
         applicationId "app.gospelfocus.app"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -18,17 +35,15 @@ android {
     }
     signingConfigs {
         release {
-            // Credentials live in android/keystore.properties (gitignored).
-            // Delete the block below and the signingConfig reference to fall
-            // back to an unsigned release build.
-            def props = new Properties()
-            def propsFile = rootProject.file('keystore.properties')
-            if (propsFile.exists()) {
-                props.load(new FileInputStream(propsFile))
-                storeFile rootProject.file(props['storeFile'])
-                storePassword props['storePassword']
-                keyAlias props['keyAlias']
-                keyPassword props['keyPassword']
+            // Credentials live in android/keystore.properties (gitignored), and
+            // the keystore in android/keystore/ next to it. A clone without the
+            // key — a new machine that has not restored it yet — still builds:
+            // the release build is simply unsigned (app-release-unsigned.apk).
+            if (hasReleaseKey) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
             }
         }
     }
@@ -36,7 +51,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            signingConfig hasReleaseKey ? signingConfigs.release : null
         }
     }
 }

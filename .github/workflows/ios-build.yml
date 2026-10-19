@@ -1,0 +1,43 @@
+name: Build iOS (simulator)
+
+# The one half of the build that a Linux or Windows machine cannot run. This
+# job proves that ios/ still compiles after a plugin or web-bundle change, using
+# the same script a Mac uses locally (`npm run ios:build`), unsigned and for the
+# simulator. It is a build check, not a distributable: shipping to a device or
+# the App Store still means signing in Xcode with a team.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build the web app and the iOS simulator app
+        run: npm run ios:build
+
+      - name: Upload the simulator app
+        uses: actions/upload-artifact@v7
+        with:
+          name: gospel-focus-ios-simulator
+          path: ios/App/build/Build/Products/Release-iphonesimulator/App.app
+          if-no-files-found: error
