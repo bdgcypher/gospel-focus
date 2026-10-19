@@ -11,6 +11,11 @@
  * distributable. Shipping to a device or the App Store means signing in Xcode
  * with your own team.
  *
+ * The scheme it builds is the committed `App.xcscheme`: Xcode keeps schemes in
+ * per-user `xcuserdata/`, which no clone carries, and it will not accept a
+ * derived data path without one — so the shared copy is what lets this run on a
+ * machine that has never opened the project.
+ *
  *   node scripts/ios-build.mjs
  *   # output: ios/App/build/Build/Products/Release-iphonesimulator/App.app
  */
@@ -43,15 +48,20 @@ const result = spawnSync(
   [
     "-project",
     project,
-    "-target",
+    "-scheme",
     "App",
     "-configuration",
     "Release",
     "-sdk",
     "iphonesimulator",
+    // A generic simulator destination keeps the build off any particular
+    // installed runtime, which a CI runner has no opinion about.
+    "-destination",
+    "generic/platform=iOS Simulator",
     "-derivedDataPath",
     join(repoRoot, "ios", "App", "build"),
     "CODE_SIGNING_ALLOWED=NO",
+    "CODE_SIGNING_REQUIRED=NO",
     "build",
   ],
   { stdio: "inherit" }
