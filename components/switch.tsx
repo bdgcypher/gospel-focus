@@ -17,8 +17,10 @@ export function Switch({ checked, onChange, label, disabled = false }: Props) {
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        checked ? "border-accent bg-accent" : "border-border bg-surface-2"
+      className={`relative h-6 w-11 shrink-0 rounded-full border transition-[color,background-color,border-color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:ring-2 enabled:hover:ring-accent/30 ${
+        checked
+          ? "border-accent bg-accent"
+          : "border-border bg-surface-2 enabled:hover:border-accent/70"
       }`}
     >
       <span

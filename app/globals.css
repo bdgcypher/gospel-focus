@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-/* Class-based dark mode driven by next-themes */
+/* Class-based dark mode driven by next-themes. The style is a separate class
+   (`playful`), so dark mode has one meaning however the app is drawn. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -33,31 +34,146 @@
   --page: #fffefb;
   --page-edge: #e8dcc3;
   --spine: #d9c9a6;
-  /* The bottom navigation's own height, without the safe-area inset. One number
-     for the navigation itself, the room reserved for it under the page, and the
-     floating action bar that has to clear it — so they cannot drift apart. */
-  --bottom-nav-height: 3.75rem;
+  /* The bottom navigation's own height, without the safe-area inset, and with
+     the half-rem of air the bar keeps under its tabs (see `.app-nav-bottom`).
+     One number for the navigation itself, the room reserved for it under the
+     page, and the floating action bar that has to clear it — so they cannot
+     drift apart. */
+  --bottom-nav-height: 4.25rem;
 }
 
+/* The paper-and-ink night: the same neutral greys as the playful night, so the
+   two dark skins sit on one floor and neither reads as sepia. The focused gold
+   stays as the accent — this is the theme's own voice — but it is the only warm
+   thing in the sheet. */
 .dark {
-  --background: #13100b;
-  --surface: #1c1811;
-  --surface-2: #241f16;
-  --foreground: #f0e7d6;
-  --muted: #a99a80;
-  --border: #332b1e;
+  --background: #111111;
+  --surface: #1b1b1b;
+  --surface-2: #333333;
+  --foreground: #f2f2f2;
+  --muted: #b0b0b0;
+  --border: #424242;
   --accent: #e0b45c;
   --accent-strong: #f0c877;
-  --accent-contrast: #1a150d;
+  /* Neutral ink on the gold, like the playful night's. A brown here was the
+     last warm value left in this palette besides the accent itself. */
+  --accent-contrast: #1a1a1a;
   --correct: #17873f;
   --correct-contrast: #ffffff;
   --correct-text: #4caf72;
   --present: #e4b009;
   --present-contrast: #241b09;
   --wrong: #ff9a90;
-  --page: #221d15;
-  --page-edge: #33291a;
-  --spine: #3d3222;
+  --page: #1e1e1e;
+  --page-edge: #3a3a3a;
+  --spine: #4b4b4b;
+}
+
+/* --- Playful style -------------------------------------------------------
+   The second skin, laid over either theme: a bright, toy-like cream by day and
+   a lamp-lit charcoal night under `.dark`, both carrying the same tokens so
+   every page keeps working unchanged. The playful look lives in two halves —
+   these values, and the emoji and 3D treatments further down — so the style is
+   a palette rather than a fork of the app.
+
+   Its accent is a warmer, louder orange than the parchment's gold, and the ink
+   that sits on it is dark — brown by day, near-black by night — rather than
+   white: a yellow bright enough to read as a toy button can't hold white text
+   at 4.5:1, and the dark ink clears it comfortably. `--accent-strong` is the
+   reading tone (links, labels, numbers) and stays dark in the light palette,
+   light in the dark one. */
+.playful {
+  --background: #fbf0da;
+  --surface: #fffdf7;
+  --surface-2: #f6e7ca;
+  --foreground: #3b2a16;
+  --muted: #7a6244;
+  --border: #e8d2a8;
+  --accent: #f29b0b;
+  --accent-strong: #9a4a06;
+  --accent-contrast: #3a2205;
+  --correct: #17873f;
+  --correct-contrast: #ffffff;
+  --correct-text: #17873f;
+  --present: #e4b009;
+  --present-contrast: #241b09;
+  --wrong: #b3261e;
+  --page: #fffdf7;
+  --page-edge: #e8d2a8;
+  --spine: #e3c99c;
+  /* The 3D edges. A card sits on a slightly darker base edge and a lit top
+     highlight; a primary button on a burnt-orange rim and foot. The controls
+     have their own edge token because the night palette lights the card's
+     side without lighting theirs (see `.playful.dark`). */
+  --card-edge: #e3c99c;
+  --control-edge: #e3c99c;
+  --card-shadow: rgb(120 84 20 / 0.26);
+  --card-highlight: rgb(255 255 255 / 0.75);
+  --accent-top: #ffd05e;
+  --accent-edge: #b96a05;
+  --bubble-top: #ffe9b5;
+  --nav-top: #fff6e2;
+}
+
+/* --- Playful type --------------------------------------------------------
+   The second skin speaks in Nunito: a rounded sans that matches the emoji, the
+   soft corners and the raised blocks, where the paper-and-ink skins keep their
+   Geist and Source Serif pairing. Both type roles point at it, because the skin
+   is one voice — a Source Serif heading over Nunito body text would read as two
+   themes slid together. The mono face stays as it is: it is for the few
+   readouts that need columns, not for the skin's voice.
+
+   The serif needs a rule as well as the token because Tailwind's `font-serif`
+   utility carries the family inline (see `@theme inline`), so overriding the
+   token alone would never reach the heading that asks for it. `html.playful`
+   rather than `.playful` guarantees the override wins wherever the generated
+   `:root` block lands in the sheet. */
+html.playful {
+  --font-sans: var(--font-nunito);
+}
+
+html.playful .font-serif {
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Under `.dark` the same style turns night on a neutral charcoal rather than
+   the brown of the earlier palette: the page, the raised faces, the book and
+   the bars are all even greys, so the only warmth left in the room is the
+   amber accent itself. That is what keeps the playful skin reading as a dark
+   room lit by a lamp instead of as sepia, and it also means there is no blue
+   anywhere in the night palette. */
+.playful.dark {
+  --background: #111111;
+  --surface: #1b1b1b;
+  --surface-2: #333333;
+  --foreground: #f2f2f2;
+  --muted: #b0b0b0;
+  --border: #424242;
+  --accent: #ffb02e;
+  --accent-strong: #ffc861;
+  --accent-contrast: #1a1a1a;
+  --correct: #17873f;
+  --correct-contrast: #ffffff;
+  --correct-text: #4caf72;
+  --present: #e4b009;
+  --present-contrast: #241b09;
+  --wrong: #ff9a90;
+  --page: #1e1e1e;
+  --page-edge: #3a3a3a;
+  --spine: #4b4b4b;
+  /* The side of a raised block catches the lamp here: on a near-black page a
+     near-black edge under a card is a gap, not a side, so the card's edge is a
+     grey a step lighter than its face. The controls keep the dark edge — their
+     faces are already the lighter thing, and a lit foot under them would read
+     as a glow rather than as depth. */
+  --card-edge: #3f3f3f;
+  --control-edge: #0c0c0c;
+  --card-shadow: rgb(0 0 0 / 0.62);
+  --card-highlight: rgb(255 255 255 / 0.09);
+  --accent-top: #ffd06a;
+  --accent-edge: #b06a04;
+  --bubble-top: #3d3d3d;
+  --nav-top: #262626;
 }
 
 @theme inline {
@@ -97,6 +213,341 @@ body {
     radial-gradient(circle at 15% 0%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 45%),
     radial-gradient(circle at 85% 100%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 45%);
   background-attachment: fixed;
+}
+
+/* The focused night is grey first: its page keeps a neutral vignette rather
+   than the parchment's gold glow, which over a near-black sheet read as sepia
+   and pulled the whole theme back towards brown. The gold stays on the accent
+   and on nothing else. */
+.dark body {
+  background-image:
+    radial-gradient(circle at 15% 0%, rgb(255 255 255 / 0.06), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgb(255 255 255 / 0.04), transparent 45%);
+}
+
+/* --- Playful themes ------------------------------------------------------
+   The skin itself. Every page is built from the same handful of utilities —
+   `bg-surface` for a card, `bg-accent` for the one primary action, `bg-surface-2`
+   for a quieter control — so drawing the 3D look here, once, gives the whole
+   app the same toy-like depth without a single component knowing the theme
+   exists. Colours come from the tokens above; only the depth is added here.
+
+   These rules are unlayered, so they can sit beside Tailwind's utilities
+   without a specificity fight. They only add what the utilities don't set —
+   gradients, edge shadows, the pressed-in look under the pointer or on tap —
+   and leave colour, padding and radius to the page.
+
+   The backgrounds are lit from above and the edge is a solid, darker strip
+   under the base: that pair is what reads as a raised object rather than as a
+   drop shadow, and it is the one detail the style is built around. */
+/* The playful page is one flat field, by day and by night. The corner glows
+   that used to sit behind it read as a colour wash across the whole screen,
+   which fought the flat faces of the raised pieces; the skin keeps its depth
+   on the objects and leaves the page a solid colour. */
+.playful body,
+.playful.dark body {
+  background-image: none;
+}
+
+/* Buttons are rounded rectangles, not pills. Horizontal padding is what makes
+   a control a pill: an icon button is square (a fixed size, or equal padding
+   on every side) with no `px-` class, so a close button, the back arrow, the
+   add button and the switch's track all keep their shape. Badges, dots and
+   progress bars are not buttons and are left alone. Unlayered, so this wins
+   over the `rounded-full` utility without touching the component that asked
+   for it. */
+button.rounded-full[class*="px-"]:not([role="switch"]),
+a.rounded-full[class*="px-"] {
+  border-radius: 0.75rem;
+}
+
+/* Cards: a lit face, a shaded foot and a solid base edge under the card. The
+   three together are what makes the card read as a raised block rather than as
+   a flat rectangle with a drop shadow: light from above, shadow where the face
+   turns under, and a visible side you could put a finger on.
+
+   The base edge is a touch thicker than before and the drop is a little longer,
+   which is what gives the largest raised thing in the style a bit more lift —
+   just enough to feel like a block with weight, without turning it into a tray
+   sitting above the page. */
+.playful :is(.rounded-2xl, .rounded-3xl).bg-surface {
+  background-image:
+    radial-gradient(120% 95% at 50% -40%, var(--card-highlight), transparent 62%),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--surface) 84%, white 16%),
+      var(--surface) 72%
+    );
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 -6px 9px -7px color-mix(in oklab, var(--card-edge) 70%, transparent),
+    inset 0 0 0 999px transparent,
+    0 4px 0 var(--card-edge),
+    0 26px 40px -24px var(--card-shadow);
+  transition-property: translate, box-shadow, border-color, background-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* In the night palette the card's lit face is held back. The same sixteen
+   percent of white that reads as a lit cream card by day lifts a near-black
+   face up to the tone of the controls sitting on it, so the buttons stop
+   looking raised and start looking like wells in the card. The night card keeps
+   a hair of light at its top and a hairline highlight, and takes its weight
+   from the dark base edge instead — which leaves the lighter tone for the
+   things you press. */
+.playful.dark :is(.rounded-2xl, .rounded-3xl).bg-surface {
+  background-image:
+    radial-gradient(120% 95% at 50% -40%, var(--card-highlight), transparent 62%),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--surface) 94%, white 6%),
+      var(--surface) 72%
+    );
+}
+
+/* Reaching for a raised thing settles it into its base a little; pressing it
+   settles it further. The face moves down by as much as the base edge gives
+   up, so the foot of the object stays on the page instead of sliding off it,
+   and a thin wash of ink fades the face without touching its contents. Only
+   anchors and buttons take this: a card that goes nowhere is a surface, not a
+   control. */
+.playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+  translate: 0 1px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 -7px 10px -7px color-mix(in oklab, var(--card-edge) 76%, transparent),
+    inset 0 0 0 999px color-mix(in oklab, var(--foreground) 5%, transparent),
+    0 3px 0 var(--card-edge),
+    0 22px 34px -22px var(--card-shadow);
+}
+
+.playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):active {
+  translate: 0 2px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 -8px 11px -7px color-mix(in oklab, var(--card-edge) 84%, transparent),
+    inset 0 0 0 999px color-mix(in oklab, var(--foreground) 8%, transparent),
+    0 2px 0 var(--card-edge),
+    0 18px 28px -20px var(--card-shadow);
+}
+
+/* The one primary action on a card: a glossy, raised button that presses in
+   when reached for or tapped. Only buttons and links are dressed this way — the
+   same bg-accent is also a progress fill and a counter dot, and neither should
+   look tappable.
+   A switch is left out as well: it reports a state rather than offering an
+   action, and a raised track that presses in reads as a button you push rather
+   than a setting you flip.
+
+   The face is a flat slab with a darker rim inside its edge and a solid
+   darker foot along the bottom. That outline and foot are the whole depth:
+   there is no specular bloom across the top, which read as a dome rather than
+   as a button. Pressing shortens the foot and settles the button by the same
+   amount, so it lands on the page instead of sliding off it. */
+.playful :is(button, a).bg-accent:not([role="switch"]) {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--accent) 92%, white 8%),
+    var(--accent) 60%
+  );
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--accent-edge),
+    inset 0 -5px 0 color-mix(in oklab, var(--accent-edge) 72%, var(--accent)),
+    0 3px 6px -4px rgb(0 0 0 / 0.35);
+  transition-property: translate, box-shadow, border-color, background-color, color, opacity, filter;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.playful :is(button, a).bg-accent:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+  translate: 0 1px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--accent-edge),
+    inset 0 -4px 0 color-mix(in oklab, var(--accent-edge) 72%, var(--accent)),
+    0 2px 5px -4px rgb(0 0 0 / 0.32);
+}
+
+.playful :is(button, a).bg-accent:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):active {
+  translate: 0 2px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--accent-edge),
+    inset 0 -3px 0 color-mix(in oklab, var(--accent-edge) 72%, var(--accent)),
+    0 1px 3px -3px rgb(0 0 0 / 0.3);
+}
+
+/* Secondary controls: the quieter raised face, for the buttons beside a
+   primary one. The same exclusion applies here, so the switch's off track is
+   as flat as its on track, and the same rim-and-foot material keeps the pair
+   reading as one make. */
+.playful :is(button, a).bg-surface-2:not([role="switch"]) {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--surface-2) 86%, white 14%),
+    var(--surface-2) 60%
+  );
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--control-edge),
+    inset 0 -4px 0 color-mix(in oklab, var(--control-edge) 70%, var(--surface-2)),
+    0 2px 5px -4px rgb(0 0 0 / 0.3);
+  transition-property: translate, box-shadow, border-color, background-color, color, opacity, filter;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+  translate: 0 1px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--control-edge),
+    inset 0 -3px 0 color-mix(in oklab, var(--control-edge) 70%, var(--surface-2)),
+    0 1px 4px -3px rgb(0 0 0 / 0.28);
+}
+
+.playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):active {
+  translate: 0 2px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--control-edge),
+    inset 0 -2px 0 color-mix(in oklab, var(--control-edge) 70%, var(--surface-2)),
+    0 1px 2px -2px rgb(0 0 0 / 0.26);
+}
+
+/* --- The word puzzle's pieces --------------------------------------------
+   The board's tiles and the keyboard's keys are the one place the playful
+   skin's raised rules did not reach: a tile is a span, and a marked key's face
+   is green, gold or grey rather than a surface token, so only the grey keys
+   lifted while the solved letters stayed flat paint. Every piece is drawn the
+   same way here — a face lit from above, a solid edge under it — and the edge
+   comes from the marking, so green and gold sit on their own colour the way
+   the grey ones do. Colours and borders still come from the utilities; this
+   adds only the depth.
+
+   The pieces take the same rim-and-foot material as the buttons: a flat face
+   with a darker outline inside the edge and a solid darker strip along the
+   bottom, rather than a specular bloom. The outline and strip come from the
+   piece's own edge, so they are green under green and gold under gold.
+
+   The empty slots of the board are deliberately left out: they are places for
+   a tile, not tiles, and a flat well under the raised guesses is what tells
+   the two apart. */
+.playful :is(.puzzle-tile, .puzzle-key) {
+  --piece-edge: var(--control-edge);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 55%);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--piece-edge),
+    inset 0 -4px 0 var(--piece-edge),
+    0 2px 4px -3px rgb(0 0 0 / 0.35);
+  transition-property: translate, box-shadow, border-color, background-color, color, opacity, filter;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.playful .puzzle-tile.bg-correct,
+.playful .puzzle-key.bg-correct {
+  --piece-edge: color-mix(in oklab, var(--correct) 64%, #000);
+}
+
+.playful .puzzle-tile.bg-present,
+.playful .puzzle-key.bg-present {
+  --piece-edge: color-mix(in oklab, var(--present) 68%, #000);
+}
+
+/* A key is pressed like every other raised control in the skin: it settles a
+   pixel into its base when reached for, two when tapped, and gives back the
+   edge it loses by moving down. The board's tiles are not controls, so they
+   hold still. */
+.playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+  translate: 0 1px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--piece-edge),
+    inset 0 -3px 0 var(--piece-edge),
+    0 1px 3px -3px rgb(0 0 0 / 0.32);
+}
+
+.playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):active {
+  translate: 0 2px;
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    inset 0 0 0 1px var(--piece-edge),
+    inset 0 -2px 0 var(--piece-edge),
+    0 1px 2px -2px rgb(0 0 0 / 0.3);
+}
+
+/* The icon bubble on a card stays a plain tint in both styles: it marks the
+   card rather than offering anything, so it takes no face, edge or shadow —
+   the depth belongs to the cards and buttons around it. */
+
+/* The day's goal keeps its amber gradient as it fills. The header's status
+   lights deliberately get no card treatment: they are readings, not buttons. */
+.playful [role="progressbar"] .bg-accent {
+  background-image: linear-gradient(90deg, var(--accent-top), var(--accent));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4);
+}
+
+/* The tab you are standing in wears the same raised pill as a button — the
+   pill travels between tabs, so the treatment travels with it. */
+.playful .nav-pill {
+  background-image: linear-gradient(
+    180deg,
+    var(--bubble-top),
+    color-mix(in oklab, var(--accent) 18%, var(--surface))
+  );
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    0 2px 0 var(--control-edge);
+}
+
+/* The two bars: a light top edge on the tab bar and a soft lift under the
+   header, so both read as surfaces rather than as bands of colour. */
+.playful .app-nav-bottom {
+  background-image: linear-gradient(180deg, var(--nav-top), var(--surface));
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    0 -10px 26px -20px var(--card-shadow);
+}
+
+.playful header {
+  box-shadow: 0 8px 22px -20px var(--card-shadow);
+}
+
+/* --- Glyph faces ---------------------------------------------------------
+   components/glyph.tsx draws both a stroke and an emoji and lets the style
+   choose — but only for the glyphs that have an emoji. Controls keep their
+   drawing (the wrapper has no `glyph-has-emoji`), so the menu rules, the
+   arrows, the return and backspace keys and the close cross look the same in
+   both styles. The emoji is sized from the glyph's own box (a size container)
+   so a tab's 24px mark and a tile's 56px mark both fill their space, whatever
+   font size the surrounding words are set in. The plain font-size before the
+   container units is the fallback for a browser that doesn't know them. */
+.glyph {
+  container-type: size;
+}
+
+.glyph-vector {
+  width: 100%;
+  height: 100%;
+}
+
+.glyph-emoji {
+  display: none;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.playful .glyph-has-emoji .glyph-vector {
+  display: none;
+}
+
+.playful .glyph-has-emoji .glyph-emoji {
+  display: block;
+  font-size: min(92cqw, 92cqh);
 }
 
 /* --- Riffling book animation ------------------------------------------- */
@@ -365,6 +816,45 @@ body {
    phone as far as a thumb is concerned, so it gets the bottom bar too. Which
    one shows is decided here rather than in JavaScript: reading the viewport in
    React would flash on load and disagree with the prerender. */
+/* The current section's mark: one pill under the tabs, not a border on each.
+   A border can only switch off and on; a single mark can travel, and travelling
+   is what says the four entries are one row rather than four controls. Its box
+   is written from the measured active link (see usePill in
+   components/nav-bar.tsx), because the top bar's entries are as wide as their
+   words and the bottom bar's are equal shares of the screen. The travel
+   between tabs is animated in components/nav-bar.tsx rather than here, because
+   the width has to stretch past both tabs on the way (a transition can only run
+   between the two widths); the bar outlives a navigation, so the same element is
+   there to be moved. This rule only fades it in on a page load or when the bar
+   comes back at the stylesheet's breakpoint. */
+.nav-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1px solid color-mix(in oklab, var(--accent) 40%, transparent);
+  background-color: color-mix(in oklab, var(--accent) 15%, transparent);
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+/* A top-bar entry is as wide as its words, so the bolder weight it takes under
+   the pointer would push the row along by a pixel or two and leave the
+   travelling pill under the wrong word. The bold label is laid under the quiet
+   one at the width it will need, invisible until the weight changes. Only the
+   top bar needs it: the bottom bar's cells are equal shares of the screen. */
+.nav-label {
+  display: inline-grid;
+}
+
+.nav-label > * {
+  grid-area: 1 / 1;
+}
+
+.nav-label-wide {
+  visibility: hidden;
+  font-weight: 600;
+}
+
 /* The menu button in the header is the top bar's counterpart to the bottom
    bar's last entry: where the bottom bar is showing, the menu is down there as
    "More", and this button is taken off the page entirely — which is also what
@@ -383,9 +873,14 @@ body {
   /* A fixed size rather than a grown one, so the page's clearance below and the
      floating action bar's offset above both know exactly what they are working
      around. A fixed element sits outside the body's safe-area padding, so the
-     navigation clears the gesture bar itself. */
+     navigation clears the gesture bar itself.
+
+     The half-rem at the foot is breathing room under the tabs: the row of
+     targets sits a little above the edge of the screen instead of on it. It is
+     part of `--bottom-nav-height`, so the page still reserves the bar's whole
+     height and the floating bars still clear it. */
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Room for the bar under the page. Relative to the body's own inset padding,
@@ -445,6 +940,124 @@ body {
   .app-shell-content {
     padding-bottom: 0;
   }
+}
+
+/* --- Changing pages -----------------------------------------------------
+   The app moves in two ways, and the difference is the point.
+
+   The four sections sit in a row in the bar, so moving between them is drawn
+   as movement along that row: the page arrives from the side its section sits
+   on, and a step back along the bar arrives from the other side. The link that
+   was pressed leaves the direction behind (lib/page-motion.ts) and
+   components/app-shell.tsx picks it up for the page that follows.
+
+   Anything reached from inside a section — a game, the memorizer, settings —
+   is not beside the four, so it does not slide: it settles. Each block fades up
+   in turn, which reads as a new page rather than as a fifth tab.
+
+   The engine is an entrance animation on the page's own box. It is not a view
+   transition, and that is deliberate: the app bar has to stay live while the
+   page moves, because its section indicator is travelling from one tab to the
+   next at the same moment. A view transition freezes the bar into the page's
+   snapshot, which would hold the indicator still and then drop it on the new
+   tab when the animation ended. */
+:root {
+  --motion-page: 540ms;
+  /* How far the page travels. Enough to read as a page turning beside the
+     next one, not so far that the reader has to track it across the screen. */
+  --motion-offset: 30%;
+  /* The settle has a little weight: the curve passes its destination by a few
+     percent of the distance and comes back, so the page arrives rather than
+     stops. It is shared by the slide, the page's blocks and the tab pill so the
+     whole app moves with one hand. */
+  --motion-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes page-enter-from-right {
+  from {
+    opacity: 0;
+    translate: var(--motion-offset) 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes page-enter-from-left {
+  from {
+    opacity: 0;
+    translate: calc(-1 * var(--motion-offset)) 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes page-rise-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* Forward through the bar arrives from the right, as if the row ran on; a step
+   back arrives from the left. Both start transparent, so the arrival reads as
+   the page settling into place rather than as a second page sliding over the
+   first. The elastic curve carries the slide a little past its resting place
+   and back, which is what makes the arrival feel sprung rather than placed. */
+.page-enter-forward {
+  animation: page-enter-from-right var(--motion-page) var(--motion-elastic) both;
+}
+
+.page-enter-back {
+  animation: page-enter-from-left var(--motion-page) var(--motion-elastic) both;
+}
+
+/* The stagger for pages reached from inside a section: the page's own blocks,
+   in document order. Five steps is as far as the stagger is worth reading — a
+   sixth block arriving after a second has started feels late rather than
+   ordered.
+
+   The fill is backwards, not both: it holds the starting frame through the
+   delay, then gets out of the way when the block lands. Holding the last frame
+   would leave the entrance's `translate` on the block for good, and a block that
+   is also a card or a button would then never move when pressed. The last frame
+   is the block's own resting state, so letting go of it changes nothing. */
+.page-rise main > * {
+  animation: page-rise-in 460ms var(--motion-elastic) backwards;
+}
+
+.page-rise main > :nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.page-rise main > :nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.page-rise main > :nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.page-rise main > :nth-child(5) {
+  animation-delay: 200ms;
+}
+
+/* Motion is a preference in this app as well as in the device (see
+   lib/preferences.ts). It is one attribute rather than a media query because
+   the app's setting starts from the device's and can then be changed: the
+   attribute is written before the first frame by app/layout.tsx and kept in
+   step by app/providers.tsx, so an explicit choice wins either way. */
+html[data-reduce-motion="true"] .page-enter-forward,
+html[data-reduce-motion="true"] .page-enter-back,
+html[data-reduce-motion="true"] .page-rise main > * {
+  animation: none;
 }
 
 /* --- The way into memorization ------------------------------------------ */

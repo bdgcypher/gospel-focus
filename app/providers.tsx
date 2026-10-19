@@ -4,9 +4,27 @@ import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect, type ReactNode } from "react";
 import { NativeBack } from "@/components/native-back";
+import { usePreferences } from "@/lib/preferences";
 
 function NativeEffects() {
   const { resolvedTheme } = useTheme();
+  const prefs = usePreferences();
+
+  // The style is a class on the same element next-themes writes the theme to.
+  // The pre-paint script in app/layout.tsx puts it there before the first
+  // frame; this keeps it right afterwards — after hydration, and when another
+  // tab changes the preference.
+  useEffect(() => {
+    document.documentElement.classList.toggle("playful", prefs.style === "playful");
+  }, [prefs.style]);
+
+  // Motion is settled before the first frame in app/layout.tsx; this keeps it
+  // right after hydration and when the setting is changed here or in another
+  // tab. The page entrances are declared in CSS, so the choice is written where
+  // the stylesheet can read it.
+  useEffect(() => {
+    document.documentElement.dataset.reduceMotion = prefs.reduceMotion ? "true" : "false";
+  }, [prefs.reduceMotion]);
 
   // Nothing here records the streak any more: a day counts when the day's goal
   // is reached, which is a fact about the reader's studying rather than about

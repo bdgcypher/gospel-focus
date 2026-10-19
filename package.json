@@ -1,6 +1,6 @@
 {
   "name": "gospel-focus",
-  "version": "1.0.0",
+  "version": "2.0.2",
   "private": true,
   "scripts": {
     "bootstrap": "node scripts/bootstrap.mjs",
@@ -12,6 +12,7 @@
     "build:search": "node scripts/build-search.mjs",
     "build:words": "node scripts/build-words.mjs",
     "icons:dark": "node scripts/generate-android-icons.mjs",
+    "version:tag": "node scripts/version.mjs",
     "cap:sync": "npm run build && cap sync",
     "cap:add:ios": "cap add ios",
     "cap:add:android": "cap add android",

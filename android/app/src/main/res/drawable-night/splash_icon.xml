@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Night variant of the Android 12+ splash icon: the light accent book
-     (#e0b45c) drawn on the dark window background (#13100b). -->
+     (#e0b45c) drawn on the dark window background (#111111). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"

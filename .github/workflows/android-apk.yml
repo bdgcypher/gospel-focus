@@ -47,8 +47,8 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      # On a v* tag, stamp the APK with the tag version:
-      #   v1.2.3 -> versionName "1.2.3", versionCode 10203
+      # On a v* tag, stamp the build with the tag version:
+      #   v1.2.3 -> package.json "1.2.3", versionName "1.2.3", versionCode 10203
       - name: Apply version from tag
         if: startsWith(github.ref, 'refs/tags/')
         run: |
@@ -57,6 +57,7 @@ jobs:
           X=${X:-0}; Y=${Y:-0}; Z=${Z:-0}
           VC=$((10#$X * 10000 + 10#$Y * 100 + 10#$Z))
           sed -i -E "s/versionName \"[^\"]*\"/versionName \"$V\"/; s/versionCode [0-9]+/versionCode $VC/" android/app/build.gradle
+          node scripts/version.mjs "$GITHUB_REF_NAME"
           echo "Tagged build: versionName $V, versionCode $VC"
 
       - name: Configure release signing

@@ -328,7 +328,7 @@ export const FEATURES: Feature[] = [
     status: "ready",
     capabilities: [
       "The current run of days, the best one, and every day counted",
-      "Passages read, flashcards recited, and passages starred",
+      "Passages read, daily word puzzles solved, flashcards recited, and passages starred",
       "Minutes studied today against the daily goal, and the days it was met",
     ],
   },
@@ -337,7 +337,7 @@ export const FEATURES: Feature[] = [
     group: "shelf",
     href: "/settings",
     title: "Settings",
-    blurb: "Theme, motion, streak, and the daily reminder",
+    blurb: "Theme and style, motion, streak, and the daily reminder",
     icon: "gear",
     status: "ready",
     capabilities: [
@@ -462,4 +462,42 @@ export function isNavActive(pathname: string, href: string): boolean {
   return featuresInGroup(section.id).some(
     (feature) => here === feature.href || here.startsWith(`${feature.href}/`)
   );
+}
+
+/**
+ * Whether this path is one of the four sections themselves.
+ *
+ * Narrower than `isNavActive` on purpose. A tool under a tab — /memorize under
+ * Study, a game under Games — still lights that tab up, but it is its own page
+ * reached from a card, not a place the bar can take you. Only the bar's own
+ * destinations slide between each other; everything else arrives with the
+ * quieter fade (see components/app-shell.tsx and the "Changing pages" rules in
+ * app/globals.css).
+ */
+export function isNavPage(pathname: string): boolean {
+  const here = withoutSlash(pathname);
+  return PRIMARY_NAV.some((item) => item.href === here);
+}
+
+/**
+ * Which way along the bar a link sits from here, for the entrance that follows.
+ *
+ * Left to right is the order of the bar itself: a section further along than
+ * the current one is ahead, and one behind it is back. Arriving from a page
+ * that is not in the bar (a settings screen, a tool inside a section) there is
+ * no current section to measure from, so Home is treated as the way back and
+ * everything else as forward. A link to the page already on screen returns
+ * nothing: there is nothing to animate.
+ */
+export type NavDirection = "forward" | "back";
+
+export function navDirection(pathname: string, href: string): NavDirection | null {
+  const to = PRIMARY_NAV.findIndex((item) => item.href === href);
+  if (to < 0) return null;
+
+  const from = PRIMARY_NAV.findIndex((item) => isNavActive(pathname, item.href));
+  if (from < 0) return href === "/" ? "back" : "forward";
+  if (from === to) return null;
+
+  return to > from ? "forward" : "back";
 }

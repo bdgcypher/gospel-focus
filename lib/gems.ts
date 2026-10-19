@@ -5,35 +5,37 @@ import { dayKey } from "./daily";
 import { readStudy, subscribeStudy, type StudyState } from "./study";
 
 /**
- * Coins: what the day's study is worth, kept in one number the reader can
+ * Gems: what the day's study is worth, kept in one number the reader can
  * spend.
  *
  * The rule is deliberately the same rule as the goal bar — a minute studied is
- * a coin — with the day's goal as the ceiling, so a reader who stops when the
+ * a gem — with the day's goal as the ceiling, so a reader who stops when the
  * bar fills earns exactly the goal and a long session cannot mint more than the
  * goal is worth. Nothing here counts time of its own: the minutes are read from
  * lib/study.ts, which is the one place that knows what studying means. A day's
- * coins are awarded once, as the minutes grow, and never taken back when the
+ * gems are awarded once, as the minutes grow, and never taken back when the
  * clock moves on.
  *
  * Spending is a second, separate fact: the wallet keeps the total in hand and
  * the day's already-credited amount. Buying a hint lowers the total without
- * lowering what has been credited, so the next tick cannot re-award coins that
+ * lowering what has been credited, so the next tick cannot re-award gems that
  * were just spent.
  */
 
 /** What the reader sees: the wallet, and what today has put in it so far. */
-export interface Coins {
-  /** Coins in hand — everything earned, less everything spent. */
+export interface Gems {
+  /** Gems in hand — everything earned, less everything spent. */
   total: number;
-  /** Coins earned today, already capped at the day's goal. */
+  /** Gems earned today, already capped at the day's goal. */
   today: number;
 }
 
+// The wallet's storage key predates the rename from coins to gems. Keeping it
+// means a reader's balance survives the change; only the name on disk is old.
 const KEY = "gospel-focus:coins:v1";
 
 /** One shared empty snapshot, so the server render and first client render agree. */
-const EMPTY: Coins = { total: 0, today: 0 };
+const EMPTY: Gems = { total: 0, today: 0 };
 
 /** The stored side: a total, and the day it was last credited for. */
 interface Wallet {
@@ -43,7 +45,7 @@ interface Wallet {
 }
 
 let wallet: Wallet | null = null;
-let snapshot: Coins = EMPTY;
+let snapshot: Gems = EMPTY;
 let listening = false;
 const listeners = new Set<() => void>();
 
@@ -123,7 +125,7 @@ function refresh(): void {
   publish(next);
 }
 
-function read(): Coins {
+function read(): Gems {
   if (typeof window === "undefined") return EMPTY;
   if (!wallet) refresh();
   return snapshot;
@@ -161,16 +163,16 @@ function subscribe(onChange: () => void): () => void {
 }
 
 /** The wallet, kept in step with the day's minutes. Empty on the server. */
-export function useCoins(): Coins {
+export function useGems(): Gems {
   return useSyncExternalStore(subscribe, read, () => EMPTY);
 }
 
 /**
- * Pay for something with coins. Returns false — and changes nothing — when the
+ * Pay for something with gems. Returns false — and changes nothing — when the
  * wallet cannot cover it, so a button can be drawn as unavailable rather than
  * failing after the tap.
  */
-export function spendCoins(cost: number): boolean {
+export function spendGems(cost: number): boolean {
   const amount = Math.max(0, Math.round(cost));
   if (amount === 0) return true;
   if (typeof window === "undefined") return false;

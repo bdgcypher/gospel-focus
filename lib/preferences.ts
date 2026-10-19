@@ -10,6 +10,16 @@ import type { Filters } from "./types";
  */
 export type CardSide = "reference" | "passage";
 
+/**
+ * How the app is drawn, chosen separately from light or dark: the focused
+ * paper-and-ink skin the app has always had, or the playful one with emoji in
+ * place of the drawn glyphs and a raised, toy-like treatment on its cards and
+ * buttons. Kept here rather than in next-themes so the two choices are
+ * independent — any theme can wear either style — and so the skin survives a
+ * change of light or dark.
+ */
+export type StyleChoice = "focused" | "playful";
+
 export interface Preferences {
   /** Skip the page-riffle animation and drop straight onto the draw. */
   reduceMotion: boolean;
@@ -26,6 +36,8 @@ export interface Preferences {
   filters: Filters;
   /** Which side of a flashcard is shown first. */
   flashcardSide: CardSide;
+  /** The focused or playful skin, independent of the light/dark theme. */
+  style: StyleChoice;
   /**
    * Whether the home-screen widget has been put to the reader already, after a
    * study session finished the day's goal. Once per device, not once a day: an
@@ -69,6 +81,8 @@ const DEFAULTS: Preferences = {
   // Recalling the words from the reference is the harder half, so that is what
   // a fresh install asks for first.
   flashcardSide: "reference",
+  // Paper and ink is the app's own face, so that is what a fresh install wears.
+  style: "focused",
   widgetPromptSeen: false,
   wordleHelpSeen: false,
   focusBannerDismissed: false,
@@ -130,11 +144,26 @@ function read(): Preferences {
     reminderHour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : DEFAULTS.reminderHour,
     filters: readFilters(stored.filters),
     flashcardSide: stored.flashcardSide === "passage" ? "passage" : "reference",
+    style: stored.style === "playful" ? "playful" : "focused",
     widgetPromptSeen: stored.widgetPromptSeen === true,
     wordleHelpSeen: stored.wordleHelpSeen === true,
     focusBannerDismissed: stored.focusBannerDismissed === true,
   };
   return cache;
+}
+
+/**
+ * Put the chosen skin on the document.
+ *
+ * The style is a class rather than a React render because the whole app's CSS
+ * hangs off it, and because next-themes owns the light/dark class on the same
+ * element. Writing it here, in the one place preferences are written, means a
+ * tap in settings flips the skin on the spot instead of waiting for an effect,
+ * and every other writer of a preference keeps it right too.
+ */
+function applyStyle(style: StyleChoice): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("playful", style === "playful");
 }
 
 function write(next: Preferences): void {
@@ -144,6 +173,7 @@ function write(next: Preferences): void {
   } catch {
     // Storage can be unavailable — the session still works, it just won't persist.
   }
+  applyStyle(next.style);
   for (const listener of listeners) listener();
 }
 
@@ -153,6 +183,9 @@ function ensureStorageListener(): void {
   window.addEventListener("storage", (e) => {
     if (e.key !== KEY && e.key !== null) return;
     cache = null;
+    // A style changed in another tab should reach this one at once, the same
+    // way every other preference does.
+    applyStyle(read().style);
     for (const listener of listeners) listener();
   });
 }

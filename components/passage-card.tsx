@@ -488,7 +488,7 @@ export function PassageCard({ passage, drawKey }: Props) {
                     favorites, or share it. Each is an icon and a single word,
                     and the tighter gaps plus p-1 are what keep all four on one
                     line on a phone. */}
-                <div className="pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-full border border-border bg-surface/95 p-1 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.75)] backdrop-blur">
+                <div className="pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-xl border border-border bg-surface/95 p-1 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.75)] backdrop-blur">
                   <button
                     type="button"
                     onClick={toggleExpanded}

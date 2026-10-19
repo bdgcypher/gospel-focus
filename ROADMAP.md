@@ -120,8 +120,8 @@ Library link.
 | Surface | What it does |
 | --- | --- |
 | **Favorites** (`/favorites`, `ready`) | Every starred passage, newest first, each verse on its own numbered line with past a few folded behind *Show all*. Export and import a CSV that keeps the same shape the references use, so a round trip restores exactly what was saved. On device the backup lands in **Downloads** with no sheet to click through (MediaStore on Android 10+; storage permission once on 9 and older), and is read back through the native file picker. |
-| **Stats & progress** (`/stats`, `ready`) | The current run of days, the best one, and every day counted; passages read; flashcards recited; passages starred; minutes studied today against the goal, and the days it was met. |
-| **Settings** (`/settings`, `ready`) | Daily: the study goal (its one home — the stats page links here), the streak's own readout, the daily reminder and its hour, and the widget row that says the widget is not built. Then theme (light / dark / follow the system), reduce motion (which skips the riffle), and the favorites backup. |
+| **Stats & progress** (`/stats`, `ready`) | The current run of days, the best one, and every day counted; passages read; daily word puzzles solved; flashcards recited; passages starred; minutes studied today against the goal, and the days it was met. |
+| **Settings** (`/settings`, `ready`) | Daily: the study goal (its one home — the stats page links here), the streak's own readout, the daily reminder and its hour, and the widget row that says the widget is not built. Then theme (light / dark / follow the system) and, separately, style (focused / playful — the playful style swaps the illustrative glyphs for emoji, keeps the menu, arrows, return/backspace keys and close cross drawn, and gives cards and buttons a raised 3D look), reduce motion (which skips the riffle), and the favorites backup. |
 
 ### Games
 
@@ -139,8 +139,10 @@ enforcement:
 - **Built**: setting the lock up in one step; a switch that reads the lock's own
   state rather than a stored flag; the list of apps the reader means to hold back;
   a hand bypass with a length on it — 15 minutes, 30 minutes, or the rest of today
-  — that closes itself when the deadline passes; today's minutes shown against the
-  same goal the hub shows; and the lock's state on the hub and in the status tray.
+  — that closes itself when the deadline passes; the lock opening itself once the
+  day's goal is met, and a manual re-arm after that remembered for the rest of the
+  day rather than until the next render; today's minutes shown against the same
+  goal the hub shows; and the lock's state on the hub and in the status tray.
 - **Not built**: the blocking itself. Holding another app back needs Android's
   `UsageStatsManager` plus an accessibility service, and `android/app/src/main/java/app/gospelfocus/app/`
   holds only `MainActivity`, `OpenUrlPlugin`, `ImageClipboardPlugin`,

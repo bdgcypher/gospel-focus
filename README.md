@@ -113,10 +113,11 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   `3,7-9`), so a round trip through the file restores exactly what was saved. The
   menu's star fills in as soon as anything is saved.
 - **Stats** (`/stats`) — the current run of days, the best one, and every day
-  counted; passages read; flashcards recited; passages starred; minutes studied
-  today against the goal, and the days it was met. The goal itself is set in
-  settings, which the stats page links straight to.
-- **Settings** (`/settings`) — theme (light / dark / follow the system), reduce
+  counted; passages read; daily word puzzles solved; flashcards recited; passages
+  starred; minutes studied today against the goal, and the days it was met. The
+  goal itself is set in settings, which the stats page links straight to.
+- **Settings** (`/settings`) — theme (light / dark / follow the system), style
+  (focused / playful), reduce
   motion, the daily study goal, the streak's own readout, the daily reminder and its
   hour, and the favorites backup (export and import).
 
@@ -143,7 +144,9 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   The first visit on a device opens a **How to play** card — one example of
   each colour, green, gold and grey — and a **How to play** link under the
   board brings it back, so the rules are taught once rather than every day.
-  A new daily word arrives at the reader's own midnight.
+  A new daily word arrives at the reader's own midnight, and each day's board
+  solved adds a day to **Daily puzzles** on the stats page — once per day,
+  however many times the result card is reopened.
 - **Word-search** (`/games/word-search`) — the passage's own significant words
   hidden in a ten-by-ten letter grid, in eight directions. A passage is drawn
   with the reader's own filters, the words are read out of its text (longer words
@@ -163,7 +166,9 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   holding, and keep a list of the apps you mean to hold back. Turning it off by hand
   asks first — 15 minutes, 30 minutes, or the rest of the day — and the gate closes
   itself again when that runs out. The page shows today's minutes against the same
-  goal the home screen shows, because that is what the lock is waiting on.
+  goal the home screen shows, because that is what the lock is waiting on — and
+  meeting that goal opens the lock for the rest of the day, with the switch right
+  there if you want the apps held anyway.
 - **Honest about the half that isn't built:** holding another app back needs
   Android's usage and accessibility APIs, and that native layer does not exist yet.
   Every state on the page is one you set and can see again, and the page says
@@ -180,7 +185,14 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   it (desktop, landscape tablet) and a tab bar under the thumb everywhere else,
   where the last tab is the menu. The stylesheet picks between them, so a rotation
   causes no layout flash.
-- **Light / dark themes** that default to the device preference.
+- **Light / dark themes** that default to the device preference, and a separate
+  **Focused / Playful style**: the playful style swaps the illustrative glyphs for
+  real emoji — while the menu, arrows, return/backspace keys and close cross keep
+  their drawn icons, as do the marks on the main action buttons (the home
+  "Study more", the focus lock and its Add) — sets the whole skin in Nunito, and gives buttons, cards and
+  the tab bar a raised, toy-like 3D treatment. The app's own book mark is the
+  same in both. The two choices are independent, so any light can wear either
+  style.
 - **A feature that isn't built yet says so.** Pages for planned features
   (widgets, reading plans, liken, the other games, the coloring book) render
   their own plan — what the feature will do — rather than pretending to work,
@@ -339,7 +351,9 @@ Signing setup (already configured in `android/app/build.gradle`):
 - Keystore: `android/keystore/release.keystore` — **back it up**; without it
   you can never push an update to an installed app.
 - Credentials: `android/keystore.properties` (both are gitignored).
-- Bump `versionCode` in `android/app/build.gradle` for every release.
+- `versionCode` and `versionName` in `android/app/build.gradle` are only what a
+  local build reports; tagged CI builds overwrite both from the tag
+  (`npm run version:tag` does the same for `package.json` — see below).
 
 `npm run bootstrap` restores both from the same secrets CI uses —
 `ANDROID_KEYSTORE_B64` (the base64 of the keystore), `ANDROID_KEYSTORE_PASSWORD`,
@@ -394,9 +408,20 @@ For a permanent, no-login download link, push a version tag:
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-That publishes the APK on the **Releases** page and stamps `versionName` from
-the tag (`v1.2.3` → versionName `1.2.3`, versionCode `10203`), so you normally
-don't need to bump versions by hand for tagged builds. CI signs with the same
+That publishes the APK on the **Releases** page and stamps the tag into the
+build (`v1.2.3` → `versionName "1.2.3"`, versionCode `10203`, and
+`package.json` `"1.2.3"`), so you normally don't need to bump versions by hand
+for tagged builds. To move the committed copy too — CI's stamping is not
+committed, so `package.json` otherwise keeps the last version someone wrote —
+run:
+
+```bash
+npm run version:tag           # newest tag, e.g. v2.0.1
+npm run version:tag v2.1.0    # or the tag you are about to cut
+```
+
+That writes `package.json` and the two root version fields in
+`package-lock.json`; dependency versions are untouched. CI signs with the same
 keystore as local builds via repo secrets:
 `ANDROID_KEYSTORE_B64` (base64-encoded keystore), `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEYSTORE_KEY_ALIAS`, `ANDROID_KEYSTORE_KEY_PASSWORD` — set with

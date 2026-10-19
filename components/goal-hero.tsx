@@ -97,7 +97,7 @@ export function GoalHero() {
             href="/study"
             className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-4 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.99] sm:text-lg"
           >
-            <Glyph name="book" className="h-5 w-5" />
+            <Glyph name="book" plain className="h-5 w-5" />
             {progress.done ? "Study more" : "Start studying"}
           </Link>
 

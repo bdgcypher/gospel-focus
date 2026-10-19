@@ -441,7 +441,11 @@ function Tile({
       initial={reveal && !reduce ? { rotateX: 90, opacity: 0.6 } : false}
       animate={{ rotateX: 0, opacity: 1 }}
       transition={{ duration: 0.32, delay }}
-      className={`grid aspect-square place-items-center rounded-lg border font-serif text-xl font-semibold uppercase shadow-[0_10px_24px_-22px_rgba(0,0,0,0.8)] sm:text-2xl ${tone}`}
+      className={`grid aspect-square place-items-center rounded-lg border font-serif text-xl font-semibold uppercase shadow-[0_10px_24px_-22px_rgba(0,0,0,0.8)] sm:text-2xl ${
+        // An empty slot stays flat; a tile with a letter is a piece in the
+        // playful skin (see `.puzzle-tile` in globals.css).
+        letter ? "puzzle-tile" : ""
+      } ${tone}`}
     >
       {letter}
     </motion.span>
@@ -523,7 +527,7 @@ function Key({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`grid h-11 min-w-0 flex-1 place-items-center rounded-lg border text-sm font-semibold uppercase transition-colors disabled:opacity-60 sm:h-12 ${
+      className={`puzzle-key grid h-11 min-w-0 flex-1 place-items-center rounded-lg border text-sm font-semibold uppercase transition-colors disabled:opacity-60 sm:h-12 ${
         wide ? "flex-[1.6]" : ""
       } ${tone}`}
     >
@@ -654,7 +658,7 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
                 {[...row.word].map((letter, index) => (
                   <span
                     key={`${row.word}-${index}`}
-                    className={`grid aspect-square place-items-center rounded-lg border font-serif text-xl font-semibold uppercase ${
+                    className={`puzzle-tile grid aspect-square place-items-center rounded-lg border font-serif text-xl font-semibold uppercase ${
                       index === row.marked
                         ? TONES[row.state]
                         : "border-border bg-surface text-foreground"

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { dayKey } from "./daily";
+import { goalReached, readStudy } from "./study";
 
 /**
  * The Focus lock's local state: whether the reader has set it up, and whether a
@@ -20,6 +21,14 @@ import { dayKey } from "./daily";
  * remember. That is the one thing this module watches the clock for (see
  * `scheduleExpiry`), because a gate that stayed open until the next render
  * would not be a gate.
+ *
+ * The other way the gate opens is the day's study. A lock is for getting the
+ * reading done, so the reading ending it is the point, not a loophole: once the
+ * goal is met the lock stands open until tomorrow, and the stored state says so
+ * without having to be written — `focusStatus` is asked with the day's minutes
+ * (`goalMet`) and decides from them. What *is* written is the reader's answer
+ * to that: switching the lock back on after the goal is met, which has to
+ * outlast the state that opened it (`relockedDay`).
  */
 
 export interface FocusState {
@@ -53,13 +62,25 @@ export interface FocusState {
    * and this is when it stops being in force.
    */
   overrideUntil: number | null;
+  /**
+   * The day the reader switched the lock back on after the day's goal was met,
+   * or "" for none.
+   *
+   * A day key rather than a flag, because the answer only holds for the day it
+   * was given on: tomorrow's study is a new day to get through, so the stored
+   * key stops matching at midnight and the lock is back on by itself. Only a
+   * re-arm made *after* the goal was met is recorded — switching the lock on
+   * before then is not an answer to anything, and must not stop the day's study
+   * from taking it off.
+   */
+  relockedDay: string;
 }
 
 /**
- * Where the lock stands: never set up, set up and holding, or open by hand until
- * a bypass runs out.
+ * Where the lock stands: never set up, holding, open by hand until a bypass runs
+ * out, or open because the day's study is done.
  */
-export type FocusStatus = "unset" | "locked" | "overridden";
+export type FocusStatus = "unset" | "locked" | "overridden" | "earned";
 
 /**
  * How long a hand bypass lasts. "today" runs to the next local midnight.
@@ -81,6 +102,7 @@ const EMPTY: FocusState = {
   setUp: false,
   apps: [],
   overrideUntil: null,
+  relockedDay: "",
 };
 
 /** The next local midnight after `now`, in epoch milliseconds. */
@@ -156,6 +178,7 @@ function parse(raw: string | null): FocusState {
       setUp: value.setUp === true || value.enabled === true,
       apps: readApps(value.apps),
       overrideUntil: readOverrideUntil(value),
+      relockedDay: typeof value.relockedDay === "string" ? value.relockedDay : "",
     };
   } catch {
     return EMPTY;
@@ -233,8 +256,10 @@ function ensureListeners(): void {
   });
   // A tab that was in the background (or a phone that was in a pocket) can come
   // back long after a bypass ran out, with its timer throttled or dropped. The
-  // moment it is looked at again is the moment to agree with the clock.
-  window.addEventListener("visibilitychange", () => {
+  // moment it is looked at again is the moment to agree with the clock. The
+  // event is fired at the document and does not bubble, so it is listened for
+  // there rather than on `window`.
+  document.addEventListener("visibilitychange", () => {
     if (!document.hidden) expireIfDue();
   });
 }
@@ -265,19 +290,45 @@ export function startBypass(length: BypassLength, now: Date = new Date()): void 
   write({ ...previous, overrideUntil: bypassEnd(length, now) });
 }
 
-/** Shut the gate again early, before the bypass has run out. */
-export function endBypass(): void {
+/**
+ * Turn the lock on by hand: close any bypass, and remember the answer if the
+ * day's study has already opened the gate.
+ *
+ * One act because the switch is one control. Closing the bypass is the old job.
+ * The new one is the day's study: with the goal met the gate stands open on its
+ * own, so switching it on has to be recorded for the rest of the day or the
+ * reader's own choice would last only until the next render. Before the goal is
+ * met there is nothing to record — the lock is on anyway, and the day's study
+ * still has to be able to take it off.
+ */
+export function lockNow(): void {
   const previous = read();
-  if (previous.overrideUntil === null) return;
-  write({ ...previous, overrideUntil: null });
+  const met = goalReached(readStudy());
+  write({
+    ...previous,
+    overrideUntil: null,
+    relockedDay: met ? dayKey() : "",
+  });
 }
 
 /**
  * Where the lock stands today, read against the clock rather than against a
  * stored flag — a deadline that has passed is a lock that is holding again.
+ *
+ * `goalMet` is today's study, reported by the caller that already has it (the
+ * hub's chip and /focus both read the same store). It opens the lock the moment
+ * it is true, unless the reader has switched the lock back on since — which is
+ * the one thing that outranks the day's study, because it is the reader saying
+ * so. A bypass still counts as open for its own reason, but a gate the study
+ * already opened needs no deadline to explain it, so "earned" is answered
+ * first.
  */
-export function focusStatus(state: FocusState, now: number = Date.now()): FocusStatus {
+export function focusStatus(
+  state: FocusState,
+  { goalMet = false, now = Date.now() }: { goalMet?: boolean; now?: number } = {},
+): FocusStatus {
   if (!state.setUp) return "unset";
+  if (goalMet && state.relockedDay !== dayKey()) return "earned";
   if (state.overrideUntil !== null && state.overrideUntil > now) return "overridden";
   return "locked";
 }

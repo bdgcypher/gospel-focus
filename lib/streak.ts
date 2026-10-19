@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { dayKey, daysBetween } from "./daily";
+import { addDays, dayKey, daysBetween } from "./daily";
 
 /**
  * The reading streak: how many days in a row the day's study goal was reached.
@@ -114,6 +114,37 @@ export function recordGoalMetDay(today: string = dayKey()): Streak {
     current,
     best: Math.max(previous.best, current),
     days: previous.days + 1,
+  };
+  write(next);
+  return next;
+}
+
+/**
+ * Take today back out of the streak, for the one case where it cannot be true:
+ * today is recorded as counted, but not a single second has been studied today.
+ *
+ * There is no legitimate way to reach a goal with zero minutes studied, so the
+ * entry can only be a leftover from a stale day — minutes from yesterday read as
+ * today's. This is the repair for a record written before that hole was closed
+ * (lib/study.ts now rolls the day on every read), and is a no-op unless today is
+ * the recorded day.
+ *
+ * Only the day itself is given back: a run of one goes back to no run at all,
+ * and a longer run hands its end back to yesterday, which is the day it actually
+ * reached. `best` is left alone — the previous record is not stored, and
+ * lowering it could erase a genuine one, so the worst case is a best that is a
+ * day higher than any run that really happened.
+ */
+export function dropDay(today: string = dayKey()): Streak {
+  const previous = read();
+  if (previous.lastDay !== today) return previous;
+
+  const current = Math.max(0, previous.current - 1);
+  const next: Streak = {
+    lastDay: current > 0 ? addDays(today, -1) : null,
+    current,
+    best: previous.best,
+    days: Math.max(0, previous.days - 1),
   };
   write(next);
   return next;

@@ -25,30 +25,134 @@ export type GlyphName =
   | "close"
   | "return"
   | "backspace"
-  | "coin"
+  | "gem"
   | "help";
 
 interface Props {
   name: GlyphName;
   className?: string;
+  /**
+   * Keep the drawn face in every style, even where the playful themes would
+   * swap in an emoji.
+   *
+   * For a button whose whole job is the action — the primary "Study more", the
+   * two controls on the focus page — a picture beside the words reads as
+   * decoration and pulls the eye off the label. The emoji stays the playful
+   * styles' face everywhere the glyph is a signpost (a tab, a card, a chip);
+   * this is for the handful of places that need the same crisp mark in both.
+   */
+  plain?: boolean;
 }
 
-export function Glyph({ name, className = "h-5 w-5" }: Props) {
+/**
+ * A glyph has two faces, and the stylesheet picks one: the stroke drawing the
+ * app has always used, and — in the playful style — a real emoji of the same
+ * thing.
+ *
+ * Not every glyph has an emoji. A control whose meaning is its shape — the
+ * menu's three rules, an arrow, a return key, a backspace, a close cross — is
+ * clearer drawn than rendered as a picture, and an emoji for those reads as
+ * decoration rather than as the button's own mark. They stay stroke-only in
+ * both styles (see `EMOJI` below for which, and why), so the wrapper is marked
+ * with `glyph-has-emoji` only when there is a second face to swap to. A caller
+ * can also opt a single glyph out with `plain`, for a primary action button
+ * where a picture beside the words competes with the label instead of helping
+ * it — the mark is still the same drawing in both styles, just not swapped.
+ *
+ * Both faces are rendered and one is hidden, rather than the style being read
+ * in JavaScript. The style lives on the document's class list, written before
+ * the page paints, so swapping is instant and needs no mount guard, no
+ * re-render, and has nothing for hydration to disagree with. The wrapper
+ * carries the caller's size classes and is a size container, so the emoji can
+ * be sized from the box it was given rather than from whatever font size the
+ * surrounding text happens to be in — the same glyph can sit in an 11px tab
+ * label and a 56px tile and come out the right size in both.
+ */
+export function Glyph({ name, className = "h-5 w-5", plain = false }: Props) {
+  const emoji = plain ? null : EMOJI[name];
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
+    <span
+      className={`glyph inline-flex shrink-0 items-center justify-center ${emoji ? "glyph-has-emoji" : ""} ${className}`}
     >
-      {PATHS[name]}
-    </svg>
+      <svg
+        viewBox="0 0 24 24"
+        className="glyph-vector"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {PATHS[name]}
+      </svg>
+      {emoji && (
+        <span className="glyph-emoji" aria-hidden="true">
+          {emoji}
+        </span>
+      )}
+    </span>
   );
 }
+
+/**
+ * The playful themes' face of each glyph.
+ *
+ * Kept beside the drawings, one entry per name, so a new glyph cannot be added
+ * without also saying what it looks like in the playful themes — the record is
+ * keyed by `GlyphName`, so the compiler asks the question. Emoji are chosen for
+ * what a reader would recognise at a glance rather than for literal fidelity:
+ * the focus lock is a padlock, the draw is a die, the word puzzle is its green
+ * square. The app's own words stay beside each one, so the emoji never carries
+ * meaning on its own (and they are hidden from screen readers).
+ *
+ * A null is a deliberate "keep the drawing": these are the marks that tell a
+ * reader what a control *does*, where a picture of the same thing would be
+ * slower to read and would change the control's look rather than decorate it.
+ */
+const EMOJI: Record<GlyphName, string | null> = {
+  search: "🔍",
+  home: "🏠",
+  book: "📖",
+  // The memory deck's mark: a brain in the playful styles, the drawn card
+  // beside it. Memorizing is what the glyph means, not the object it is on.
+  cards: "🧠",
+  map: "🗺️",
+  sparkles: "✨",
+  quiz: "❓",
+  puzzle: "🧩",
+  letters: "🔠",
+  grid: "🔳",
+  "word-search": "🔎",
+  palette: "🎨",
+  lock: "🔒",
+  "lock-open": "🔓",
+  journal: "📓",
+  widget: "📱",
+  star: "⭐",
+  chart: "📊",
+  gear: "⚙️",
+  flame: "🔥",
+  calendar: "📅",
+  check: "✅",
+  // Controls, not illustrations: the arrow, the return and backspace keys, the
+  // close cross and the menu's three rules stay drawn in both styles.
+  arrow: null,
+  return: null,
+  backspace: null,
+  word: "🟩",
+  flip: "🔄",
+  plus: "➕",
+  minus: "➖",
+  pencil: "✏️",
+  menu: null,
+  clock: "⏰",
+  dice: "🎲",
+  close: null,
+  trash: "🗑️",
+  gem: "💎",
+  help: "💡",
+};
 
 const PATHS: Record<GlyphName, React.ReactNode> = {
   search: (
@@ -345,13 +449,14 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="m6.6 7 .7 12.1A1.6 1.6 0 0 0 8.9 20.6h6.2a1.6 1.6 0 0 0 1.6-1.5L17.4 7" />
     </>
   ),
-  // A coin, for the wallet in the app bar (components/status-tray.tsx): a rim
-  // and a raised inner face, which is the one pair of circles that reads as
-  // money rather than as a target or a record.
-  coin: (
+  // A gem, for the wallet in the app bar (components/status-tray.tsx): a
+  // brilliant-cut stone with a flat table, a girdle at its widest point and a
+  // point below. The girdle and the two crown facets are what make it read as
+  // a cut stone rather than a plain diamond once the chip draws it at 16px.
+  gem: (
     <>
-      <circle cx="12" cy="12" r="8.6" />
-      <circle cx="12" cy="12" r="5.4" />
+      <path d="M7 4.2h10l4 5-9 11.2L3 9.2Z" />
+      <path d="M3 9.2h18M7 4.2l5 5 5-5" />
     </>
   ),
   // A question mark in a ring, for the hint control that opens the hint sheet

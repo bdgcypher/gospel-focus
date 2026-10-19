@@ -435,8 +435,10 @@ function ensureStorageListener(): void {
   if (listening || typeof window === "undefined") return;
   listening = true;
   window.addEventListener("storage", (event) => {
-    if (event.key !== DAILY_KEY && event.key !== null) return;
-    cache = undefined;
+    if (event.key !== DAILY_KEY && event.key !== STATS_KEY && event.key !== null) return;
+    // A cleared store (`key === null`) takes both records with it.
+    if (event.key !== STATS_KEY) cache = undefined;
+    if (event.key !== DAILY_KEY) statsRecord = null;
     notify();
   });
 }
@@ -511,7 +513,82 @@ export function addGuess(guess: string): void {
     notify();
     return;
   }
+  // Only the day's own board counts: a practice round is unlimited, and the
+  // record the stats page shows is of days, not of taps.
+  if (word === game.answer) recordSolved(game.day);
   write(next);
+}
+
+/** ---------- The record across days ---------- */
+
+/** What the daily puzzle has earned over time: the stats page's own line. */
+export interface PuzzleStats {
+  /** Daily boards solved, in all. A practice round never counts. */
+  solved: number;
+}
+
+const STATS_KEY = "gospel-focus:wordle:stats:v1";
+
+/** One shared empty snapshot, so the server render and first client render agree. */
+const EMPTY_STATS: PuzzleStats = { solved: 0 };
+
+/** The stored side: the total, and the day it was last raised for. */
+interface StatsRecord {
+  solved: number;
+  last: string;
+}
+
+let statsRecord: StatsRecord | null = null;
+let statsSnapshot: PuzzleStats = EMPTY_STATS;
+
+function readStats(): StatsRecord {
+  if (statsRecord) return statsRecord;
+  if (typeof window === "undefined") return { solved: 0, last: "" };
+
+  let record: StatsRecord = { solved: 0, last: "" };
+  try {
+    const raw = window.localStorage.getItem(STATS_KEY);
+    const value = raw ? (JSON.parse(raw) as Partial<StatsRecord> | null) : null;
+    if (value && typeof value === "object") {
+      const solved = Number(value.solved);
+      record = {
+        solved: Number.isFinite(solved) && solved > 0 ? Math.round(solved) : 0,
+        last: typeof value.last === "string" ? value.last : "",
+      };
+    }
+  } catch {
+    // A corrupt record starts again from nothing rather than costing the
+    // reader the board they are on.
+  }
+  statsRecord = record;
+  return record;
+}
+
+/**
+ * Add one to the count, once per day's board.
+ *
+ * The day is kept with the number so a re-solve cannot count twice: a board
+ * whose write to storage failed can be played again after a reload, and the
+ * tile should read the number of days the word was found, not the number of
+ * times it was typed.
+ */
+function recordSolved(day: string): void {
+  const record = readStats();
+  if (record.last === day) return;
+  const next: StatsRecord = { solved: record.solved + 1, last: day };
+  statsRecord = next;
+  try {
+    window.localStorage.setItem(STATS_KEY, JSON.stringify(next));
+  } catch {
+    // The solve still counts for this visit; only the record is lost.
+  }
+}
+
+/** Publish a stable snapshot: the reader's hook must not re-render on every read. */
+function readPuzzleStats(): PuzzleStats {
+  const record = readStats();
+  if (statsSnapshot.solved !== record.solved) statsSnapshot = { solved: record.solved };
+  return statsSnapshot;
 }
 
 function subscribe(onChange: () => void): () => void {
@@ -525,6 +602,11 @@ function subscribe(onChange: () => void): () => void {
 /** Today's game, or null until the page has pinned one. */
 export function useDailyGame(): SavedGame | null {
   return useSyncExternalStore(subscribe, read, () => null);
+}
+
+/** The daily puzzle's record across days. Empty on the server. */
+export function usePuzzleStats(): PuzzleStats {
+  return useSyncExternalStore(subscribe, readPuzzleStats, () => EMPTY_STATS);
 }
 
 /** The board on screen: the daily until the reader starts a practice round. */

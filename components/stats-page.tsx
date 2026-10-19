@@ -4,29 +4,31 @@ import Link from "next/link";
 import { FeaturePage } from "./feature-page";
 import { Glyph, type GlyphName } from "./glyph";
 
-import { useCoins } from "@/lib/coins";
+import { useGems } from "@/lib/gems";
 import { useFavorites } from "@/lib/favorites";
 import { useMemory } from "@/lib/memorize";
 import { countedToday, streakInForce, useStreak } from "@/lib/streak";
 import { studyProgress, useStudy } from "@/lib/study";
+import { usePuzzleStats } from "@/lib/wordle";
 
 /**
  * The stats page: what the app has kept, and how the daily habit is going.
  *
  * Everything here is read from the stores that already exist — the streak
  * (lib/streak.ts), the memory deck (lib/memorize.ts), the shelf
- * (lib/favorites.ts), and the study record (lib/study.ts) — so this page cannot
- * tell the reader a number the rest of the app disagrees with. It is also where
- * the daily goal is set and moved, since a goal is a number to be looked at
- * rather than a switch: the hero on the home screen is the way *in*, and this
- * is where it is tuned.
+ * (lib/favorites.ts), the study record (lib/study.ts), and the word puzzle's
+ * own count (lib/wordle.ts) — so this page cannot tell the reader a number the
+ * rest of the app disagrees with. It is also where the daily goal is set and
+ * moved, since a goal is a number to be looked at rather than a switch: the
+ * hero on the home screen is the way *in*, and this is where it is tuned.
  */
 export function StatsPage() {
   const streak = useStreak();
   const study = useStudy();
   const memory = useMemory();
   const favorites = useFavorites();
-  const coins = useCoins();
+  const gems = useGems();
+  const puzzles = usePuzzleStats();
 
   const run = streakInForce(streak);
   const counted = countedToday(streak);
@@ -110,6 +112,16 @@ export function StatsPage() {
           hint="Every passage you have drawn"
         />
         <StatTile
+          icon="puzzle"
+          label="Daily puzzles"
+          value={String(puzzles.solved)}
+          hint={
+            puzzles.solved === 0
+              ? "Find the day's word to start the count."
+              : "Days you found the daily word"
+          }
+        />
+        <StatTile
           icon="cards"
           label="Flashcards memorized"
           value={String(memorized)}
@@ -143,11 +155,11 @@ export function StatsPage() {
           hint="Days you reached the goal"
         />
         <StatTile
-          icon="coin"
-          label="Coins"
-          value={String(coins.total)}
-          hint={`A coin for each minute studied, up to the day's goal${
-            coins.today > 0 ? ` · ${coins.today} today` : ""
+          icon="gem"
+          label="Gems"
+          value={String(gems.total)}
+          hint={`A gem for each minute studied, up to the day's goal${
+            gems.today > 0 ? ` · ${gems.today} today` : ""
           }`}
         />
       </div>

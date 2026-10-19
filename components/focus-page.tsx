@@ -6,8 +6,8 @@ import { Glyph } from "./glyph";
 import { Switch } from "./switch";
 import {
   addHeldApp,
-  endBypass,
   focusStatus,
+  lockNow,
   removeHeldApp,
   setFocusUp,
   useFocus,
@@ -32,9 +32,12 @@ import { GoalPicker } from "./goal-picker";
  */
 export function FocusPage() {
   const focus = useFocus();
-  const status = focusStatus(focus);
   const study = useStudy();
   const progress = studyProgress(study);
+  // The day's study is half of where the lock stands: reaching the goal is what
+  // opens it, so the status is read with that in hand rather than from the focus
+  // state alone (lib/focus.ts).
+  const status = focusStatus(focus, { goalMet: progress.done });
 
   return (
     <FeaturePage featureId="focus-lock">
@@ -84,10 +87,16 @@ export function FocusPage() {
  *
  * Once it is up, the switch reads the lock rather than a stored flag. On means
  * the apps below are being held, and switching it *on* is never the thing to
- * think twice about: it only shuts a bypass that is still open. Off is the
- * confessional half — nothing is written until the sheet is confirmed, and what
- * confirming writes is a bypass with a length on it, so the click that means
- * "not now" cannot quietly leave the lock open for good.
+ * think twice about: it shuts a bypass that is still open, and with the day's
+ * goal already met it is how the reader says they want the apps held anyway —
+ * the one answer that outlasts the study that opened the gate (lib/focus.ts).
+ * Off is the confessional half — nothing is written until the sheet is
+ * confirmed, and what confirming writes is a bypass with a length on it, so the
+ * click that means "not now" cannot quietly leave the lock open for good.
+ *
+ * The third state is the lock standing open on its own: once the goal is met
+ * there is nothing left for it to wait on, so the card says so and leaves the
+ * switch off rather than pretending the day is still being held.
  *
  * The minutes are shown for the reason they always were: they are what the
  * reader is actually doing, the goal on the home screen is the same number, and
@@ -122,9 +131,11 @@ function FocusCard({
           <p className="mt-0.5 text-xs text-muted">
             {status === "unset"
               ? "Nothing is being held back yet."
-              : status === "overridden"
-                ? "Open by hand. It closes again when the time runs out."
-                : "The apps below stay held until the day's study is done."}
+              : status === "earned"
+                ? "Today's study is done, so the apps are free until tomorrow. Turn it back on to hold them anyway."
+                : status === "overridden"
+                  ? "Open by hand. It closes again when the time runs out."
+                  : "The apps below stay held until the day's study is done."}
           </p>
         </div>
 
@@ -136,7 +147,11 @@ function FocusCard({
             checked={status === "locked"}
             onChange={(on) => {
               if (on) {
-                endBypass();
+                // Ends a bypass, and — with the goal already met — records the
+                // re-arm for the rest of the day, so the day's study that opened
+                // the gate cannot close the reader's own answer on the next
+                // render.
+                lockNow();
                 return;
               }
               setBypassing(true);
@@ -154,7 +169,7 @@ function FocusCard({
           onClick={setFocusUp}
           className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 sm:w-auto"
         >
-          <Glyph name="lock" className="h-4 w-4" />
+          <Glyph name="lock" plain className="h-4 w-4" />
           Set up Focus Lock
         </button>
       )}
@@ -272,7 +287,7 @@ function AppsCard({ apps }: { apps: string[] }) {
           disabled={!draft.trim()}
           className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border border-border bg-surface-2 px-4 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Glyph name="plus" className="h-4 w-4" />
+          <Glyph name="plus" plain className="h-4 w-4" />
           Add
         </button>
       </form>

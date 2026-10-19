@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTheme } from "next-themes";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
@@ -30,7 +30,7 @@ import {
   shareNativeFile,
   textToBase64,
 } from "@/lib/native-files";
-import { setPreference, usePreferences } from "@/lib/preferences";
+import { setPreference, usePreferences, type StyleChoice } from "@/lib/preferences";
 
 type ThemeChoice = "light" | "dark" | "system";
 
@@ -45,6 +45,25 @@ const THEMES: { id: ThemeChoice; label: string; hint: string }[] = [
   { id: "light", label: "Light", hint: "Paper and ink" },
   { id: "dark", label: "Dark", hint: "For low light" },
   { id: "system", label: "System", hint: "Match the device" },
+];
+
+/** The emoji face of each theme, worn while the playful style is on. */
+const THEME_EMOJI: Record<ThemeChoice, string> = {
+  light: "☀️",
+  dark: "🌙",
+  system: "💻",
+};
+
+/**
+ * The other axis: how the app is drawn, whatever the light is doing.
+ *
+ * Two choices rather than four theme names, because they really are two things
+ * — a reader who likes the emoji might still want the dark page at night, and
+ * one who wants the paper look shouldn't lose it by switching to dark.
+ */
+const STYLES: { id: StyleChoice; label: string; hint: string }[] = [
+  { id: "focused", label: "Focused", hint: "Paper, ink and drawn icons" },
+  { id: "playful", label: "Playful", hint: "Emoji, colour and 3D" },
 ];
 
 export function SettingsPage() {
@@ -230,6 +249,10 @@ export function SettingsPage() {
     () => false
   );
   const current = mounted ? (theme as ThemeChoice | undefined) : undefined;
+  // While the playful style is on, the theme choices wear the skin's own emoji
+  // face — a row of stroke drawings in an app made of emoji would look like the
+  // odd ones out.
+  const playful = prefs.style === "playful";
   // Whether the reminder can work here is only known on the client. Until
   // then this says what the prerendered page said (a browser), so hydration
   // has nothing to disagree with — the app shell is the same page in both
@@ -256,33 +279,76 @@ export function SettingsPage() {
               Appearance
             </h2>
             <div className="rounded-3xl border border-border bg-surface p-5">
-              <p className="text-sm font-medium text-foreground">Theme</p>
-              <p className="mt-0.5 text-xs text-muted">Choose how Gospel Focus looks</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                {THEMES.map((option) => {
-                  const active = current === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setTheme(option.id)}
-                      aria-pressed={active}
-                      className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
-                        active
-                          ? "border-accent/60 bg-accent/15"
-                          : "border-border bg-surface-2 hover:border-accent/40"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className={active ? "text-accent-strong" : "text-muted"}>
-                          {option.id === "light" ? <SunIcon /> : option.id === "dark" ? <MoonIcon /> : <DeviceIcon />}
+              {/* Theme and style are two independent choices, so the card
+                  says so: the light of the page, then the way it is drawn. */}
+              <p id="theme-heading" className="text-sm font-medium text-foreground">
+                Theme
+              </p>
+              <p className="mt-0.5 text-xs text-muted">Light, dark, or follow the device</p>
+              <div
+                role="radiogroup"
+                aria-labelledby="theme-heading"
+                className="mt-4 grid gap-2 sm:grid-cols-3"
+              >
+                {THEMES.map((option) => (
+                  <RadioCard
+                    key={option.id}
+                    name="theme"
+                    value={option.id}
+                    checked={current === option.id}
+                    onChange={() => setTheme(option.id)}
+                    label={option.label}
+                    hint={option.hint}
+                    icon={
+                      playful ? (
+                        <span className="text-base leading-none" aria-hidden="true">
+                          {THEME_EMOJI[option.id]}
                         </span>
-                        <span className="text-sm font-medium text-foreground">{option.label}</span>
-                      </span>
-                      <span className="mt-1 block text-xs text-muted">{option.hint}</span>
-                    </button>
-                  );
-                })}
+                      ) : option.id === "light" ? (
+                        <SunIcon />
+                      ) : option.id === "dark" ? (
+                        <MoonIcon />
+                      ) : (
+                        <DeviceIcon />
+                      )
+                    }
+                  />
+                ))}
+              </div>
+
+              <div className="mt-5 border-t border-border/70 pt-4">
+                <p id="style-heading" className="text-sm font-medium text-foreground">
+                  Style
+                </p>
+                <p className="mt-0.5 text-xs text-muted">How the app is drawn, in any light</p>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="style-heading"
+                  className="mt-4 grid gap-2 sm:grid-cols-2"
+                >
+                  {STYLES.map((option) => (
+                    <RadioCard
+                      key={option.id}
+                      name="style"
+                      value={option.id}
+                      checked={prefs.style === option.id}
+                      onChange={() => setPreference("style", option.id)}
+                      label={option.label}
+                      hint={option.hint}
+                      icon={
+                        option.id === "playful" ? (
+                          <span className="text-base leading-none" aria-hidden="true">
+                            🌈
+                          </span>
+                        ) : (
+                          <span className="font-serif text-sm font-semibold" aria-hidden="true">
+                            Aa
+                          </span>
+                        )
+                      }
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </section>
@@ -462,6 +528,64 @@ export function SettingsPage() {
         </div>
       </main>
     </AppShell>
+  );
+}
+
+/**
+ * One row of a radio group, drawn as a flat card rather than a raised button.
+ *
+ * The theme and style choices are settings, not actions: a radio says so and a
+ * filled block does not. The row wears the radio itself on the right — a ring
+ * that fills with the accent when chosen — and the whole label is the target, so
+ * a reader can pick anywhere on the row. The face stays flat (no raised edge or
+ * gradient) for the same reason: these are facts to choose between, not buttons
+ * to press, and the playful skin's depth should belong to the controls that
+ * really are controls.
+ *
+ * The input is visually hidden rather than replaced: it keeps the native radio
+ * group's arrow-key navigation and its place in the tab order, and the label
+ * around it gives it its name. `peer-*` carries the chosen state to the row's
+ * parts, `has-*` carries keyboard focus.
+ */
+function RadioCard({
+  name,
+  value,
+  checked,
+  onChange,
+  icon,
+  label,
+  hint,
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  onChange: () => void;
+  icon: ReactNode;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <label className="group flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-3 transition-colors hover:border-accent/50 has-[:checked]:border-accent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40">
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        onChange={onChange}
+        className="peer sr-only"
+      />
+      <span className="mt-0.5 shrink-0 text-muted peer-checked:text-accent-strong">{icon}</span>
+      <span className="min-w-0 flex-1 peer-checked:text-accent-strong">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="mt-1 block text-xs text-muted">{hint}</span>
+      </span>
+      <span
+        aria-hidden="true"
+        className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border border-muted/60 peer-checked:border-accent"
+      >
+        <span className="h-2 w-2 rounded-full bg-accent opacity-0 group-has-[:checked]:opacity-100" />
+      </span>
+    </label>
   );
 }
 

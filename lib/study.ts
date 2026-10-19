@@ -62,6 +62,7 @@ const EMPTY: StudyState = {
 
 let cache: StudyState | null = null;
 let listening = false;
+let dayTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
 
 /**
@@ -112,31 +113,85 @@ function parse(raw: string | null): StudyState {
 /**
  * Move yesterday's minutes out of the way when the day turns over.
  *
- * Pure, and applied on read as well as on write, so a session left running
- * overnight opens on a clean day without anything having to tick first — the
- * reader never sees yesterday's minutes counted against today's goal.
+ * Pure, and applied every time the state is read, not just the first time it
+ * is loaded — an installed app can sit in memory across midnight, and a cached
+ * state is what every reader of this store gets. Left unrolled, yesterday's
+ * minutes would still read as today's: the goal would look met before the
+ * reader had studied a minute, and the streak would be told the day was earned
+ * from minutes that belonged to yesterday. (And a later reload, which does roll
+ * from storage, would then show those minutes as zero — the two readings
+ * disagreeing.)
  */
 function rollDay(state: StudyState, today: string): StudyState {
   if (state.day === today) return state;
   return { ...state, day: today, seconds: 0 };
 }
 
-function read(): StudyState {
-  if (cache) return cache;
-  if (typeof window === "undefined") return EMPTY;
-  cache = rollDay(parse(window.localStorage.getItem(KEY)), dayKey());
-  return cache;
-}
-
-function write(next: StudyState): void {
-  cache = next;
+/** Write the record out; a failure costs persistence, not the session. */
+function persist(state: StudyState): void {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
+    window.localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
     // Storage can be unavailable (private mode, full quota). The session keeps
     // counting; only the record is lost.
   }
+}
+
+function read(): StudyState {
+  if (typeof window === "undefined") return EMPTY;
+  if (!cache) {
+    const stored = parse(window.localStorage.getItem(KEY));
+    cache = rollDay(stored, dayKey());
+    // A load that rolls storage should leave storage on the day the reader is
+    // in, rather than keeping yesterday's minutes there to be rolled again.
+    if (cache !== stored) persist(cache);
+    return cache;
+  }
+  // Same reference on the same day, which is what useSyncExternalStore wants;
+  // a new one only when the day has actually turned over.
+  const rolled = rollDay(cache, dayKey());
+  if (rolled !== cache) {
+    cache = rolled;
+    persist(cache);
+  }
+  return cache;
+}
+
+function write(next: StudyState): void {
+  const state = rollDay(next, dayKey());
+  cache = state;
+  persist(state);
   for (const listener of listeners) listener();
+}
+
+/**
+ * Bring the cached day up to date with the clock, and tell everyone if it moved.
+ *
+ * Called at the reader's midnight — scheduled below — and whenever the app
+ * comes back into view, so a tab or phone that was asleep through midnight
+ * agrees with the day the moment it is looked at again. Quiet when the day has
+ * not changed, so it costs no renders in the ordinary case.
+ */
+function rollToToday(): void {
+  if (typeof window === "undefined" || !cache) return;
+  const before = cache.day;
+  // read() rolls and persists if the day has turned over.
+  if (read().day === before) return;
+  for (const listener of listeners) listener();
+}
+
+/** Schedule the next roll for just after the reader's next local midnight. */
+function scheduleDayRoll(): void {
+  if (typeof window === "undefined" || listeners.size === 0) return;
+  if (dayTimer !== null) clearTimeout(dayTimer);
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+  const delay = Math.max(1_000, midnight.getTime() - Date.now() + 250);
+  dayTimer = setTimeout(() => {
+    dayTimer = null;
+    rollToToday();
+    scheduleDayRoll();
+  }, delay);
 }
 
 /** Keep another tab's minutes in step with this one. */
@@ -145,8 +200,20 @@ function ensureStorageListener(): void {
   listening = true;
   window.addEventListener("storage", (e) => {
     if (e.key !== KEY && e.key !== null) return;
-    cache = parse(e.newValue);
+    // Roll what another tab wrote, too: a tab that was left open overnight can
+    // write a state for the previous day, and reading it as today's is exactly
+    // the mistake this store must not make.
+    cache = rollDay(parse(e.newValue), dayKey());
     for (const listener of listeners) listener();
+  });
+  // A phone in a pocket comes back long after its midnight timer was throttled
+  // or dropped; the first look at it is the moment to agree with the day.
+  // Listened for on `document`: the event is fired there and does not bubble,
+  // so a listener on `window` would never hear it.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    rollToToday();
+    scheduleDayRoll();
   });
 }
 
@@ -263,6 +330,7 @@ export function studyProgress(state: StudyState): {
 function subscribe(onChange: () => void): () => void {
   ensureStorageListener();
   listeners.add(onChange);
+  scheduleDayRoll();
   return () => {
     listeners.delete(onChange);
   };
@@ -272,7 +340,7 @@ function subscribe(onChange: () => void): () => void {
  * The stored study state, with the day already rolled. Empty on the server.
  *
  * Exported for the stores that derive from the minutes rather than counting
- * their own — the coins are one — so they read the same numbers the bar shows.
+ * their own — the gems are one — so they read the same numbers the bar shows.
  */
 export function useStudy(): StudyState {
   return useSyncExternalStore(subscribe, read, () => EMPTY);

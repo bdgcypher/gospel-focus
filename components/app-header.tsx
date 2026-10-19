@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Glyph } from "./glyph";
 import { OpenBookLogo } from "./logo";
 import { StatusTray } from "./status-tray";
 import { TopNav } from "./nav-bar";
+import { navDirection } from "@/lib/features";
+import { setPageDirection } from "@/lib/page-motion";
 
 interface Props {
   onOpenMenu: () => void;
@@ -34,6 +37,8 @@ interface Props {
  * rather than borrowing the nav's active one.
  */
 export function AppHeader({ onOpenMenu }: Props) {
+  const pathname = usePathname();
+
   return (
     <header className="sticky top-0 z-20 border-b border-border/70 bg-background/80 backdrop-blur">
       <div className="app-header-row mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:max-w-5xl sm:px-6">
@@ -43,8 +48,16 @@ export function AppHeader({ onOpenMenu }: Props) {
         <Link
           href="/"
           title="Go to the home screen"
+          // Home is the first section in the bar, so arriving there from any
+          // other section is a step back along it (see components/nav-bar.tsx).
+          onClick={() => {
+            const step = navDirection(pathname, "/");
+            if (step) setPageDirection(step);
+          }}
           className="app-home-link group flex min-w-0 items-center gap-3"
         >
+          {/* The mark is the app's own, in every style: the playful skin
+              decorates the pages, it does not redraw the logo. */}
           <span className="text-accent-strong">
             <OpenBookLogo className="h-8 w-8" />
           </span>

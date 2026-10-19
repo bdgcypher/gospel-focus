@@ -1185,7 +1185,7 @@ function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex rounded-full border border-border bg-surface-2 p-1">
+    <div role="group" aria-label={label} className="inline-flex rounded-xl border border-border bg-surface-2 p-1">
       {options.map((option) => (
         <button
           key={option.value}

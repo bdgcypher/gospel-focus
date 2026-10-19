@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
 import { SearchSelect, type SelectOption } from "./search-select";
-import { spendCoins, useCoins } from "@/lib/coins";
+import { spendGems, useGems } from "@/lib/gems";
 import { goalReached, useStudy } from "@/lib/study";
 import {
   NoSourcesError,
@@ -30,7 +30,7 @@ const LABELS: Record<Part, string> = {
 };
 
 /**
- * What each part costs, in coins. The price follows how much the answer the
+ * What each part costs, in gems. The price follows how much the answer the
  * part gives away: a volume narrows the field, a verse ends the round.
  */
 const HINT_COST: Record<Part, number> = {
@@ -73,8 +73,8 @@ type Round = "playing" | "won" | "lost";
  * to be parsed. Three guesses are allowed; the third wrong one ends the round.
  *
  * Hints are bought rather than spent from a score: each part of the reference
- * has a price in coins (lib/coins.ts), and the hint sheet lists all four so the
- * reader can decide which part is worth buying — the volume for a coin, or the
+ * has a price in gems (lib/gems.ts), and the hint sheet lists all four so the
+ * reader can decide which part is worth buying — the volume for a gem, or the
  * verse for fifteen. Parts already bought are ticked off in the same sheet, so
  * it doubles as the record of what has been given away.
  *
@@ -83,7 +83,7 @@ type Round = "playing" | "won" | "lost";
  */
 export function ReferenceQuizPage() {
   const preferences = usePreferences();
-  const coins = useCoins();
+  const gems = useGems();
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [passage, setPassage] = useState<Passage | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -205,7 +205,7 @@ export function ReferenceQuizPage() {
 
   const reveal = (part: Part) => {
     if (!answer || round !== "playing" || revealed[part]) return;
-    if (!spendCoins(HINT_COST[part])) return;
+    if (!spendGems(HINT_COST[part])) return;
 
     setRevealed((current) => ({ ...current, [part]: true }));
     clearMarks();
@@ -470,7 +470,7 @@ export function ReferenceQuizPage() {
 
       {hintsOpen && answer && (
         <HintSheet
-          coins={coins.total}
+          gems={gems.total}
           revealed={revealed}
           playing={round === "playing"}
           onBuy={reveal}
@@ -523,24 +523,24 @@ function withValue(
  * a wallet read out in the sheet as well was a second place to look for the
  * same number. A price the reader cannot cover is not struck out either — the
  * row stays live and says so plainly when it is asked for (see
- * InsufficientCoins), which tells them what is missing instead of leaving a
+ * InsufficientGems), which tells them what is missing instead of leaving a
  * greyed-out row to guess about.
  */
 function HintSheet({
-  coins,
+  gems,
   revealed,
   playing,
   onBuy,
   onClose,
 }: {
-  coins: number;
+  gems: number;
   revealed: Record<Part, boolean>;
   playing: boolean;
   onBuy: (part: Part) => void;
   onClose: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
-  /** Whether the insufficient-coins note is up. */
+  /** Whether the insufficient-gems note is up. */
   const [shortOn, setShortOn] = useState(false);
 
   useEffect(() => {
@@ -594,7 +594,7 @@ function HintSheet({
           {PARTS.map((part) => {
             const used = revealed[part];
             const cost = HINT_COST[part];
-            const affordable = coins >= cost;
+            const affordable = gems >= cost;
             return (
               <li key={part}>
                 <button
@@ -619,7 +619,7 @@ function HintSheet({
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted">
-                      <Glyph name="coin" className="h-3.5 w-3.5" />
+                      <Glyph name="gem" className="h-3.5 w-3.5" />
                       <span className="tabular-nums">{cost}</span>
                     </span>
                   )}
@@ -630,7 +630,7 @@ function HintSheet({
         </ul>
       </div>
 
-      {shortOn && <InsufficientCoins onClose={() => setShortOn(false)} />}
+      {shortOn && <InsufficientGems onClose={() => setShortOn(false)} />}
     </div>,
     document.body
   );
@@ -641,7 +641,7 @@ function HintSheet({
  *
  * It says what happened and offers the one thing that can change it. Which
  * thing that is depends on the day: with the day's study still open the reader
- * can earn the coins by going to study, and once the goal is met there is
+ * can earn the gems by going to study, and once the goal is met there is
  * nothing left to earn today, so the ask becomes getting more instead. The
  * close control is the whole way back — the sheet is still behind this note,
  * and a second button saying so was a button for the same job as the cross.
@@ -649,7 +649,7 @@ function HintSheet({
  * On a phone the action fills the note the way the app's other primary actions
  * do; from `sm` up it is only as wide as its words.
  */
-function InsufficientCoins({ onClose }: { onClose: () => void }) {
+function InsufficientGems({ onClose }: { onClose: () => void }) {
   const panel = useRef<HTMLDivElement>(null);
   const study = useStudy();
   const studied = goalReached(study);
@@ -675,15 +675,15 @@ function InsufficientCoins({ onClose }: { onClose: () => void }) {
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="insufficient-coins-title"
+        aria-labelledby="insufficient-gems-title"
         className="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-2xl outline-none"
       >
         <div className="flex items-start justify-between gap-3">
           <h2
-            id="insufficient-coins-title"
+            id="insufficient-gems-title"
             className="font-serif text-xl font-semibold text-foreground"
           >
-            Insufficient Coins
+            Insufficient Gems
           </h2>
           <button
             type="button"
