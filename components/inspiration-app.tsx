@@ -462,10 +462,14 @@ export function InspirationApp() {
                       {/* The app's own mark belongs in the header: on the one
                           button whose job is to open another passage, the
                           standard open-book glyph says what the press does
-                          rather than whose app it is. */}
-                      <span className="text-accent-contrast">
-                        <Glyph name="book" className="h-5 w-5" />
-                      </span>
+                          rather than whose app it is. It takes the button's own
+                          ink rather than a wrapper's — the mark and the label
+                          are one control, so they have to be one colour (on the
+                          playful skin's blue they are white, on the paper
+                          skin's gold they are the deep accent ink) — and it sits
+                          in the row as a flex item, so the two share a midline
+                          instead of the glyph riding a line box of its own. */}
+                      <Glyph name="book" className="h-5 w-5" />
                       {phase === "rifling" || loading ? "Opening…" : "New passage"}
                     </button>
 
