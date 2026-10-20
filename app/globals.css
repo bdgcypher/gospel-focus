@@ -377,13 +377,17 @@ html[data-nav-swipe="on"] {
   touch-action: pan-y pinch-zoom;
 }
 
+/* The page's own light, named rather than written straight onto the body: the
+   incoming page of a swipe is a fixed panel laid over the screen, and it has to
+   be lit the same way or the two halves of the movement meet at a seam. */
 body {
+  --page-glow:
+    radial-gradient(circle at 15% 0%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 100%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 45%);
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  background-image:
-    radial-gradient(circle at 15% 0%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 45%),
-    radial-gradient(circle at 85% 100%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 45%);
+  background-image: var(--page-glow);
   background-attachment: fixed;
 }
 
@@ -392,7 +396,7 @@ body {
    and pulled the whole theme back towards brown. The gold stays on the accent
    and on nothing else. */
 .dark body {
-  background-image:
+  --page-glow:
     radial-gradient(circle at 15% 0%, rgb(255 255 255 / 0.06), transparent 45%),
     radial-gradient(circle at 85% 100%, rgb(255 255 255 / 0.04), transparent 45%);
 }
@@ -418,7 +422,7 @@ body {
    on the objects and leaves the page a solid colour. */
 .playful body,
 .playful.dark body {
-  background-image: none;
+  --page-glow: none;
 }
 
 /* Buttons are rounded rectangles, not pills. Horizontal padding is what makes
@@ -1398,6 +1402,118 @@ html[data-reduce-motion="true"] .page-enter-forward,
 html[data-reduce-motion="true"] .page-enter-back,
 html[data-reduce-motion="true"] .page-rise main > * {
   animation: none;
+}
+
+/* --- Sweeping between sections ------------------------------------------
+   A finger across a section page turns the row, and the row moves with it:
+   the page the reader is on is carried along, and the page beside it rides in
+   from the edge, already drawn (components/nav-preview.tsx). These rules are
+   how that is drawn, and they are deliberately CSS rather than a spring in
+   JavaScript: the gesture writes one custom property per pointermove and the
+   compositor does the rest, so the page keeps up with the thumb at frame rate
+   without a React render on every move.
+
+   `--nav-slide` is the distance the finger has carried the page, in pixels,
+   and `--nav-lead` is how far down the screen the page's content begins — the
+   incoming page is pinned below the app bar so its own heading sits where the
+   page it becomes will have its heading.
+
+   The chrome is not in any of this. The bars sit above both pages and stay
+   still; the section pill travels between tabs on its own (components/nav-bar.tsx)
+   while the pages move underneath it.
+
+   There is no drag without a finger: on reduced motion nothing is drawn and a
+   swipe only changes the page, exactly as it did before. */
+:root {
+  /* How long a turn takes to finish once the finger lets go, or to come back
+     from a gesture that did not reach far enough. The drag writes the same
+     number out as a custom property when it starts (components/nav-swipe.tsx,
+     from TURN_MS in lib/page-motion.ts), because the mark's own animation and
+     the page have to share one clock; this is the fallback. */
+  --nav-settle: 520ms;
+}
+
+/* The page in the reader's hand. `animation: none` is the important half: the
+   page's entrance animation, if it is still holding its last frame (`both`),
+   would keep owning `translate` and the drag would move nothing. A page that is
+   being dragged has finished arriving anyway. */
+html[data-nav-dragging] .app-shell-content > [data-app-page] {
+  translate: var(--nav-slide, 0px) 0;
+  animation: none;
+  will-change: translate;
+}
+
+/* The last of the turn: both pages travel the rest of the way under their own
+   momentum, and a gesture that fell short is carried back to where it started.
+
+   The curve is the app's own elastic one (--motion-elastic) at the same
+   TURN_MS the section mark uses, so the page and the mark arrive together: the
+   page leans a little past its resting place and comes back exactly as the
+   mark overshoots its tab and settles. A page that stopped dead while the mark
+   bounced would read as two movements ending at once. */
+html[data-nav-settling] .app-shell-content > [data-app-page] {
+  transition: translate var(--nav-settle) var(--motion-elastic);
+}
+
+/* The side of the browser's own edge-swipe (back and forward in Chrome) is not
+   wanted here: the app has its own row, and a thumb near the edge would start
+   two movements at once. */
+html[data-nav-dragging] {
+  overscroll-behavior-x: none;
+}
+
+/* The incoming page. It sits just off the side of the screen — to the right for
+   a step forward, to the left for a step back — and slides over the gap at the
+   same time as the page under the finger, so the two read as one strip.
+
+   Fixed rather than in flow: it must not take up space, push the footer, or
+   scroll with the page it is covering. Its top is measured from the app bar at
+   the moment the drag starts (see components/nav-swipe.tsx), because the bar's
+   height depends on the skin and the width of the screen.
+
+   Nothing in it is touchable or readable by a screen reader: it is a glimpse
+   of a page, not a page yet. */
+[data-nav-preview] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--nav-lead, 0px);
+  /* Two heights on purpose: the first is for a WebView old enough not to know
+     the dynamic viewport unit, and the second takes over wherever it does. */
+  height: calc(100vh - var(--nav-lead, 0px));
+  height: calc(100dvh - var(--nav-lead, 0px));
+  z-index: 10;
+  overflow: hidden;
+  /* Lit like the page it is standing in for: the same colour, and the same
+     corner glow on the same viewport rather than on the panel's own box. */
+  background-color: var(--background);
+  background-image: var(--page-glow);
+  background-attachment: fixed;
+  pointer-events: none;
+  translate: calc(100% + var(--nav-slide, 0px)) 0;
+  will-change: translate;
+}
+
+html[data-nav-dir="back"] [data-nav-preview] {
+  translate: calc(-100% + var(--nav-slide, 0px)) 0;
+}
+
+html[data-nav-settling] [data-nav-preview] {
+  transition: translate var(--nav-settle) var(--motion-elastic);
+}
+
+/* The preview is the page itself, and the page brings its own entrance with it
+   (components/app-shell.tsx). It has already arrived as far as the reader is
+   concerned — it is the thing being dragged into view — so none of those
+   animations belong inside the panel. */
+[data-nav-preview] .page-enter-forward,
+[data-nav-preview] .page-enter-back,
+[data-nav-preview] .page-rise main > * {
+  animation: none;
+}
+
+html[data-reduce-motion="true"] [data-nav-preview] {
+  display: none;
 }
 
 /* --- The way into memorization ------------------------------------------ */

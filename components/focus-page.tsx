@@ -203,6 +203,13 @@ function StudyProgress({
   minutes: number;
   percent: number;
 }) {
+  // The day's goal met is the same green the home screen's hero turns, and the
+  // same tokens: the bar here is the lock's half of that one number, so the two
+  // places agree about what "done" looks like rather than each choosing a
+  // colour. On the paper skin the tokens are the ordinary accent, which is how
+  // that skin says anything at all.
+  const done = goalMinutes > 0 && minutes >= goalMinutes;
+
   if (goalMinutes === 0) {
     return (
       <div className="mt-4 rounded-2xl border border-border bg-surface-2/60 p-3">
@@ -218,11 +225,15 @@ function StudyProgress({
 
   return (
     <div className="mt-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs text-muted">
-        <span className="font-semibold tabular-nums text-foreground">
+      <div
+        className={`flex flex-wrap items-baseline justify-between gap-x-3 text-xs ${
+          done ? "text-goal-muted" : "text-muted"
+        }`}
+      >
+        <span className={`font-semibold tabular-nums ${done ? "text-goal-strong" : "text-foreground"}`}>
           {Math.min(minutes, goalMinutes)} / {goalMinutes} min studied
         </span>
-        <span>{minutes >= goalMinutes ? "Today's goal met" : "counting while you study"}</span>
+        <span>{done ? "Today's goal met" : "counting while you study"}</span>
       </div>
       <div
         role="progressbar"
@@ -230,10 +241,12 @@ function StudyProgress({
         aria-valuemin={0}
         aria-valuemax={goalMinutes}
         aria-valuenow={Math.min(minutes, goalMinutes)}
-        className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2"
+        className={`mt-2 h-2 w-full overflow-hidden rounded-full ${done ? "bg-goal-track" : "bg-surface-2"}`}
       >
         <div
-          className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+          className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+            done ? "bg-goal-bar" : "bg-accent"
+          }`}
           style={{ width: `${percent}%` }}
         />
       </div>

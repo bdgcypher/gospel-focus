@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { tapControl } from "@/lib/haptics";
 
 /**
  * The press, for fingers.
@@ -20,6 +21,15 @@ import { useEffect } from "react";
  *
  * Only touch and pen begin a press here. A mouse already has `:active`, and
  * writing the attribute for it would double the state rather than add one.
+ *
+ * A press is also the moment the app's haptics fire (lib/haptics.ts): one light
+ * tick under the finger, on whatever control took it. That is here rather than
+ * in each control for the same reason the attribute is — one listener knows
+ * every button and link there is, including the ones written after this file.
+ * The exception is a control that plays its own rhythm, which says so with
+ * `data-haptic="own"`: the word-search board ticks letter by letter as the
+ * finger runs across it, and a tick from the press as well would double the
+ * first letter (see components/word-search-page.tsx).
  */
 const CONTROL = "button, a[href], [role='button']";
 
@@ -46,7 +56,9 @@ export function PressFeedback() {
       if (event.pointerType === "mouse" || !event.isPrimary) return;
       release();
       held = controlAt(event.target);
-      if (held) held.dataset.pressed = "true";
+      if (!held) return;
+      held.dataset.pressed = "true";
+      if (!held.closest("[data-haptic='own']")) void tapControl();
     };
 
     // `pointerup` can arrive on another element when the finger has slid off,

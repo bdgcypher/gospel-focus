@@ -21,7 +21,6 @@ export type GlyphName =
   | "lock-open"
   | "pencil"
   | "menu"
-  | "dice"
   | "close"
   | "return"
   | "backspace"
@@ -102,9 +101,9 @@ export function Glyph({ name, className = "h-5 w-5", plain = false }: Props) {
  * without also saying what it looks like in the playful themes — the record is
  * keyed by `GlyphName`, so the compiler asks the question. Emoji are chosen for
  * what a reader would recognise at a glance rather than for literal fidelity:
- * the focus lock is a padlock, the draw is a die, the word puzzle is its green
- * square. The app's own words stay beside each one, so the emoji never carries
- * meaning on its own (and they are hidden from screen readers).
+ * the focus lock is a padlock, the draw is a sparkle, the word puzzle is its
+ * green square. The app's own words stay beside each one, so the emoji never
+ * carries meaning on its own (and they are hidden from screen readers).
  *
  * A null is a deliberate "keep the drawing": these are the marks that tell a
  * reader what a control *does*, where a picture of the same thing would be
@@ -154,7 +153,6 @@ const EMOJI: Record<GlyphName, string | null> = {
   pencil: "✏️",
   menu: null,
   clock: "⏰",
-  dice: "🎲",
   close: null,
   trash: "🗑️",
   gem: "💎",
@@ -194,6 +192,10 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M9.6 4.4v13M14.4 6.6v13" />
     </>
   ),
+  // A sparkle, for the draw: the random-verse tile on the hub, the heading of
+  // the reader, and every "New passage" button. A second, smaller star beside
+  // the first says something has just been made rather than that a choice is
+  // left to chance — the draw is a gift, not a roll.
   sparkles: (
     <>
       <path d="M11 4.6l1.5 4 4 1.5-4 1.5L11 15.6l-1.5-4-4-1.5 4-1.5z" />
@@ -428,22 +430,6 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
     <>
       <circle cx="12" cy="12" r="8.4" />
       <path d="M12 7.4V12l3.2 2" />
-    </>
-  ),
-  // A die, for the hub's draw (components/quick-activities.tsx). The tile that
-  // leads to a random passage wants the mark of chance rather than the book
-  // that the button directly above it already wears, and a die is the one shape
-  // that says "this one is not decided yet". Five pips, drawn filled: at tile
-  // size an outlined dot closes up into a smudge, and it is the count that
-  // makes the square a die rather than a box.
-  dice: (
-    <>
-      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.6" />
-      <circle cx="8.4" cy="8.4" r="1.15" fill="currentColor" stroke="none" />
-      <circle cx="15.6" cy="8.4" r="1.15" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none" />
-      <circle cx="8.4" cy="15.6" r="1.15" fill="currentColor" stroke="none" />
-      <circle cx="15.6" cy="15.6" r="1.15" fill="currentColor" stroke="none" />
     </>
   ),
   // The cross every dialog in the app closes with, in the shared hand — the

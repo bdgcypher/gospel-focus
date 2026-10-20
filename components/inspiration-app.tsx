@@ -368,16 +368,17 @@ export function InspirationApp() {
               <section className="text-center sm:text-left">
                 {/* The full column width, so the draw button below spans it. */}
                 <div className="mx-auto w-full">
-                  {/* The heading says which passage is on the page — the dice
-                      for a draw, the day's for the daily one — and the line
-                      under it is left with the icon rather than centred, so it
-                      reads as this page's title, not a label on the button. */}
+                  {/* The heading says which passage is on the page — the
+                      sparkle for a draw, the day's for the daily one — and the
+                      line under it is left with the icon rather than centred,
+                      so it reads as this page's title, not a label on the
+                      button. */}
                   {/* The back control rides the heading row, in line with the
                       title it belongs to — the same place every page built on
                       the shared frame puts it. */}
                   <div className="flex items-center gap-3 text-left">
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-surface text-accent-strong">
-                      <Glyph name="dice" className="h-6 w-6" />
+                      <Glyph name="sparkles" className="h-6 w-6" />
                     </span>
                     <div className="min-w-0 flex-1">
                       {/* The back control shares the title's line rather than
@@ -458,8 +459,12 @@ export function InspirationApp() {
                       // Full width at every size.
                       className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-cta px-7 py-3.5 text-base font-semibold text-cta-contrast shadow-lg shadow-cta/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
+                      {/* The app's own mark belongs in the header: on the one
+                          button whose job is to open another passage, the
+                          standard open-book glyph says what the press does
+                          rather than whose app it is. */}
                       <span className="text-accent-contrast">
-                        <OpenBookLogo className="h-5 w-5" />
+                        <Glyph name="book" className="h-5 w-5" />
                       </span>
                       {phase === "rifling" || loading ? "Opening…" : "New passage"}
                     </button>

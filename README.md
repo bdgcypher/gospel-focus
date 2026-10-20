@@ -168,7 +168,9 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   itself again when that runs out. The page shows today's minutes against the same
   goal the home screen shows, because that is what the lock is waiting on — and
   meeting that goal opens the lock for the rest of the day, with the switch right
-  there if you want the apps held anyway.
+  there if you want the apps held anyway. The bar is the home screen's bar in the
+  same state, too: the minute that meets the goal turns it the goal card's green,
+  so the two places agree about what a finished day looks like.
 - **Honest about the half that isn't built:** holding another app back needs
   Android's usage and accessibility APIs, and that native layer does not exist yet.
   Every state on the page is one you set and can see again, and the page says
@@ -185,6 +187,31 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   it (desktop, landscape tablet) and a tab bar under the thumb everywhere else,
   where the last tab is the menu. The stylesheet picks between them, so a rotation
   causes no layout flash.
+- **Swipe between the sections** — a finger across a section page carries that page
+  with it and pulls the next one in from the edge, already drawn, so the four read
+  as one strip of pages rather than four screens taking turns. The mark under the
+  bar's sections crosses with the thumb: its leading edge goes with the finger
+  while its trailing edge stays on the words being left, then breaks away in one
+  quick snap once the page has been taken a fifth of the way, and travels the rest
+  of the drag whole. A tap runs the same move from the press rather than from the
+  next page's first paint, so the highlight has left the old tab before the new one
+  arrives — and on a device with a vibrator, the moment it comes away is a tick. A
+  short drag springs back; the first and last tabs lean and give instead of
+  promising a page that isn't there. *Reduce motion* still turns the page, it just
+  doesn't draw it.
+- **Everything a finger presses answers back.** On a device with a vibrator,
+  every button and link gives one light tick as it is pressed. The word-search
+  board plays its own rhythm instead: a tick for every letter a line reaches, a
+  firmer one when the drag turns a corner, a double buzz for a line that spelled
+  nothing, and then the long stroke of the pen with a bump at its end while the
+  word's cross-out is drawn. Every game's ending has its own tune — six beats
+  for a win, two for a near miss, and the same two wherever the near miss
+  happens, because the daily puzzle and the quiz end in the same card. Outside
+  the native shell all of it is silent: nothing on the web is made to vibrate.
+  The card and the tune both wait for the move that ended the game to finish:
+  the word search's last cross-out, the puzzle's last row of letters turning
+  over, the quiz's last guess going red. *Reduce motion* opens the card at once,
+  since there is no animation to wait for.
 - **Light / dark themes** that default to the device preference, and a separate
   **Focused / Playful style**: the playful style swaps the illustrative glyphs for
   real emoji on the hub and section tiles, in the header's status chips and in the

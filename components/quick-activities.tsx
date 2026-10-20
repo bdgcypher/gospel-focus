@@ -75,7 +75,7 @@ function fromFeature(id: string, label: string, icon: GlyphName): Tile {
 }
 
 const TILES: Tile[] = [
-  fromFeature("picker", "Random Verse", "dice"),
+  fromFeature("picker", "Random Verse", "sparkles"),
   fromFeature("memorize", "Memorize", "cards"),
   fromFeature("journal", "Journal", "journal"),
   // The one tile that leads to a section rather than a page. Play is five

@@ -7,6 +7,7 @@ import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
 import { SearchSelect, type SelectOption } from "./search-select";
 import { spendGems, useGems } from "@/lib/gems";
+import { useResultHaptics } from "@/lib/haptics";
 import { goalReached, useStudy } from "@/lib/study";
 import {
   NoSourcesError,
@@ -16,6 +17,7 @@ import {
   pickPassage,
 } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
+import { useRevealDelay } from "@/lib/reveal";
 import type { Manifest, Passage } from "@/lib/types";
 
 /** The four parts of a reference, in the order the hints give them away. */
@@ -42,6 +44,14 @@ const HINT_COST: Record<Part, number> = {
 
 /** A round is this many guesses — the third wrong one ends it. */
 const MAX_TRIES = 3;
+
+/**
+ * How long the guess that ended the round is left alone before the result
+ * sheet opens. The parts it marked wrong are the round's last word — they turn
+ * red as the guess lands — and the sheet would otherwise cover them the same
+ * frame (lib/reveal.ts).
+ */
+const MARK_MS = 360;
 
 interface Answer {
   volumeId: string;
@@ -274,6 +284,14 @@ export function ReferenceQuizPage() {
 
   const reference = answer ? `${answer.book} ${answer.chapter}:${answer.verse}` : "";
 
+  // The sheet waits for the guess that ended the round to be read: its marks
+  // are what tell the reader what was off. Keyed on the round, so the next
+  // verse starts its own wait rather than inheriting this one.
+  const resultReady = useRevealDelay(
+    round === "playing" ? null : `${round}:${tries}:${reference}`,
+    preferences.reduceMotion ? 0 : MARK_MS
+  );
+
   return (
     // The strapline is the verse's own invitation rather than the catalog's
     // "read a verse, name its reference", which is what the hub card still
@@ -315,7 +333,7 @@ export function ReferenceQuizPage() {
                 onClick={() => void draw()}
                 className="inline-flex items-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
               >
-                <Glyph name="dice" className="h-4 w-4" />
+                <Glyph name="sparkles" className="h-4 w-4" />
                 Try again
               </button>
               <Link
@@ -495,7 +513,7 @@ export function ReferenceQuizPage() {
         />
       )}
 
-      {resultOpen && answer && passage && (
+      {resultOpen && resultReady && answer && passage && (
         <ResultSheet
           won={round === "won"}
           tries={tries}
@@ -748,6 +766,11 @@ function ResultSheet({
   onNext: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+
+  // The same two endings the word game plays, for the same two questions: the
+  // verse named inside three guesses, or the third one spent and the reference
+  // given away.
+  useResultHaptics(won);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

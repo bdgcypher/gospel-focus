@@ -15,9 +15,17 @@ import {
 import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
 import { PassagePanel } from "./passage-panel";
-import { tapBookLanded } from "@/lib/haptics";
+import {
+  CROSS_OUT_MS,
+  tapDirectionChange,
+  tapLetter,
+  tapLineMissed,
+  tapWordFound,
+  useResultHaptics,
+} from "@/lib/haptics";
 import { NoSourcesError, loadManifest, pickPassage } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
+import { useRevealDelay } from "@/lib/reveal";
 import {
   GRID_SIZE,
   buildPuzzle,
@@ -43,6 +51,13 @@ import {
  * else is dropped, so the board never punishes a wrong guess with a record of
  * it. The same cells can be tapped one after another for a reader who cannot
  * drag, and focused cells answer to Enter.
+ *
+ * A finger is answered as it goes (lib/haptics.ts): a tick for each letter the
+ * line reaches, a firmer one when it turns onto another line, two quick buzzes
+ * for a line that spelled nothing, and the long stroke of the pen when one
+ * does — for as long as the cross-out takes to draw. The board plays these
+ * itself, and says so with `data-haptic="own"`, so the app's one press tick does
+ * not double the first letter.
  */
 export function WordSearchPage() {
   const preferences = usePreferences();
@@ -74,6 +89,13 @@ export function WordSearchPage() {
   /** The cell a drag started on, or where a keyboard selection is waiting. */
   const anchor = useRef<CellIndex | null>(null);
   const dragging = useRef(false);
+  /**
+   * What the last move across the board drew: the line's direction and the
+   * cells it covered. The next move is compared against it, so a finger is told
+   * what changed — a letter reached, or a turn onto another line — rather than
+   * buzzed for every pointer event a device happens to report.
+   */
+  const drag = useRef<{ direction: string | null; cells: CellIndex[] } | null>(null);
   /** Guards against a slow draw landing after a newer one has started. */
   const run = useRef(0);
   const noticeTimer = useRef<number | undefined>(undefined);
@@ -230,7 +252,7 @@ export function WordSearchPage() {
         const next = new Set(found).add(hit.word);
         setFound(next);
         setFoundPaths((current) => new Map(current).set(hit.word, path));
-        void tapBookLanded();
+        tapWordFound();
         setAnnouncement(
           next.size === puzzle.words.length
             ? `${hit.word} — that is all ${puzzle.words.length} words.`
@@ -245,6 +267,7 @@ export function WordSearchPage() {
         // are. The notice under the board says it too, for anyone not looking
         // at the grid — and for a screen reader, which cannot see a flash.
         flash("No word there — keep looking.");
+        tapLineMissed();
         setMiss(new Set(path));
         window.clearTimeout(missTimer.current);
         missTimer.current = window.setTimeout(() => setMiss(new Set()), 480);
@@ -261,8 +284,10 @@ export function WordSearchPage() {
       if (index === null) return;
       dragging.current = true;
       anchor.current = index;
+      drag.current = { direction: null, cells: [index] };
       setMiss(new Set());
       setSelection([index]);
+      void tapLetter();
       event.currentTarget.setPointerCapture(event.pointerId);
     },
     [puzzle]
@@ -274,7 +299,19 @@ export function WordSearchPage() {
       const over = cellFrom(document.elementFromPoint(event.clientX, event.clientY));
       if (over === null || anchor.current === null) return;
       const line = lineBetween(puzzle.size, anchor.current, over);
-      if (line) setSelection(line);
+      if (!line) return;
+
+      const last = drag.current;
+      // A drag that has come back to its first letter has no direction of its
+      // own — it is a line of one — so it keeps the one it was last travelling
+      // in, and leaving in another is still felt as a turn.
+      const direction = dragDirection(puzzle.size, line) ?? last?.direction ?? null;
+      const turned = Boolean(last?.direction && direction && direction !== last.direction);
+      const tip = line[line.length - 1];
+      drag.current = { direction, cells: line };
+      setSelection(line);
+      if (turned) void tapDirectionChange();
+      else if (!last?.cells.includes(tip)) void tapLetter();
     },
     [puzzle]
   );
@@ -285,6 +322,7 @@ export function WordSearchPage() {
     // The drag is over, so nothing is anchored any more: a later keyboard turn
     // must open its own selection rather than extend the one just released.
     anchor.current = null;
+    drag.current = null;
     commit(selection);
   }, [commit, selection]);
 
@@ -313,6 +351,13 @@ export function WordSearchPage() {
   );
 
   const solved = Boolean(puzzle && found.size === puzzle.words.length);
+  // The finish card waits for the last cross-out to finish being drawn: the pen
+  // is still going across the word that won the board when it would otherwise
+  // open over it. Keyed on the board itself, so a new puzzle starts a new wait.
+  const revealDone = useRevealDelay(
+    solved && puzzle ? `${puzzle.reference}|${puzzle.grid.join("")}` : null,
+    preferences.reduceMotion ? 0 : CROSS_OUT_MS
+  );
 
   return (
     <FeaturePage featureId="word-search" subtitle="" contentClassName="mt-5">
@@ -327,7 +372,7 @@ export function WordSearchPage() {
                 onClick={() => void draw()}
                 className="inline-flex items-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
               >
-                <Glyph name="dice" className="h-4 w-4" />
+                <Glyph name="sparkles" className="h-4 w-4" />
                 Try again
               </button>
               <Link
@@ -393,6 +438,9 @@ export function WordSearchPage() {
                 drag-to-select grid cannot have. */}
             <div
               ref={gridRef}
+              // The board answers a finger letter by letter, so the app's one
+              // press tick stays out of it (components/press-feedback.tsx).
+              data-haptic="own"
               role="group"
               aria-label="Word-search grid. Drag across letters, or focus a cell and press Enter to choose its first and last letters."
               onPointerDown={onPointerDown}
@@ -482,7 +530,9 @@ export function WordSearchPage() {
                         }
                         animate={{ pathLength: 1, opacity: 1 }}
                         transition={
-                          preferences.reduceMotion ? { duration: 0 } : { duration: 0.4, ease: "easeOut" }
+                          preferences.reduceMotion
+                            ? { duration: 0 }
+                            : { duration: CROSS_OUT_MS / 1000, ease: "easeOut" }
                         }
                       />
                     );
@@ -508,7 +558,7 @@ export function WordSearchPage() {
               disabled={loading}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-5 py-3 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
             >
-              <Glyph name="dice" className="h-4 w-4" />
+              <Glyph name="sparkles" className="h-4 w-4" />
               {loading ? "Drawing…" : "New passage"}
             </button>
           </>
@@ -529,7 +579,7 @@ export function WordSearchPage() {
         />
       )}
 
-      {solved && puzzle && !resultDismissed && (
+      {solved && revealDone && puzzle && !resultDismissed && (
         <SolvedDialog
           puzzle={puzzle}
           onClose={() => setResultDismissed(true)}
@@ -559,6 +609,10 @@ function SolvedDialog({
   onNewPassage: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+
+  // The card opens after the cross-out of the word that finished the board, so
+  // the fanfare is the card's own and needs no delay of its own.
+  useResultHaptics(true);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -636,6 +690,18 @@ function SolvedDialog({
     </div>,
     document.body
   );
+}
+
+/**
+ * The step a drag is taking, as its row and column signs — null while the
+ * finger is still on the cell it started from, where there is no direction yet.
+ */
+function dragDirection(size: number, path: CellIndex[]): string | null {
+  if (path.length < 2) return null;
+  const [from, to] = path;
+  const rows = Math.floor(to / size) - Math.floor(from / size);
+  const columns = (to % size) - (from % size);
+  return `${rows},${columns}`;
 }
 
 /** The passage, with every word the reader found marked in it. */

@@ -6,8 +6,10 @@ import { createPortal } from "react-dom";
 import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
 import { PassagePanel } from "./passage-panel";
+import { useResultHaptics } from "@/lib/haptics";
 import { resolveCitation } from "@/lib/picker";
 import { setPreference, usePreferences } from "@/lib/preferences";
+import { useRevealDelay } from "@/lib/reveal";
 import type { Passage } from "@/lib/types";
 import {
   MAX_GUESSES,
@@ -29,6 +31,17 @@ import {
   type SavedGame,
   type WordList,
 } from "@/lib/wordle";
+
+/**
+ * How long a row takes to turn over: one tile's own turn, plus the stagger the
+ * last column waits for the first. The finish card waits for both, so the row
+ * that ended the round is read before the card covers it (lib/reveal.ts).
+ */
+const TILE_FLIP_MS = 320;
+const TILE_STAGGER_MS = 60;
+
+/** When the last tile of a row has come to rest, for a word of `length` letters. */
+const revealMs = (length: number) => TILE_FLIP_MS + Math.max(0, length - 1) * TILE_STAGGER_MS;
 
 /**
  * The daily word puzzle.
@@ -162,7 +175,13 @@ export function WordlePage() {
   const solved = game ? isSolved(game) : false;
   const states = game ? letterStates(game.answer, game.guesses) : {};
   const resultKey = game ? `${game.mode}:${game.day}:${game.guesses.length}` : "";
-  const showResult = Boolean(game && over && dismissed !== resultKey);
+  // The card waits for the last guess's tiles to finish turning over, and its
+  // haptics with it, since they play when the card mounts (lib/haptics.ts).
+  const revealDone = useRevealDelay(
+    game && over ? resultKey : null,
+    preferences.reduceMotion ? 0 : revealMs(wordLength)
+  );
+  const showResult = Boolean(game && over && dismissed !== resultKey && revealDone);
   const closeResult = useCallback(() => setDismissed(resultKey), [resultKey]);
 
   /**
@@ -303,7 +322,7 @@ export function WordlePage() {
                       letter={value}
                       mark={marks?.[col] ?? null}
                       reveal={Boolean(marks)}
-                      delay={col * 0.06}
+                      delay={col * TILE_STAGGER_MS}
                       reduce={preferences.reduceMotion}
                     />
                   );
@@ -431,6 +450,7 @@ function Tile({
   mark: LetterState | null;
   /** Whether this tile's marking has been settled by a guess. */
   reveal: boolean;
+  /** Milliseconds this column waits for the ones before it. */
   delay: number;
   reduce: boolean;
 }) {
@@ -439,7 +459,7 @@ function Tile({
     <motion.span
       initial={reveal && !reduce ? { rotateX: 90, opacity: 0.6 } : false}
       animate={{ rotateX: 0, opacity: 1 }}
-      transition={{ duration: 0.32, delay }}
+      transition={{ duration: TILE_FLIP_MS / 1000, delay: delay / 1000 }}
       className={`grid aspect-square place-items-center rounded-lg border font-serif text-xl font-semibold uppercase shadow-[0_10px_24px_-22px_rgba(0,0,0,0.8)] sm:text-2xl ${
         // An empty slot stays flat; a tile with a letter is a piece in the
         // playful skin (see `.puzzle-tile` in globals.css).
@@ -711,6 +731,11 @@ function ResultDialog({
   onPlayAgain: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+
+  // The card's own fanfare, in the hand rather than on the screen: six beats
+  // for the word, two for the near miss — played when the card opens, which is
+  // once the last row has finished turning over.
+  useResultHaptics(solved);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

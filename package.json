@@ -1,6 +1,6 @@
 {
   "name": "gospel-focus",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "private": true,
   "scripts": {
     "bootstrap": "node scripts/bootstrap.mjs",
