@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AppHeader } from "./app-header";
 import { BottomNav } from "./nav-bar";
 import { MenuPanel } from "./menu-panel";
+import { NavSwipe } from "./nav-swipe";
 import { ReminderSync } from "./reminder-sync";
 import { StreakTracker } from "./streak-tracker";
 import { StudyTracker } from "./study-tracker";
@@ -80,6 +81,11 @@ export function AppChrome({ children }: { children: ReactNode }) {
           goal. Also invisible: the number in the app bar is the only place it
           shows. */}
       <StreakTracker />
+
+      {/* A finger across the page, or across the bar, steps to the section
+          beside this one. Silent everywhere except the four section pages
+          themselves. */}
+      <NavSwipe />
 
       {/* The widget's one invitation, offered where the goal lands rather than
           on the hub — see components/widget-prompt.tsx. Silent on every page

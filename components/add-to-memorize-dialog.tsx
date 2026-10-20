@@ -341,11 +341,15 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
               >
                 {deck ? "Edit Deck" : step === "custom" ? "Custom Deck" : "Add to Memorize"}
               </h2>
+              {/* A plain cross rather than a raised control: it is the sheet's
+                  way out, not one of the things the sheet is for, and a 3D
+                  button beside the title made closing look like a step in the
+                  builder. White space and the drawn mark carry it. */}
               <button
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="rounded-full border border-border bg-surface-2 p-1.5 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+                className="rounded-full p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
               >
                 <Glyph name="close" className="h-4 w-4" />
               </button>
@@ -647,7 +651,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                   type="button"
                   onClick={save}
                   disabled={!name.trim() || draft.length === 0}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Glyph name="check" className="h-4 w-4" />
                   {deck ? "Save changes" : "Save deck"}

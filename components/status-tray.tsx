@@ -71,6 +71,7 @@ export function StatusTray() {
         tone="quiet"
         text={hasGoal ? `${studied}/${progress.target} min` : `${studied}/? min`}
         progress={hasGoal ? progress.percent : 0}
+        complete={hasGoal && progress.done}
         title={
           !hasGoal
             ? `No daily study goal yet — ${studied} ${studied === 1 ? "minute" : "minutes"} studied today. Choose one and the bar will start filling. Open settings.`
@@ -162,6 +163,8 @@ interface ChipProps {
   dot?: boolean;
   /** How full the chip's own hairline bar is, 0–100. Omitted when there is none. */
   progress?: number;
+  /** Whether the day's goal is met, which turns the hairline the completed green. */
+  complete?: boolean;
 }
 
 /**
@@ -185,13 +188,14 @@ function StatusChip({
   tone,
   dot = false,
   progress,
+  complete = false,
 }: ChipProps) {
   return (
     <Link
       href={href}
       title={title}
       aria-label={`${label}: ${title}`}
-      className={`group relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-semibold transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-strong focus-visible:border-accent/40 focus-visible:bg-accent/10 focus-visible:text-accent-strong ${
+      className={`group relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-normal transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-strong focus-visible:border-accent/40 focus-visible:bg-accent/10 focus-visible:text-accent-strong ${
         tone === "accent" ? "text-accent-strong" : tone === "dim" ? "text-muted/70" : "text-muted"
       }`}
     >
@@ -214,10 +218,14 @@ function StatusChip({
         {progress !== undefined && (
           <span
             aria-hidden="true"
-            className="h-[3px] w-full overflow-hidden rounded-full bg-accent/20"
+            className={`h-[3px] w-full overflow-hidden rounded-full ${
+              complete ? "bg-goal-track" : "bg-accent/20"
+            }`}
           >
             <span
-              className="block h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+              className={`block h-full rounded-full transition-[width] duration-500 ease-out ${
+                complete ? "bg-goal-bar" : "bg-accent"
+              }`}
               style={{ width: `${progress}%` }}
             />
           </span>

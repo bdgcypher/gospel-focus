@@ -145,7 +145,7 @@ export function BypassDialog({ open, onClose }: Props) {
                   startBypass(length);
                   onClose();
                 }}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 sm:w-auto"
               >
                 <Glyph name="lock-open" className="h-4 w-4" />
                 {choice.confirm}

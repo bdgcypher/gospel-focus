@@ -456,7 +456,7 @@ export function InspirationApp() {
                       onClick={() => void draw()}
                       disabled={!manifest || phase === "rifling" || loading || nothingSelected}
                       // Full width at every size.
-                      className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-cta px-7 py-3.5 text-base font-semibold text-cta-contrast shadow-lg shadow-cta/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="text-accent-contrast">
                         <OpenBookLogo className="h-5 w-5" />

@@ -64,7 +64,7 @@ const useMounted = () =>
  */
 
 const PRIMARY =
-  "inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 const QUIET =
   "inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50";
 const LINK_BUTTON =
@@ -177,77 +177,86 @@ export function MemorizePage() {
   };
 
   return (
-    // The strapline is a verse rather than the catalog's line, set the same way
-    // as the reference quiz's: the words in the serif italic they are read in,
-    // the citation after them and kept whole.
-    <FeaturePage
-      featureId="memorize"
-      subtitle={
-        <span>
-          <span className="font-serif italic text-foreground/85">
-            &ldquo;…lay up these my words in your heart and in your soul…&rdquo;
-          </span>{" "}
-          <span className="whitespace-nowrap font-semibold">
-            —{" "}
-            <Link
-              href={citationHref({
-                kind: "scripture",
-                book: "Deuteronomy",
-                chapter: "11",
-                section: 18,
-              })}
-              className="text-accent-strong hover:underline"
-            >
-              Deuteronomy 11:18
-            </Link>
+    // The floating add button is the page's sibling, not its child, so it is
+    // outside the box the entrance animates. A `position: fixed` element inside
+    // a translated box is placed against that box until the animation ends, and
+    // this one spent its first half-second partway up the page before jumping
+    // to its corner (see `.memorize-add-fab`).
+    <>
+      {/* The strapline is a verse rather than the catalog's line, set the same
+          way as the reference quiz's: the words in the serif italic they are
+          read in, the citation after them and kept whole. */}
+      <FeaturePage
+        featureId="memorize"
+        subtitle={
+          <span>
+            <span className="font-serif italic text-foreground/85">
+              &ldquo;…lay up these my words in your heart and in your soul…&rdquo;
+            </span>{" "}
+            <span className="whitespace-nowrap font-semibold">
+              —{" "}
+              <Link
+                href={citationHref({
+                  kind: "scripture",
+                  book: "Deuteronomy",
+                  chapter: "11",
+                  section: 18,
+                })}
+                className="text-accent-strong hover:underline"
+              >
+                Deuteronomy 11:18
+              </Link>
+            </span>
           </span>
-        </span>
-      }
-    >
-      {view.kind === "cards" && runItems.length > 0 ? (
-        <Flashcards items={runItems} onClose={goToIndex} />
-      ) : view.kind === "hide" && studying ? (
-        <WordHiding item={studying} onClose={goToIndex} />
-      ) : view.kind === "deck" && !deckGone ? (
-        <DeckView
-          name={openDeck?.name ?? "Memory List"}
-          cards={openCards}
-          onStudy={(id) => setView({ kind: "hide", id })}
-          onRun={() => setView({ kind: "cards", deckId: openId })}
-          // The main list has nothing to rename, so only a named deck carries
-          // the way back into the sheet. It is here as well as on the index
-          // because opening a deck is where the reader notices what is missing
-          // from it.
-          onEdit={openDeck ? () => openSheet({ deck: openDeck, items: openCards }) : undefined}
-        />
-      ) : (
-        <DeckIndex
-          items={items}
-          decks={decks}
-          onOpen={goToDeck}
-          onAdd={() => openSheet(null)}
-          onEdit={(deck) =>
-            openSheet({ deck, items: items.filter((item) => item.deckId === deck.id) })
-          }
-          onClear={clearMemory}
-        />
-      )}
+        }
+      >
+        {view.kind === "cards" && runItems.length > 0 ? (
+          <Flashcards items={runItems} onClose={goToIndex} />
+        ) : view.kind === "hide" && studying ? (
+          <WordHiding item={studying} onClose={goToIndex} />
+        ) : view.kind === "deck" && !deckGone ? (
+          <DeckView
+            name={openDeck?.name ?? "Memory List"}
+            cards={openCards}
+            onStudy={(id) => setView({ kind: "hide", id })}
+            onRun={() => setView({ kind: "cards", deckId: openId })}
+            // The main list has nothing to rename, so only a named deck carries
+            // the way back into the sheet. It is here as well as on the index
+            // because opening a deck is where the reader notices what is missing
+            // from it.
+            onEdit={openDeck ? () => openSheet({ deck: openDeck, items: openCards }) : undefined}
+          />
+        ) : (
+          <DeckIndex
+            items={items}
+            decks={decks}
+            onOpen={goToDeck}
+            onAdd={() => openSheet(null)}
+            onEdit={(deck) =>
+              openSheet({ deck, items: items.filter((item) => item.deckId === deck.id) })
+            }
+            onClear={clearMemory}
+          />
+        )}
 
-      {/* The sheet belongs to the page, not to the index: a deck can be edited
-          from its own screen, and the sheet has to still be mounted when that
-          screen is the one on show. Its key is what makes each opening fresh
+        {/* The sheet belongs to the page, not to the index: a deck can be edited
+            from its own screen, and the sheet has to still be mounted when that
+            screen is the one on show. Its key is what makes each opening fresh
           (see `addSession`), so it is the same sheet wherever it is raised. */}
-      <AddToMemorizeDialog
-        key={addSession}
-        open={addOpen}
-        deck={editing?.deck}
-        deckItems={editing?.items}
-        onClose={() => {
-          setAddOpen(false);
-          setEditing(null);
-        }}
-      />
-    </FeaturePage>
+        <AddToMemorizeDialog
+          key={addSession}
+          open={addOpen}
+          deck={editing?.deck}
+          deckItems={editing?.items}
+          onClose={() => {
+            setAddOpen(false);
+            setEditing(null);
+          }}
+        />
+      </FeaturePage>
+
+      {view.kind === "decks" && <AddFab onOpen={() => openSheet(null)} />}
+    </>
   );
 }
 
@@ -283,12 +292,6 @@ function DeckIndex({
 
   return (
     <>
-      {/* Outside the spaced stack on purpose: `space-y-*` spaces its children
-          with margins, and a margin on a fixed element lifts it off the corner
-          it was put in. The floating button takes its place from the stylesheet
-          alone. */}
-      <AddFab onOpen={onAdd} />
-
       <div className="memorize-page space-y-8">
         <AddCard onOpen={onAdd} />
 
@@ -466,7 +469,7 @@ function DeckRow({
             onClick={onEdit}
             aria-label={editLabel}
             title="Edit this deck"
-            className="rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+            className="grid h-10 w-10 place-items-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
           >
             <Glyph name="pencil" className="h-4 w-4" />
           </button>
@@ -476,7 +479,7 @@ function DeckRow({
           onClick={onDelete}
           aria-label={deleteLabel}
           title={deleteLabel}
-          className="rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+          className="grid h-10 w-10 place-items-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
         >
           <Glyph name="trash" className="h-4 w-4" />
         </button>
@@ -536,7 +539,7 @@ function AddFab({ onOpen }: { onOpen: () => void }) {
       onClick={onOpen}
       aria-label="Add to your memory list"
       title="Add a passage or a deck"
-      className="memorize-add-fab fixed z-20 h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-contrast transition-transform active:scale-95"
+      className="memorize-add-fab fixed z-20 h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-contrast"
     >
       <Glyph name="plus" className="h-6 w-6" />
     </button>

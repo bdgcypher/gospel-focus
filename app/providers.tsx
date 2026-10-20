@@ -4,6 +4,7 @@ import { Capacitor, SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { ThemeProvider, useTheme } from "next-themes";
 import { useEffect, type ReactNode } from "react";
 import { NativeBack } from "@/components/native-back";
+import { PressFeedback } from "@/components/press-feedback";
 import { usePreferences } from "@/lib/preferences";
 
 function NativeEffects() {
@@ -60,6 +61,9 @@ export function Providers({ children }: { children: ReactNode }) {
           out of it — see components/native-back.tsx. Mounted here so it holds
           on every screen, including the ones that draw no chrome. */}
       <NativeBack />
+      {/* The raised controls' press, for the screens that do not have a
+          pointer to report it — see components/press-feedback.tsx. */}
+      <PressFeedback />
       {children}
     </ThemeProvider>
   );

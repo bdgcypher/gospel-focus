@@ -325,7 +325,7 @@ export function WordSearchPage() {
               <button
                 type="button"
                 onClick={() => void draw()}
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
               >
                 <Glyph name="dice" className="h-4 w-4" />
                 Try again
@@ -506,7 +506,7 @@ export function WordSearchPage() {
               type="button"
               onClick={() => void draw()}
               disabled={loading}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-5 py-3 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
             >
               <Glyph name="dice" className="h-4 w-4" />
               {loading ? "Drawing…" : "New passage"}
@@ -582,12 +582,12 @@ function SolvedDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="word-search-result-title"
-        className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-border bg-surface p-6 shadow-2xl outline-none"
+        className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-win-border bg-win-card p-6 text-win-ink shadow-2xl outline-none"
       >
         <div className="flex items-start justify-between gap-3">
           <h2
             id="word-search-result-title"
-            className="font-serif text-2xl font-semibold text-correct-text"
+            className="font-serif text-2xl font-semibold text-win-ink"
           >
             Great Work! <span aria-hidden="true">🎉</span>
           </h2>
@@ -595,18 +595,18 @@ function SolvedDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+            className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-win-muted transition-colors hover:bg-win-border/40 hover:text-win-strong"
           >
             <Glyph name="close" className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-border bg-surface-2 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+        <div className="mt-4 rounded-2xl border border-win-border bg-win-panel p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-win-muted">
             {puzzle.reference}
             {puzzle.verseNumber ? `:${puzzle.verseNumber}` : ""}
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+          <p className="mt-2 text-sm leading-relaxed text-win-ink">
             <HighlightedVerse text={puzzle.verse} words={puzzle.words.map((w) => w.word)} />
           </p>
         </div>
@@ -618,7 +618,7 @@ function SolvedDialog({
         <div className="mt-4 flex">
           <Link
             href={puzzle.href}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-strong underline decoration-accent/50 underline-offset-4 transition-colors hover:decoration-accent-strong"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-win-ink underline decoration-win-border underline-offset-4 transition-colors hover:text-win-strong hover:decoration-win-strong"
           >
             Read more
             <Glyph name="arrow" className="h-3.5 w-3.5" />
@@ -628,9 +628,8 @@ function SolvedDialog({
         <button
           type="button"
           onClick={onNewPassage}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+          className="mt-4 flex w-full items-center justify-center rounded-full bg-win-bar px-5 py-3 text-sm font-semibold text-win-bar-contrast transition-opacity hover:opacity-90"
         >
-          <Glyph name="dice" className="h-4 w-4" />
           New passage
         </button>
       </div>
@@ -652,7 +651,7 @@ function HighlightedVerse({ text, words }: { text: string; words: string[] }) {
     <>
       {text.split(pattern).map((part, i) =>
         marked.has(part.toLowerCase()) ? (
-          <mark key={i} className="rounded-[3px] bg-accent/25 px-0.5 font-semibold text-inherit">
+          <mark key={i} className="result-mark rounded-[3px] px-0.5 font-semibold">
             {part}
           </mark>
         ) : (

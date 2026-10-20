@@ -313,7 +313,7 @@ export function ReferenceQuizPage() {
               <button
                 type="button"
                 onClick={() => void draw()}
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
               >
                 <Glyph name="dice" className="h-4 w-4" />
                 Try again
@@ -433,7 +433,7 @@ export function ReferenceQuizPage() {
                 type="button"
                 onClick={guess}
                 disabled={!ready}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-6 py-3 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
               >
                 Guess
               </button>
@@ -445,11 +445,25 @@ export function ReferenceQuizPage() {
             {/* Once the result sheet has been closed, the round still needs a
                 way on, so the same one-liner and button stay in the page. */}
             {round !== "playing" && !resultOpen && (
-              <div className="mt-5 rounded-3xl border border-border bg-surface p-5">
-                <p className="font-serif text-lg font-semibold text-foreground">
+              <div
+                className={`mt-5 rounded-3xl border p-5 ${
+                  round === "won"
+                    ? "border-win-border bg-win-card text-win-ink"
+                    : "border-loss-border bg-loss-card text-loss-ink"
+                }`}
+              >
+                <p
+                  className={`font-serif text-lg font-semibold ${
+                    round === "won" ? "text-win-ink" : "text-loss-ink"
+                  }`}
+                >
                   {round === "won" ? "Good Work!" : "Not Quite!"}
                 </p>
-                <p className="mt-1 text-sm text-muted">
+                <p
+                  className={`mt-1 text-sm ${
+                    round === "won" ? "text-win-muted" : "text-loss-muted"
+                  }`}
+                >
                   {round === "won"
                     ? `Found in ${tries + 1} of ${MAX_TRIES}.`
                     : `The reference was ${reference}.`}
@@ -457,9 +471,12 @@ export function ReferenceQuizPage() {
                 <button
                   type="button"
                   onClick={() => void draw()}
-                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+                  className={`mt-3 inline-flex items-center rounded-full px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 ${
+                    round === "won"
+                      ? "bg-win-bar text-win-bar-contrast"
+                      : "bg-loss-bar text-loss-bar-contrast"
+                  }`}
                 >
-                  <Glyph name="dice" className="h-4 w-4" />
                   Next verse
                 </button>
               </div>
@@ -697,7 +714,7 @@ function InsufficientGems({ onClose }: { onClose: () => void }) {
 
         <Link
           href="/study"
-          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 sm:w-auto"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-5 py-3 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 sm:w-auto"
         >
           {studied ? (
             <>
@@ -754,20 +771,24 @@ function ResultSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="reference-result-title"
-        className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-border bg-surface p-6 shadow-2xl outline-none"
+        className={`max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border p-6 shadow-2xl outline-none ${
+          won
+            ? "border-win-border bg-win-card text-win-ink"
+            : "border-loss-border bg-loss-card text-loss-ink"
+        }`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2
               id="reference-result-title"
               className={`whitespace-nowrap font-serif text-2xl font-semibold ${
-                won ? "text-correct-text" : "text-wrong"
+                won ? "text-win-ink" : "text-loss-ink"
               }`}
             >
               {won ? "Good Work!" : "Not Quite!"}{" "}
               <span aria-hidden="true">{won ? "🎉" : "🫤"}</span>
             </h2>
-            <p className="mt-1 text-sm text-muted">
+            <p className={`mt-1 text-sm ${won ? "text-win-muted" : "text-loss-muted"}`}>
               {won
                 ? `Found in ${tries + 1} of ${MAX_TRIES}.`
                 : `Out of tries — the reference was ${reference}.`}
@@ -777,7 +798,11 @@ function ResultSheet({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+            className={`-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors ${
+              won
+                ? "text-win-muted hover:bg-win-border/40 hover:text-win-strong"
+                : "text-loss-muted hover:bg-loss-border/40 hover:text-loss-strong"
+            }`}
           >
             <Glyph name="close" className="h-4 w-4" />
           </button>
@@ -785,24 +810,45 @@ function ResultSheet({
 
         {/* The reference is the answer, so it is the thing marked: name it in
             its own line, then let the verse be read again underneath. */}
-        <div className="mt-4 rounded-2xl border border-border bg-surface-2 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+        <div
+          className={`mt-4 rounded-2xl border p-4 ${
+            won ? "border-win-border bg-win-panel" : "border-loss-border bg-loss-panel"
+          }`}
+        >
+          <p
+            className={`text-xs font-semibold uppercase tracking-wider ${
+              won ? "text-win-muted" : "text-loss-muted"
+            }`}
+          >
             Reference
           </p>
-          <p className="mt-1 font-serif text-lg font-semibold text-foreground">
-            <mark className="rounded-[4px] bg-accent/25 px-1.5 py-0.5 text-inherit">
+          <p
+            className={`mt-1 font-serif text-lg font-semibold ${
+              won ? "text-win-strong" : "text-loss-strong"
+            }`}
+          >
+            <mark
+              className={`result-mark rounded-[4px] px-1.5 py-0.5 ${
+                won ? "" : "result-mark-loss"
+              }`}
+            >
               {reference}
             </mark>
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-foreground/90">{verse}</p>
+          <p className={`mt-2 text-sm leading-relaxed ${won ? "text-win-ink" : "text-loss-ink"}`}>
+            {verse}
+          </p>
         </div>
 
         <button
           type="button"
           onClick={onNext}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+          className={`mt-5 flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-90 ${
+            won
+              ? "bg-win-bar text-win-bar-contrast"
+              : "bg-loss-bar text-loss-bar-contrast"
+          }`}
         >
-          <Glyph name="dice" className="h-4 w-4" />
           Next verse
         </button>
       </div>

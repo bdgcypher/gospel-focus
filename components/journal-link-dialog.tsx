@@ -339,7 +339,7 @@ export function JournalLinkDialog({ open, selection, currentEntryId, onInsert, o
                   type="button"
                   onClick={insert}
                   disabled={!chosen}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Insert link
                 </button>

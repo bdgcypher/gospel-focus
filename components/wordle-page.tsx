@@ -377,9 +377,8 @@ export function WordlePage() {
                 type="button"
                 onClick={playAgain}
                 disabled={starting || !words}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto"
               >
-                <Glyph name="dice" className="h-4 w-4" />
                 {starting ? "Finding a chapter…" : "Play again"}
               </button>
             </div>
@@ -679,7 +678,7 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+          className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-cta px-5 py-3 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
         >
           Got it
         </button>
@@ -735,26 +734,33 @@ function ResultDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="wordle-result-title"
-        className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-border bg-surface p-6 shadow-2xl outline-none"
+        className={`max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border p-6 shadow-2xl outline-none ${
+          solved
+            ? "border-win-border bg-win-card text-win-ink"
+            : "border-loss-border bg-loss-card text-loss-ink"
+        }`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2
               id="wordle-result-title"
               className={`whitespace-nowrap font-serif text-2xl font-semibold ${
-                solved ? "text-correct-text" : "text-wrong"
+                solved ? "text-win-ink" : "text-loss-ink"
               }`}
             >
               {solved ? "Good Work!" : "Not Quite!"}{" "}
               <span aria-hidden="true">{solved ? "🎉" : "🫤"}</span>
             </h2>
-            <p className="mt-1 text-sm text-muted">
+            <p className={`mt-1 text-sm ${solved ? "text-win-muted" : "text-loss-muted"}`}>
               {solved ? (
                 `Found in ${game.guesses.length} of ${MAX_GUESSES}.`
               ) : (
                 <>
                   The word was{" "}
-                  <span className="font-semibold text-foreground">{game.answer.toUpperCase()}</span>.
+                  <span className="font-semibold text-loss-strong">
+                    {game.answer.toUpperCase()}
+                  </span>
+                  .
                 </>
               )}
             </p>
@@ -763,18 +769,34 @@ function ResultDialog({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+            className={`-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors ${
+              solved
+                ? "text-win-muted hover:bg-win-border/40 hover:text-win-strong"
+                : "text-loss-muted hover:bg-loss-border/40 hover:text-loss-strong"
+            }`}
           >
             <Glyph name="close" className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-border bg-surface-2 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+        <div
+          className={`mt-4 rounded-2xl border p-4 ${
+            solved ? "border-win-border bg-win-panel" : "border-loss-border bg-loss-panel"
+          }`}
+        >
+          <p
+            className={`text-xs font-semibold uppercase tracking-wider ${
+              solved ? "text-win-muted" : "text-loss-muted"
+            }`}
+          >
             {game.reference}:{game.verseNumber}
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-            <HighlightedVerse text={game.verse} word={game.answer} />
+          <p
+            className={`mt-2 text-sm leading-relaxed ${
+              solved ? "text-win-ink" : "text-loss-ink"
+            }`}
+          >
+            <HighlightedVerse text={game.verse} word={game.answer} tone={solved ? "win" : "loss"} />
           </p>
         </div>
 
@@ -782,9 +804,12 @@ function ResultDialog({
           type="button"
           onClick={onPlayAgain}
           disabled={busy}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60"
+          className={`mt-5 flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 ${
+            solved
+              ? "bg-win-bar text-win-bar-contrast"
+              : "bg-loss-bar text-loss-bar-contrast"
+          }`}
         >
-          <Glyph name="dice" className="h-4 w-4" />
           {busy ? "Finding a chapter…" : "Play again"}
         </button>
       </div>
@@ -794,13 +819,27 @@ function ResultDialog({
 }
 
 /** The verse, with every whole-word match of the answer marked. */
-function HighlightedVerse({ text, word }: { text: string; word: string }) {
+function HighlightedVerse({
+  text,
+  word,
+  tone,
+}: {
+  text: string;
+  word: string;
+  /** The card the verse sits on, so the mark is cut from its own ink. */
+  tone: "win" | "loss";
+}) {
   const pattern = new RegExp(`\\b(${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})\\b`, "gi");
   return (
     <>
       {text.split(pattern).map((part, i) =>
         part.toLowerCase() === word ? (
-          <mark key={i} className="rounded-[3px] bg-accent/25 px-0.5 font-semibold text-inherit">
+          <mark
+            key={i}
+            className={`result-mark rounded-[3px] px-0.5 font-semibold ${
+              tone === "loss" ? "result-mark-loss" : ""
+            }`}
+          >
             {part}
           </mark>
         ) : (

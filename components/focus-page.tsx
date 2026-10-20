@@ -167,7 +167,7 @@ function FocusCard({
         <button
           type="button"
           onClick={setFocusUp}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 sm:w-auto"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 sm:w-auto"
         >
           <Glyph name="lock" plain className="h-4 w-4" />
           Set up Focus Lock

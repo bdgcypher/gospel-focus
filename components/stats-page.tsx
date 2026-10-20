@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FeaturePage } from "./feature-page";
 import { Glyph, type GlyphName } from "./glyph";
 
+import { addDays, dayKey } from "@/lib/daily";
 import { useGems } from "@/lib/gems";
 import { useFavorites } from "@/lib/favorites";
 import { useMemory } from "@/lib/memorize";
@@ -38,7 +39,12 @@ export function StatsPage() {
 
   return (
     <FeaturePage featureId="stats">
-      <StreakNote run={run} counted={counted} target={progress.target} />
+      <StreakNote
+        run={run}
+        counted={counted}
+        target={progress.target}
+        lastDay={streak.lastDay}
+      />
 
       <div className="mt-3 rounded-3xl border border-border bg-surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
@@ -81,10 +87,14 @@ export function StatsPage() {
               aria-valuemin={0}
               aria-valuemax={progress.target}
               aria-valuenow={Math.min(progress.minutes, progress.target)}
-              className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-surface-2"
+              className={`mt-2 h-2.5 w-full overflow-hidden rounded-full ${
+                progress.done ? "bg-goal-track" : "bg-surface-2"
+              }`}
             >
               <div
-                className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+                className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+                  progress.done ? "bg-goal-bar" : "bg-accent"
+                }`}
                 style={{ width: `${progress.percent}%` }}
               />
             </div>
@@ -172,28 +182,29 @@ export function StatsPage() {
 }
 
 /**
- * The streak, at the head of the page, in the two states a day comes in.
+ * The streak, at the head of the page, drawn as the habit it is.
  *
  * A day counts when that day's goal is reached (lib/streak.ts), which is the one
  * thing a number on a tile cannot say for itself: a reader looking at a streak
  * that has not moved since yesterday cannot tell from the number whether the
  * chain is waiting on them, whether a day was missed, or whether the goal is
- * simply untouched. So it is said here instead, above everything else on the
- * page.
+ * simply untouched. So the card says it in two marks instead — the flame and the
+ * check light when today is in, and stay muted while it is still open — and backs
+ * them with a strip of days.
  *
- * It is an alert while the day is still open, and that is a deliberate claim on
- * the top of the page: this is the only thing on it that can still be acted on
- * today, and a day not yet counted stops being fixable at midnight. Once today is
- * in there is nothing to act on, so the same block goes quiet in the same place —
- * the page does not reorganise itself around a state.
- *
- * The flame is the app bar's own mark for the streak, drawn at the size an alert
- * asks for rather than the size a chip can afford.
+ * The strip is the current run and only the current run: the store keeps the
+ * length of a run, its last day, and the number of days ever counted, but not
+ * which day each of those was (lib/streak.ts). A full year of squares would have
+ * to invent the days before this run, so the run is drawn from its own first day
+ * to its last and every other square is left quiet. That still makes the shape of
+ * the habit visible — a long run fills most of the strip, a new one is a handful
+ * of lit squares at the end — without claiming anything the record does not hold.
  */
 function StreakNote({
   run,
   counted,
   target,
+  lastDay,
 }: {
   /** Days in the run through yesterday, or 0 when there is none. */
   run: number;
@@ -201,68 +212,120 @@ function StreakNote({
   counted: boolean;
   /** The day's goal in minutes, or 0 when none is set. */
   target: number;
+  /** The last day the goal was met, or null before the first. */
+  lastDay: string | null;
 }) {
-  if (counted) {
-    return (
-      <div className="flex items-center gap-4 rounded-3xl border border-border bg-surface px-5 py-4">
-        <FlameBadge className="h-12 w-12 rounded-full bg-accent/10" glyph="h-7 w-7" />
-        <div className="min-w-0">
-          <p className="font-serif text-lg font-semibold text-foreground">Today is in.</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">
-            {run > 1
-              ? `That is ${run} days in a row. Come back tomorrow and reach the goal again to keep it going.`
-              : "That is the first day of this run. Come back tomorrow and reach the goal again to make it two."}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const title = target === 0 ? "No streak yet" : run > 0 ? `${run}-day streak` : "No run going";
 
-  // Nothing set to reach yet, so this can't ask for minutes: the ask is the goal
-  // itself, and the picker is the card directly below.
-  if (target === 0) {
-    return (
-      <div className="flex items-center gap-4 rounded-3xl border border-border bg-surface px-5 py-4">
-        <FlameBadge className="h-12 w-12 rounded-full bg-surface-2" glyph="h-7 w-7" />
-        <div className="min-w-0">
-          <p className="font-serif text-lg font-semibold text-foreground">No streak to lock in yet.</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">
-            A day joins the streak when you reach that day&apos;s goal. Choose one just below and today can be
-            the first.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const body = counted
+    ? "Way to go! Come back tomorrow to keep the fire alive!"
+    : target === 0
+      ? "Set a daily goal below and today can be the first."
+      : run > 0
+        ? `Reach today's goal to make it ${run + 1}.`
+        : "Reach today's goal to start one.";
 
   return (
-    <div className="rounded-3xl border border-accent/50 bg-accent/10 p-5 shadow-sm shadow-accent/10">
-      <div className="flex items-start gap-4">
-        <FlameBadge className="h-14 w-14 shrink-0 rounded-full bg-accent/20" glyph="h-8 w-8" />
-        <div className="min-w-0">
-          <p className="font-serif text-xl font-semibold text-foreground">Your streak is waiting!</p>
-          <p className="mt-1 text-sm leading-relaxed text-muted">
-            Complete today&apos;s study to lock it in.
+    <section
+      className="streak-card rounded-3xl border border-border bg-surface p-4 sm:p-5"
+      data-counted={counted}
+    >
+      <div className="flex items-start gap-3.5">
+        {/* The flame is the app bar's own mark for the streak. It is lit and in
+            colour on the day the goal is met, and greyed while the day is still
+            open — the mark itself is the state, not a badge beside it. */}
+        <span className="streak-icon grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-surface-2">
+          <Glyph
+            name="flame"
+            className={`h-6 w-6 ${
+              counted ? "text-accent-strong" : "text-muted/60 opacity-60 grayscale"
+            }`}
+          />
+        </span>
+
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="streak-title font-serif text-lg font-semibold leading-tight text-foreground">
+            {title}
           </p>
+          <p className="streak-body mt-0.5 text-xs leading-relaxed text-muted">{body}</p>
         </div>
+
+        {/* The day's own mark: filled when the goal is met, a quiet outline
+            waiting for it otherwise. */}
+        <span
+          aria-hidden="true"
+          className={`streak-check grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
+            counted ? "bg-accent text-accent-contrast" : "bg-surface-2 text-muted/40"
+          }`}
+        >
+          <Glyph name="check" className="h-5 w-5" />
+        </span>
       </div>
 
-      <Link
-        href="/"
-        className="mt-4 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-3.5 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.99] sm:w-auto sm:px-8"
-      >
-        Jump in!
-      </Link>
-    </div>
+      <StreakGrid run={run} lastDay={lastDay} counted={counted} />
+    </section>
   );
 }
 
-/** The streak's own mark, on its own circle — the badge either state opens with. */
-function FlameBadge({ className, glyph }: { className: string; glyph: string }) {
+/** The stretch of days the streak card draws, in weeks. */
+const STREAK_WEEKS = 21;
+const STREAK_DAYS = STREAK_WEEKS * 7;
+
+/**
+ * The run as a strip of days: one square per day, the most recent at the
+ * bottom-right, and only the days of the current run lit.
+ *
+ * The run's dates come from its last day and its length, both already in the
+ * record, so nothing here has to guess at a missing day. Squares after the run
+ * are days the goal has not been met yet (today, while it is still open);
+ * squares before it are simply outside this run. The strip is quiet enough to
+ * sit under the heading without competing with it, and the day shape reads at a
+ * glance: a run is a block of light at the end of the strip.
+ */
+function StreakGrid({
+  run,
+  lastDay,
+  counted,
+}: {
+  run: number;
+  lastDay: string | null;
+  counted: boolean;
+}) {
+  const today = dayKey();
+  const from = run > 0 && lastDay ? addDays(lastDay, -(run - 1)) : null;
+  const days = Array.from({ length: STREAK_DAYS }, (_, index) =>
+    addDays(today, index - (STREAK_DAYS - 1))
+  );
+  const lit = days.filter(
+    (day) => from !== null && lastDay !== null && day >= from && day <= lastDay
+  ).length;
+
+  const label =
+    run === 0
+      ? `No days in the current run yet. Each dot is one of the last ${STREAK_DAYS} days.`
+      : `${run} ${run === 1 ? "day" : "days"} in the current run${
+          counted ? ", today included" : ""
+        }. ${lit} of the last ${STREAK_DAYS} days are lit.`;
+
   return (
-    <span className={`grid shrink-0 place-items-center text-accent-strong ${className}`}>
-      <Glyph name="flame" className={glyph} />
-    </span>
+    <div
+      role="img"
+      aria-label={label}
+      className="mt-4 grid grid-flow-col grid-cols-[repeat(21,minmax(0,1fr))] grid-rows-[repeat(7,minmax(0,1fr))] gap-[3px]"
+    >
+      {days.map((day) => {
+        const on = from !== null && lastDay !== null && day >= from && day <= lastDay;
+        return (
+          <span
+            key={day}
+            aria-hidden="true"
+            className={`streak-dot aspect-square rounded-[3px] ${
+              on ? "streak-dot-on bg-accent" : "bg-border/60"
+            }`}
+          />
+        );
+      })}
+    </div>
   );
 }
 

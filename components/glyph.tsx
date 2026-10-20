@@ -119,7 +119,10 @@ const EMOJI: Record<GlyphName, string | null> = {
   cards: "🧠",
   map: "🗺️",
   sparkles: "✨",
-  quiz: "❓",
+  // The quiz card and page wear the white ornament rather than the red mark:
+  // the card's tile is already a warm cream, and the red emoji shouted beside
+  // it. The hollow mark sits at the weight of the other tiles' pictures.
+  quiz: "❔️",
   puzzle: "🧩",
   letters: "🔠",
   grid: "🔳",
@@ -134,7 +137,11 @@ const EMOJI: Record<GlyphName, string | null> = {
   gear: "⚙️",
   flame: "🔥",
   calendar: "📅",
-  check: "✅",
+  // A tick is a status mark rather than an illustration, and the emoji draws
+  // differently on every platform — a green square here, a circled tick there.
+  // The drawn tick is the one shape that means "done" everywhere it appears:
+  // the completed day, a marked card, a chosen option.
+  check: null,
   // Controls, not illustrations: the arrow, the return and backspace keys, the
   // close cross and the menu's three rules stay drawn in both styles.
   arrow: null,

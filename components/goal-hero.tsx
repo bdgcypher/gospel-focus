@@ -44,8 +44,18 @@ export function GoalHero() {
     setCreating(false);
   };
 
+  /* The completed day is its own card: a green face with green type, and the
+     bar and the button that carries on studying in a deeper green (see the
+     `--goal-*` tokens). Every state keeps the same padding and the same button
+     geometry, so only the colour changes when the last minute lands. */
+  const done = progress.done;
+
   return (
-    <section className="rounded-3xl border border-border bg-surface p-5 sm:p-6">
+    <section
+      className={`rounded-3xl border p-5 sm:p-6 ${
+        done ? "border-goal-border bg-goal-card text-goal-ink" : "border-border bg-surface"
+      }`}
+    >
       {progress.target === 0 ? (
         creating ? (
           <div>
@@ -74,7 +84,7 @@ export function GoalHero() {
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-4 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.99] sm:text-lg"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-cta px-6 py-4 text-base font-semibold text-cta-contrast shadow-lg shadow-cta/20 transition-all hover:opacity-90 sm:text-lg"
             >
               <Glyph name="plus" className="h-5 w-5" />
               Create daily study goal
@@ -86,8 +96,8 @@ export function GoalHero() {
           {/* The status line is optional; its spacing comes from its own
               margin, so the button sits the same distance below the card's
               edge in every state rather than shifting between them. */}
-          {progress.done ? (
-            <p className="mb-4 flex items-center gap-2 font-serif text-lg font-semibold text-accent-strong">
+          {done ? (
+            <p className="mb-4 flex items-center gap-2 font-serif text-lg font-semibold text-goal-ink">
               <Glyph name="check" className="h-5 w-5" />
               Goal complete!
             </p>
@@ -95,10 +105,14 @@ export function GoalHero() {
 
           <Link
             href="/study"
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 py-4 text-base font-semibold text-accent-contrast shadow-lg shadow-accent/20 transition-all hover:opacity-90 active:scale-[0.99] sm:text-lg"
+            className={`inline-flex w-full items-center justify-center gap-2.5 rounded-full px-6 py-4 text-base font-semibold shadow-lg transition-all hover:opacity-90 sm:text-lg ${
+              done
+                ? "bg-goal-bar text-goal-bar-contrast shadow-goal-bar/20"
+                : "bg-cta text-cta-contrast shadow-cta/20"
+            }`}
           >
             <Glyph name="book" plain className="h-5 w-5" />
-            {progress.done ? "Study more" : "Start studying"}
+            {done ? "Study more" : "Start studying"}
           </Link>
 
           <StudyBar
@@ -106,10 +120,10 @@ export function GoalHero() {
             target={progress.target}
             remaining={progress.remaining}
             percent={progress.percent}
-            done={progress.done}
+            done={done}
           />
 
-          <p className="mt-3 text-xs text-muted">
+          <p className={`mt-3 text-xs ${done ? "text-goal-muted" : "text-muted"}`}>
             Any time spent on Study Activities is counted towards your goal
           </p>
         </div>
@@ -138,8 +152,12 @@ function StudyBar({
 }) {
   return (
     <div className="mt-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs text-muted">
-        <span className="font-semibold tabular-nums text-foreground">
+      <div
+        className={`flex flex-wrap items-baseline justify-between gap-x-3 text-xs ${
+          done ? "text-goal-muted" : "text-muted"
+        }`}
+      >
+        <span className={`font-semibold tabular-nums ${done ? "text-goal-strong" : "text-foreground"}`}>
           {Math.min(minutes, target)} / {target} min
         </span>
         <span>{done ? "Goal reached" : `${remaining} min to go`}</span>
@@ -150,10 +168,12 @@ function StudyBar({
         aria-valuemin={0}
         aria-valuemax={target}
         aria-valuenow={Math.min(minutes, target)}
-        className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-surface-2"
+        className={`mt-2 h-2.5 w-full overflow-hidden rounded-full ${done ? "bg-goal-track" : "bg-surface-2"}`}
       >
         <div
-          className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+          className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+            done ? "bg-goal-bar" : "bg-accent"
+          }`}
           style={{ width: `${percent}%` }}
         />
       </div>

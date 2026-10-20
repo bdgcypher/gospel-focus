@@ -187,12 +187,15 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   causes no layout flash.
 - **Light / dark themes** that default to the device preference, and a separate
   **Focused / Playful style**: the playful style swaps the illustrative glyphs for
-  real emoji — while the menu, arrows, return/backspace keys and close cross keep
-  their drawn icons, as do the marks on the main action buttons (the home
-  "Study more", the focus lock and its Add) — sets the whole skin in Nunito, and gives buttons, cards and
-  the tab bar a raised, toy-like 3D treatment. The app's own book mark is the
-  same in both. The two choices are independent, so any light can wear either
-  style.
+  real emoji on the hub and section tiles, in the header's status chips and in the
+  bottom bar — labelled controls keep their drawn icons, so a button never shows a
+  picture beside its word — sets
+  the whole skin in Nunito, and gives buttons, cards and the tab bar a raised,
+  toy-like 3D treatment. In that skin the main actions are blue with the gold
+  kept for the supporting ones, a study day that reaches its goal turns the
+  goal card green, and the games' result cards wear that same green for a win
+  and their own red for a loss. The app's own book mark is the same in both. The
+  two choices are independent, so any light can wear either style.
 - **A feature that isn't built yet says so.** Pages for planned features
   (widgets, reading plans, liken, the other games, the coloring book) render
   their own plan — what the feature will do — rather than pretending to work,

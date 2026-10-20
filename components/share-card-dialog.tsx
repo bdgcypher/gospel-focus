@@ -234,7 +234,7 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
                     type="button"
                     onClick={() => void onShare("all")}
                     disabled={!image || busy}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-4 py-3 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ShareIcon />
                     {many ? `Share all ${pages} images` : "Share…"}
@@ -248,7 +248,7 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
                   className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${
                     native
                       ? "border border-border bg-surface-2 text-foreground hover:border-accent/60"
-                      : "bg-accent text-accent-contrast hover:opacity-90"
+                      : "bg-cta text-cta-contrast hover:opacity-90"
                   }`}
                 >
                   <CopyIcon />

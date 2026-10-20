@@ -14,6 +14,48 @@
   --accent: #9a6b1f;
   --accent-strong: #7c5514;
   --accent-contrast: #fffdf7;
+  /* The filled buttons' own colours, kept apart from the gold above so the
+     main actions and the supporting ones can differ in the playful skin. Here
+     they are the same gold — the focused skin is paper and ink and has one
+     button colour — and only the playful palette moves them apart (see
+     `.playful`). `--goal-*` is the completed study card: its face, its ink, its
+     bar and its button. On paper it is the surface card the app has always
+     had; the playful skin turns it green. */
+  --cta: var(--accent);
+  --cta-contrast: var(--accent-contrast);
+  --goal-card: var(--surface);
+  --goal-border: var(--border);
+  --goal-track: var(--surface-2);
+  --goal-ink: var(--accent-strong);
+  --goal-strong: var(--foreground);
+  --goal-muted: var(--muted);
+  --goal-bar: var(--accent);
+  --goal-bar-contrast: var(--accent-contrast);
+  /* The games' result cards. A win wears the completed day's green in the
+     playful skin and a loss its own red; on paper both are the ordinary surface
+     card, with only the heading carrying the colour, which is how they were
+     drawn before the playful skin coloured their faces. `--win-card` is the
+     result card's face and `--win-panel` the well inside it holding the verse,
+     so the pair reads as one object. The buttons name their own face and edge
+     for the same reason the filled buttons above do. */
+  --win-card: var(--surface);
+  --win-border: var(--border);
+  --win-panel: var(--surface-2);
+  --win-ink: var(--correct-text);
+  --win-strong: var(--foreground);
+  --win-muted: var(--muted);
+  --win-bar: var(--cta);
+  --win-bar-contrast: var(--cta-contrast);
+  --win-bar-edge: var(--cta-edge);
+  --loss-card: var(--surface);
+  --loss-border: var(--border);
+  --loss-panel: var(--surface-2);
+  --loss-ink: var(--wrong);
+  --loss-strong: var(--foreground);
+  --loss-muted: var(--muted);
+  --loss-bar: var(--cta);
+  --loss-bar-contrast: var(--cta-contrast);
+  --loss-bar-edge: var(--cta-edge);
   /* The word puzzle's two marks: green for a letter in its place, yellow for a
      letter that is in the word somewhere else. Their own tokens rather than the
      accent, because these two mean something specific and must stay legible
@@ -89,22 +131,76 @@
   --foreground: #3b2a16;
   --muted: #7a6244;
   --border: #e8d2a8;
-  --accent: #f29b0b;
+  --accent: #f8ae35;
   --accent-strong: #9a4a06;
   --accent-contrast: #3a2205;
-  --correct: #17873f;
-  --correct-contrast: #ffffff;
-  --correct-text: #17873f;
-  --present: #e4b009;
-  --present-contrast: #241b09;
-  --wrong: #b3261e;
+  /* The main action wears the blue; the gold above is kept for the supporting
+     calls to action, the chips and the highlights. White on the blue, as the
+     buttons are meant to read, though at 2.5:1 it is a deliberate contrast
+     choice rather than an AA one — the label and its drawn mark are large and
+     semibold, and the blue is only ever a button face. */
+  --cta: #1dadf1;
+  --cta-contrast: #ffffff;
+  --cta-edge: #0a7aa8;
+  /* A completed day is its own card: a light green face, a deeper green for
+     the type and the numbers, and the same green on the bar and the button
+     that carries on studying. The bar's track is the face a shade deeper so
+     the filled part still reads as filled. */
+  --goal-card: #d0f8b0;
+  --goal-border: #a7de80;
+  --goal-track: #b7eb91;
+  --goal-ink: #1f5a05;
+  --goal-strong: #1f5a05;
+  --goal-muted: #2f6b12;
+  --goal-bar: #4db508;
+  --goal-bar-contrast: #ffffff;
+  --goal-bar-edge: #3a8c05;
+  /* A win is the completed day read as a game result, so it borrows that card
+     whole rather than keeping a second green in step with it. A loss is a pale
+     rose card with a coral button: the red sits in the type and the action, and
+     the deep brick red keeps it above 4.5:1 on the light face. */
+  --win-card: var(--goal-card);
+  --win-border: var(--goal-border);
+  --win-panel: var(--goal-track);
+  --win-ink: var(--goal-ink);
+  --win-strong: var(--goal-strong);
+  --win-muted: var(--goal-muted);
+  --win-bar: var(--goal-bar);
+  /* A win is the completed day's card, so its button wears the same white label
+     the goal card's button already wears. The loss button keeps white too, on
+     the coral red. */
+  --win-bar-contrast: #ffffff;
+  --win-bar-edge: var(--goal-bar-edge);
+  --loss-card: #f4dbdb;
+  --loss-border: #d8a3a3;
+  --loss-panel: #fbecec;
+  --loss-ink: #b43034;
+  --loss-strong: #8f2427;
+  --loss-muted: #b43034;
+  --loss-bar: #f84a4c;
+  --loss-bar-contrast: #ffffff;
+  --loss-bar-edge: #a92528;
+  /* The games' marks wear the same primaries as the buttons: the completed
+     day's green for a right answer, the accent gold for a part that is in the
+     word somewhere else, and the loss red for a wrong one. Pointing the three
+     semantic tokens at those faces keeps the board, the word-search and What's
+     That Verse? in step with the rest of the skin without a second palette.
+     `--correct-text` is the green's ink rather than its face: it is read as
+     type on a pale tint, where the button green would not hold. */
+  --correct: var(--goal-bar);
+  --correct-contrast: var(--goal-bar-contrast);
+  --correct-text: var(--goal-ink);
+  --present: var(--accent);
+  --present-contrast: var(--accent-contrast);
+  --wrong: var(--loss-bar);
   --page: #fffdf7;
   --page-edge: #e8d2a8;
   --spine: #e3c99c;
   /* The 3D edges. A card sits on a slightly darker base edge and a lit top
      highlight; a primary button on a burnt-orange rim and foot. The controls
-     have their own edge token because the night palette lights the card's
-     side without lighting theirs (see `.playful.dark`). */
+     keep their own edge token — a quiet button and a card are different
+     objects even when they share a side — so either can be re-lit on its own
+     (see `.playful.dark`). */
   --card-edge: #e3c99c;
   --control-edge: #e3c99c;
   --card-shadow: rgb(120 84 20 / 0.26);
@@ -140,8 +236,9 @@ html.playful .font-serif {
    the brown of the earlier palette: the page, the raised faces, the book and
    the bars are all even greys, so the only warmth left in the room is the
    amber accent itself. That is what keeps the playful skin reading as a dark
-   room lit by a lamp instead of as sepia, and it also means there is no blue
-   anywhere in the night palette. */
+   room lit by a lamp instead of as sepia. The blue is the one cool thing here,
+   and it earns its place by being the only action colour: a button's blue is
+   the same by day and by night, so it never has to be relearned. */
 .playful.dark {
   --background: #111111;
   --surface: #1b1b1b;
@@ -149,25 +246,53 @@ html.playful .font-serif {
   --foreground: #f2f2f2;
   --muted: #b0b0b0;
   --border: #424242;
-  --accent: #ffb02e;
+  --accent: #f8ae35;
   --accent-strong: #ffc861;
   --accent-contrast: #1a1a1a;
-  --correct: #17873f;
-  --correct-contrast: #ffffff;
-  --correct-text: #4caf72;
-  --present: #e4b009;
-  --present-contrast: #241b09;
-  --wrong: #ff9a90;
+  --cta: #1dadf1;
+  --cta-contrast: #ffffff;
+  --cta-edge: #0a6f99;
+  /* The completed day is a deep pine face at night rather than the day's bright
+     green: dark enough to sit in the lamp-lit room, green enough that the card
+     still says what was earned before a word is read. Its type, its bar and its
+     button share one mid-green, light against the face. The button takes the
+     dark ink the gold button already uses, since white on this green is not
+     readable. */
+  --goal-card: #21362a;
+  --goal-border: #2f4a39;
+  --goal-track: #2f4a39;
+  --goal-ink: #76b532;
+  --goal-strong: #76b532;
+  --goal-muted: #76b532;
+  --goal-bar: #76b532;
+  --goal-bar-contrast: #1a1a1a;
+  /* The win still follows the completed day's card above. Its inner well is a
+     shade under the face rather than the light palette's shade over it: the
+     green type has to clear 4.5:1 on the panel as well as on the card, and on
+     the night face only a darker well gets there. The loss is a near-black
+     maroon at night — the red is in the rim, the verse well and the button, not
+     in a large lit panel — with a brighter red button and salmon type. */
+  --win-panel: #1a2b21;
+  --win-bar-contrast: #1a1a1a;
+  --loss-card: #250202;
+  --loss-border: #551a21;
+  --loss-panel: #3d1015;
+  --loss-ink: #ff9a90;
+  --loss-strong: #ffb4ac;
+  --loss-muted: #f3a29a;
+  --loss-bar: #e95453;
+  --loss-bar-contrast: #1a1a1a;
+  --loss-bar-edge: #b23a3a;
   --page: #1e1e1e;
   --page-edge: #3a3a3a;
   --spine: #4b4b4b;
   /* The side of a raised block catches the lamp here: on a near-black page a
      near-black edge under a card is a gap, not a side, so the card's edge is a
-     grey a step lighter than its face. The controls keep the dark edge — their
-     faces are already the lighter thing, and a lit foot under them would read
-     as a glow rather than as depth. */
+     grey a step lighter than its face. The quiet controls take the same grey:
+     a near-black foot under them read as a hole rather than as the side of a
+     raised thing, so a button and a card now sit on one lit edge. */
   --card-edge: #3f3f3f;
-  --control-edge: #0c0c0c;
+  --control-edge: var(--card-edge);
   --card-shadow: rgb(0 0 0 / 0.62);
   --card-highlight: rgb(255 255 255 / 0.09);
   --accent-top: #ffd06a;
@@ -186,6 +311,32 @@ html.playful .font-serif {
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-contrast: var(--accent-contrast);
+  --color-cta: var(--cta);
+  --color-cta-contrast: var(--cta-contrast);
+  --color-goal-card: var(--goal-card);
+  --color-goal-border: var(--goal-border);
+  --color-goal-track: var(--goal-track);
+  --color-goal-ink: var(--goal-ink);
+  --color-goal-strong: var(--goal-strong);
+  --color-goal-muted: var(--goal-muted);
+  --color-goal-bar: var(--goal-bar);
+  --color-goal-bar-contrast: var(--goal-bar-contrast);
+  --color-win-card: var(--win-card);
+  --color-win-border: var(--win-border);
+  --color-win-panel: var(--win-panel);
+  --color-win-ink: var(--win-ink);
+  --color-win-strong: var(--win-strong);
+  --color-win-muted: var(--win-muted);
+  --color-win-bar: var(--win-bar);
+  --color-win-bar-contrast: var(--win-bar-contrast);
+  --color-loss-card: var(--loss-card);
+  --color-loss-border: var(--loss-border);
+  --color-loss-panel: var(--loss-panel);
+  --color-loss-ink: var(--loss-ink);
+  --color-loss-strong: var(--loss-strong);
+  --color-loss-muted: var(--loss-muted);
+  --color-loss-bar: var(--loss-bar);
+  --color-loss-bar-contrast: var(--loss-bar-contrast);
   --color-correct: var(--correct);
   --color-correct-contrast: var(--correct-contrast);
   --color-correct-text: var(--correct-text);
@@ -203,6 +354,27 @@ html.playful .font-serif {
 html,
 body {
   height: 100%;
+}
+
+/* A section page arrives from the side, and its entrance starts the page box
+   thirty percent off-screen. On a phone that is not just paint: the overflow
+   widens the document, the browser zooms out to fit it, and the fixed bottom
+   bar is left at the foot of a viewport taller than the screen — the bar seems
+   to vanish until the page is scrolled to the end of the zoomed layout. Clipping
+   the horizontal overflow at the page keeps the slide inside the screen, so the
+   document stays the width of the device. `clip` rather than `hidden`: it does
+   not make the body a scroll container, which would give the sticky header a
+   new scrollport to stick inside. */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* Sections can be turned by a horizontal drag (see components/nav-swipe.tsx).
+   Let the browser keep the vertical pan — the finger is usually scrolling — and
+   the pinch, but leave the sideways movement to the gesture. */
+html[data-nav-swipe="on"] {
+  touch-action: pan-y pinch-zoom;
 }
 
 body {
@@ -270,23 +442,53 @@ a.rounded-full[class*="px-"] {
    which is what gives the largest raised thing in the style a bit more lift —
    just enough to feel like a block with weight, without turning it into a tray
    sitting above the page. */
-.playful :is(.rounded-2xl, .rounded-3xl).bg-surface {
+.playful :is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card) {
   background-image:
     radial-gradient(120% 95% at 50% -40%, var(--card-highlight), transparent 62%),
     linear-gradient(
       180deg,
-      color-mix(in oklab, var(--surface) 84%, white 16%),
-      var(--surface) 72%
+      color-mix(in oklab, var(--card-face, var(--surface)) 84%, white 16%),
+      var(--card-face, var(--surface)) 72%
     );
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
-    inset 0 -6px 9px -7px color-mix(in oklab, var(--card-edge) 70%, transparent),
+    inset 0 -6px 9px -7px color-mix(in oklab, var(--card-edge-color, var(--card-edge)) 70%, transparent),
     inset 0 0 0 999px transparent,
-    0 4px 0 var(--card-edge),
+    0 4px 0 var(--card-edge-color, var(--card-edge)),
     0 26px 40px -24px var(--card-shadow);
   transition-property: translate, box-shadow, border-color, background-color, color;
   transition-duration: 150ms;
   transition-timing-function: ease;
+}
+
+/* The completed study card is a raised block too, on its own green face and a
+   green side, so the reward reads with the same weight as everything else. */
+.playful :is(.rounded-2xl, .rounded-3xl).bg-goal-card {
+  --card-face: var(--goal-card);
+  --card-edge-color: var(--goal-border);
+}
+
+/* The games' result cards are raised blocks on the same material: a win on the
+   completed day's green and a loss on its own red, each with a matching side
+   and foot. */
+.playful :is(.rounded-2xl, .rounded-3xl).bg-win-card {
+  --card-face: var(--win-card);
+  --card-edge-color: var(--win-border);
+}
+
+.playful :is(.rounded-2xl, .rounded-3xl).bg-loss-card {
+  --card-face: var(--loss-card);
+  --card-edge-color: var(--loss-border);
+}
+
+/* The streak panel keeps the app's ordinary card face — the same paper the
+   cards below it use — and is marked only by the flame's amber along its rim.
+   A whole face in that amber made the day strip and the tiles compete with the
+   page around them; one coloured edge says "streak" without the card becoming
+   a second surface. The raised block itself still comes from the shared card
+   rule, so the panel sits at the same height as its neighbours. */
+.playful .streak-card {
+  border-color: var(--accent);
 }
 
 /* In the night palette the card's lit face is held back. The same sixteen
@@ -295,14 +497,15 @@ a.rounded-full[class*="px-"] {
    looking raised and start looking like wells in the card. The night card keeps
    a hair of light at its top and a hairline highlight, and takes its weight
    from the dark base edge instead — which leaves the lighter tone for the
-   things you press. */
-.playful.dark :is(.rounded-2xl, .rounded-3xl).bg-surface {
+   things you press. The completed day's card is drawn the same way, from
+   whatever face the palette gives it. */
+.playful.dark :is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card) {
   background-image:
     radial-gradient(120% 95% at 50% -40%, var(--card-highlight), transparent 62%),
     linear-gradient(
       180deg,
-      color-mix(in oklab, var(--surface) 94%, white 6%),
-      var(--surface) 72%
+      color-mix(in oklab, var(--card-face, var(--surface)) 94%, white 6%),
+      var(--card-face, var(--surface)) 72%
     );
 }
 
@@ -311,8 +514,26 @@ a.rounded-full[class*="px-"] {
    up, so the foot of the object stays on the page instead of sliding off it,
    and a thin wash of ink fades the face without touching its contents. Only
    anchors and buttons take this: a card that goes nowhere is a surface, not a
-   control. */
-.playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+   control.
+
+   Hover is for pointers that can hover. A touch screen reports it for the last
+   thing it tapped, and a control that stays settled once the finger has gone
+   looks stuck rather than pressed; the finger gets its press from
+   `[data-pressed]`, which components/press-feedback.tsx keeps for as long as
+   it is down. Keyboard focus keeps the same feedback everywhere. */
+@media (hover: hover) {
+  .playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+    translate: 0 1px;
+    box-shadow:
+      inset 0 1px 0 var(--card-highlight),
+      inset 0 -7px 10px -7px color-mix(in oklab, var(--card-edge) 76%, transparent),
+      inset 0 0 0 999px color-mix(in oklab, var(--foreground) 5%, transparent),
+      0 3px 0 var(--card-edge),
+      0 22px 34px -22px var(--card-shadow);
+  }
+}
+
+.playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):focus-visible {
   translate: 0 1px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
@@ -322,7 +543,7 @@ a.rounded-full[class*="px-"] {
     0 22px 34px -22px var(--card-shadow);
 }
 
-.playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):active {
+.playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
   translate: 0 2px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
@@ -344,38 +565,79 @@ a.rounded-full[class*="px-"] {
    darker foot along the bottom. That outline and foot are the whole depth:
    there is no specular bloom across the top, which read as a dome rather than
    as a button. Pressing shortens the foot and settles the button by the same
-   amount, so it lands on the page instead of sliding off it. */
+   amount, so it lands on the page instead of sliding off it.
+
+   Three fills wear this face — the main action's blue, the supporting action's
+   gold, and the completed day's green — so each only has to name its colour and
+   its edge under `--btn-face`/`--btn-edge`; the material itself is written
+   once. */
 .playful :is(button, a).bg-accent:not([role="switch"]) {
+  --btn-face: var(--accent);
+  --btn-edge: var(--accent-edge);
+}
+
+.playful :is(button, a).bg-cta:not([role="switch"]) {
+  --btn-face: var(--cta);
+  --btn-edge: var(--cta-edge);
+}
+
+.playful :is(button, a).bg-goal-bar:not([role="switch"]) {
+  --btn-face: var(--goal-bar);
+  --btn-edge: var(--goal-bar-edge);
+}
+
+.playful :is(button, a).bg-win-bar:not([role="switch"]) {
+  --btn-face: var(--win-bar);
+  --btn-edge: var(--win-bar-edge);
+}
+
+.playful :is(button, a).bg-loss-bar:not([role="switch"]) {
+  --btn-face: var(--loss-bar);
+  --btn-edge: var(--loss-bar-edge);
+}
+
+.playful :is(button, a):is(.bg-accent, .bg-cta, .bg-goal-bar, .bg-win-bar, .bg-loss-bar):not([role="switch"]) {
   background-image: linear-gradient(
     180deg,
-    color-mix(in oklab, var(--accent) 92%, white 8%),
-    var(--accent) 60%
+    color-mix(in oklab, var(--btn-face) 92%, white 8%),
+    var(--btn-face) 60%
   );
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
-    inset 0 0 0 1px var(--accent-edge),
-    inset 0 -5px 0 color-mix(in oklab, var(--accent-edge) 72%, var(--accent)),
+    inset 0 0 0 1px var(--btn-edge),
+    inset 0 -5px 0 color-mix(in oklab, var(--btn-edge) 72%, var(--btn-face)),
     0 3px 6px -4px rgb(0 0 0 / 0.35);
   transition-property: translate, box-shadow, border-color, background-color, color, opacity, filter;
   transition-duration: 140ms;
   transition-timing-function: ease;
 }
 
-.playful :is(button, a).bg-accent:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+@media (hover: hover) {
+  .playful :is(button, a):is(.bg-accent, .bg-cta, .bg-goal-bar, .bg-win-bar, .bg-loss-bar):not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+    translate: 0 1px;
+    box-shadow:
+      inset 0 1px 0 var(--card-highlight),
+      inset 0 0 0 1px var(--btn-edge),
+      inset 0 -4px 0 color-mix(in oklab, var(--btn-edge) 72%, var(--btn-face)),
+      0 2px 5px -4px rgb(0 0 0 / 0.32);
+  }
+}
+
+.playful :is(button, a):is(.bg-accent, .bg-cta, .bg-goal-bar, .bg-win-bar, .bg-loss-bar):not([role="switch"]):not(:disabled):not([aria-disabled="true"]):focus-visible {
   translate: 0 1px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
-    inset 0 0 0 1px var(--accent-edge),
-    inset 0 -4px 0 color-mix(in oklab, var(--accent-edge) 72%, var(--accent)),
+    inset 0 0 0 1px var(--btn-edge),
+    inset 0 -4px 0 color-mix(in oklab, var(--btn-edge) 72%, var(--btn-face)),
     0 2px 5px -4px rgb(0 0 0 / 0.32);
 }
 
-.playful :is(button, a).bg-accent:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):active {
+.playful :is(button, a):is(.bg-accent, .bg-cta, .bg-goal-bar, .bg-win-bar, .bg-loss-bar):not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
   translate: 0 2px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
-    inset 0 0 0 1px var(--accent-edge),
-    inset 0 -3px 0 color-mix(in oklab, var(--accent-edge) 72%, var(--accent)),
+    inset 0 0 0 1px var(--btn-edge),
+    inset 0 -3px 0 color-mix(in oklab, var(--btn-edge) 72%, var(--btn-face)),
     0 1px 3px -3px rgb(0 0 0 / 0.3);
 }
 
@@ -399,7 +661,18 @@ a.rounded-full[class*="px-"] {
   transition-timing-function: ease;
 }
 
-.playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+@media (hover: hover) {
+  .playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+    translate: 0 1px;
+    box-shadow:
+      inset 0 1px 0 var(--card-highlight),
+      inset 0 0 0 1px var(--control-edge),
+      inset 0 -3px 0 color-mix(in oklab, var(--control-edge) 70%, var(--surface-2)),
+      0 1px 4px -3px rgb(0 0 0 / 0.28);
+  }
+}
+
+.playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):focus-visible {
   translate: 0 1px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
@@ -408,7 +681,7 @@ a.rounded-full[class*="px-"] {
     0 1px 4px -3px rgb(0 0 0 / 0.28);
 }
 
-.playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):active {
+.playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
   translate: 0 2px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
@@ -462,7 +735,18 @@ a.rounded-full[class*="px-"] {
    pixel into its base when reached for, two when tapped, and gives back the
    edge it loses by moving down. The board's tiles are not controls, so they
    hold still. */
-.playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+@media (hover: hover) {
+  .playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:hover, :focus-visible) {
+    translate: 0 1px;
+    box-shadow:
+      inset 0 1px 0 var(--card-highlight),
+      inset 0 0 0 1px var(--piece-edge),
+      inset 0 -3px 0 var(--piece-edge),
+      0 1px 3px -3px rgb(0 0 0 / 0.32);
+  }
+}
+
+.playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):focus-visible {
   translate: 0 1px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
@@ -471,7 +755,7 @@ a.rounded-full[class*="px-"] {
     0 1px 3px -3px rgb(0 0 0 / 0.32);
 }
 
-.playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):active {
+.playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
   translate: 0 2px;
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
@@ -484,11 +768,33 @@ a.rounded-full[class*="px-"] {
    card rather than offering anything, so it takes no face, edge or shadow —
    the depth belongs to the cards and buttons around it. */
 
-/* The day's goal keeps its amber gradient as it fills. The header's status
-   lights deliberately get no card treatment: they are readings, not buttons. */
+/* The day's goal is a rod lying in a channel rather than a flat rule. The
+   track is pressed into the card — a dark top edge and a lit bottom lip — and
+   the filled part gets the same rim-and-foot material as the buttons and
+   cards: a flat face, a darker outline inside its edge and a solid darker
+   strip under its foot. There is no gloss across the top; the depth is the
+   edge, as it is everywhere else in the skin. Both fills get the same
+   material; only the colour changes: the amber accent as it fills, the deeper
+   green once the day is done. The header's status lights deliberately get no
+   card treatment: they are readings, not buttons. */
+.playful [role="progressbar"] {
+  box-shadow:
+    inset 0 2px 3px rgb(0 0 0 / 0.34),
+    inset 0 -1px 0 var(--card-highlight);
+}
+
 .playful [role="progressbar"] .bg-accent {
   background-image: linear-gradient(90deg, var(--accent-top), var(--accent));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-edge),
+    inset 0 -2px 0 var(--accent-edge);
+}
+
+.playful [role="progressbar"] .bg-goal-bar {
+  background-image: none;
+  box-shadow:
+    inset 0 0 0 1px var(--goal-bar-edge),
+    inset 0 -2px 0 var(--goal-bar-edge);
 }
 
 /* The tab you are standing in wears the same raised pill as a button — the
@@ -502,6 +808,23 @@ a.rounded-full[class*="px-"] {
   box-shadow:
     inset 0 1px 0 var(--card-highlight),
     0 2px 0 var(--control-edge);
+}
+
+/* The answer's mark in a game result card: the soft accent highlight on paper,
+   and an inverted chip on the playful result cards so the word stays legible on
+   the coloured face. The loss variant follows the red card. */
+.result-mark {
+  background-color: color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+.playful .result-mark {
+  background-color: var(--win-ink);
+  color: var(--win-card);
+}
+
+.playful .result-mark-loss {
+  background-color: var(--loss-ink);
+  color: var(--loss-card);
 }
 
 /* The two bars: a light top edge on the tab bar and a soft lift under the
@@ -548,6 +871,23 @@ a.rounded-full[class*="px-"] {
 .playful .glyph-has-emoji .glyph-emoji {
   display: block;
   font-size: min(92cqw, 92cqh);
+}
+
+/* The swap is for illustrations, not for controls. Inside a control the emoji
+   sits beside a label and reads as decoration — a picture of a padlock next to
+   the word "Lock" — so buttons and button-like links keep the drawn face, the
+   same as the focused style. Three kinds of control are left with their
+   picture: the bottom bar, where each tab is a single mark and the emoji is the
+   tab; the status lights in the header, where the mark stands alone beside a
+   number rather than labelling a word; and the hub's tiles, which are cards the
+   reader lands on rather than buttons the reader presses (their glyph and label
+   stack vertically, `.flex-col`, while every button sits on one line). */
+.playful :is(button, a):not(.flex-col):not(.app-nav-bottom *):not(.app-status-tray *) .glyph-has-emoji .glyph-emoji {
+  display: none;
+}
+
+.playful :is(button, a):not(.flex-col):not(.app-nav-bottom *):not(.app-status-tray *) .glyph-has-emoji .glyph-vector {
+  display: block;
 }
 
 /* --- Riffling book animation ------------------------------------------- */

@@ -380,7 +380,7 @@ export function JournalEditor({ entry, onSave, onCancel, onDelete }: Props) {
         <button
           type="button"
           onClick={save}
-          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
+          className="inline-flex items-center gap-1.5 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
         >
           Save entry
         </button>
