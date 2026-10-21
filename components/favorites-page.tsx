@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
+import { BookmarkIcon } from "./bookmark-icon";
 import { Glyph } from "./glyph";
 import { NoteDialog } from "./note-dialog";
 import { isNative, openExternal } from "@/lib/external";
@@ -29,7 +30,7 @@ export function FavoritesPage() {
 
   const subtitle =
     favorites.length === 0
-      ? "Passages you star are kept here"
+      ? "Passages you bookmark are kept here"
       : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`;
 
   return (
@@ -49,11 +50,11 @@ export function FavoritesPage() {
         {favorites.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border px-6 py-16 text-center">
             <span className="mx-auto block text-accent/40">
-              <StarIcon />
+              <BookmarkIcon className="mx-auto h-10 w-10" />
             </span>
             <p className="mt-4 text-sm font-medium text-foreground">No favorites yet</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-              Tap the star on any passage and it will show up here.
+              Tap the bookmark on any passage and it will show up here.
             </p>
             <Link
               href="/read"
@@ -226,14 +227,6 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
         onClose={() => setNoteOpen(false)}
       />
     </li>
-  );
-}
-
-function StarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="mx-auto h-10 w-10" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-      <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
-    </svg>
   );
 }
 

@@ -30,11 +30,14 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   verse highlighted and auto-scrolled into view.
 - **Share what you pick** — tap verses (or paragraphs) in the expanded view to
   share just those. The drawn passage comes up already selected, so a quick pick
-  can't quietly drop it, and a floating bar follows you down the page — collapse
-  the chapter, open the passage in the Gospel Library, share the selection, or
-  save a picked set to favorites — so a long chapter never has to be scrolled
-  back through. It steps aside again whenever the chapter's own row of controls
-  (the same jobs, at the foot of the chapter) comes into view.
+  can't quietly drop it, and a floating set of controls follows you down the page
+  — collapse the chapter, open the passage in the Gospel Library, take a note,
+  memorize the pick, share the selection, or save it to favorites — so a long
+  chapter never has to be scrolled back through. On a phone it is a gold button
+  in the corner that fans out into those jobs; on a wide screen it is a labelled
+  bar along the foot of the page, where a pointer has room for the words. It
+  stays up all the way to the foot of the page, where the chapter repeats one
+  job only — collapse it again — rather than a second copy of the bar.
 - **Gospel Library deep link** for every passage, built from the official
   `churchofjesuschrist.org/study/...` URL scheme — on Android the link opens
   directly **in the Gospel Library app** when it's installed.
@@ -49,13 +52,23 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   hero on the home screen shows the minutes against the goal. There is deliberately
   no stopwatch to watch — the point is to lower the barrier to *beginning*.
 - **A streak** of consecutive days whose goal was *met*. A day the app was merely
-  opened does not count.
+  opened does not count. `/streak` is its own page: the run as one large number
+  (grey until today is in), a horizontal strip of the days that counted — paged
+  with arrows or a swipe — and the freezes that protect it.
+- **Streak freezes** (🧊): up to two, one to start with. A day missed by midnight
+  spends one automatically, and the run keeps the number it had. Another can be
+  refilled for 200 gems, or 375 for the pair, from the streak page.
+- **The shop** (`/shop`): the freezes above at the same prices, the Gospel Focus
+  Plus subscription (everything unlocked, 400 gems a month), and gem packs priced in
+  real money once checkout exists — the rows are inert and a line under them says
+  so rather than taking a payment that cannot be made. Reached from the streak
+  sheet's *Get Gems* link, and from the menu.
 - **A daily reminder** — one verse a day at the hour you choose, as a native local
   notification. The next few days are scheduled ahead of time, so it works with the
   app closed and no server anywhere.
 - **Status chips** in the header for today's minutes, the streak, and the Focus
-  gate. Each one is a link: minutes open the study section, the streak opens stats,
-  the gate opens its own page.
+  gate. Each one is a link: minutes open the study section, the streak opens its
+  own page, the gate opens its own page.
 
 ### Study
 
@@ -105,8 +118,8 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
 
 - **Favorites, with a backup file.** Star the passage you're reading, or pick
   several verses (or paragraphs) in the expanded chapter — in a row or scattered —
-  and save them as **one** favorite, from the card's own star, the chapter's row of
-  controls or the floating bar. Its reference names what it holds (`1 Nephi 3:7-9`,
+  and save them as **one** favorite, from the card's own star or the floating bar's
+  Favorite. Its reference names what it holds (`1 Nephi 3:7-9`,
   or `1 Nephi 3:3, 7-9` when the pick is scattered), and the favorites page shows
   each verse on its own numbered line, folding past a few behind a *Show all*
   toggle. The backup CSV keeps the same shape in its `passage` cell (`7-9` or
@@ -547,8 +560,8 @@ npm run build:search
 
 ```
 app/                      routes — home hub, /read, /study, /search, /memorize,
-                          /games, /focus, /stats, /favorites, /settings, the
-                          planned pages, layout + theme provider
+                          /games, /focus, /stats, /streak, /shop, /favorites,
+                          /settings, the planned pages, layout + theme provider
 components/               UI — the hub, the picker and riffling animation, the
                           passage card and share dialog, memorization, the
                           daily puzzle, stats, settings, the focus page, nav,
@@ -561,7 +574,8 @@ lib/search.ts             the search index: load, inflate, query, rank by
 lib/daily.ts              the local day, shared by the streak, the goal, the
                           verse of the day, and the reminder
 lib/features.ts           the catalog every page, card, and nav is built from
-lib/streak.ts             the run of days the goal was met
+lib/streak.ts             the run of days the goal was met, the days it covers,
+                          and the freezes that keep it alive
 lib/study.ts              the daily goal and the minutes behind it
 lib/memorize.ts           the memory deck and its recitation log
 lib/wordle.ts             the daily puzzle: marking, the day's word, the board

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
+import { BookmarkIcon } from "./bookmark-icon";
 import { Glyph } from "./glyph";
 import { useFavorites } from "@/lib/favorites";
 import { featureById } from "@/lib/features";
@@ -18,6 +19,7 @@ export function MenuPanel({ open, onClose }: Props) {
   // The stats entry's own name and line come from the catalog, so the menu and
   // the page it opens cannot describe it differently.
   const stats = featureById("stats");
+  const streak = featureById("streak");
 
   // Escape closes the pane, like any other dialog.
   useEffect(() => {
@@ -75,11 +77,28 @@ export function MenuPanel({ open, onClose }: Props) {
                 hint={stats?.blurb ?? "Streaks, passages, cards, and time studied"}
               />
               <MenuLink
+                href={streak?.href ?? "/streak"}
+                onClick={onClose}
+                icon={<Glyph name="flame" />}
+                label={streak?.title ?? "Streak"}
+                hint={streak?.blurb ?? "The days in a row, and the freezes that protect them"}
+              />
+              {/* The shop sits under the streak because that is where a reader
+                  is sent to it: the refill sheet's "Get Gems" points here, and
+                  the menu is the way back for someone who is not short yet. */}
+              <MenuLink
+                href="/shop"
+                onClick={onClose}
+                icon={<Glyph name="gem" />}
+                label="Shop"
+                hint="Gems, streak freezes, and Gospel Focus Plus"
+              />
+              <MenuLink
                 href="/favorites"
                 onClick={onClose}
-                // The star is only filled in once something is saved, so the
-                // menu itself says whether the shelf is empty.
-                icon={<StarIcon filled={favorites.length > 0} />}
+                // The bookmark is only filled in once something is saved, so
+                // the menu itself says whether the shelf is empty.
+                icon={<BookmarkIcon filled={favorites.length > 0} />}
                 label="Favorites"
                 hint={
                   favorites.length === 0
@@ -150,22 +169,6 @@ function CloseIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  );
-}
-
-function StarIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
     </svg>
   );
 }

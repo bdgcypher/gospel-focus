@@ -200,8 +200,15 @@ export function RifflingPages({ durationMs, settleMs, passage }: Props) {
                 <SkeletonLines />
               </div>
               <div className="page-face page-back">
-                <div className="p-5 sm:p-6">
-                  <p className="font-serif text-[15px] leading-relaxed text-foreground/90">
+                {/* The drawn passage is a page of set text, not a scrolling
+                    box: a long draw is cut where the paper ends. The padding
+                    sits on the box around it rather than on the text, so the
+                    cut lands inside the page's own margin — the same 20px of
+                    paper the unread pages leave — instead of against the
+                    page's edge, and the last line fades rather than being
+                    sliced across. */}
+                <div className="flex h-full flex-col p-5 sm:p-6">
+                  <p className="page-draw h-full font-serif text-[15px] leading-relaxed text-foreground/90">
                     {passage.text}
                   </p>
                 </div>

@@ -990,7 +990,7 @@ export function BottomNav({ onOpenMenu, menuOpen }: BottomNavProps) {
                 // As above: one tick per turn, and none for a tab that is
                 // already the page being read.
                 data-haptic="own"
-                className={`flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-[11px] font-medium ${navItemClass(
+                className={`flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl px-1 text-[11px] font-medium ${navItemClass(
                   active
                 )}`}
               >
@@ -1013,7 +1013,7 @@ export function BottomNav({ onOpenMenu, menuOpen }: BottomNavProps) {
             onClick={onOpenMenu}
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
-            className={`flex h-full w-full flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-medium ${navItemClass(
+            className={`flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl px-1 text-[11px] font-medium ${navItemClass(
               false
             )}`}
           >

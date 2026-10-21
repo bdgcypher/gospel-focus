@@ -32,9 +32,10 @@ export type IconName =
   | "lock"
   | "journal"
   | "widget"
-  | "star"
+  | "bookmark"
   | "gear"
-  | "chart";
+  | "chart"
+  | "flame";
 
 /**
  * How the home screen groups its cards. The order here is the order the
@@ -174,7 +175,7 @@ export const FEATURES: Feature[] = [
       "Word hiding: step a passage's words out of sight one at a time, from the top or scattered",
       "Flashcards: two-sided cards — the citation and the words — started on whichever face you choose",
       "Recalling the words from the citation, or the citation from the words, with first letters as the hint",
-      "Your memory list, filled from a draw, today's verse, or several starred passages at once",
+      "Your memory list, filled from a draw, today's verse, or several saved passages at once",
       "Every recitation logged with the day it happened",
     ],
   },
@@ -223,7 +224,7 @@ export const FEATURES: Feature[] = [
       "Entries written by typing or by dictation, titled and kept offline",
       "Bold, italic, underline, lists, and links, with the usual keyboard shortcuts",
       "Links to a passage in the library, a note you wrote, or another entry",
-      "A note on any starred passage, written from the reader or from favorites",
+      "A note on any saved passage, written from the reader or from favorites",
     ],
   },
   {
@@ -308,13 +309,29 @@ export const FEATURES: Feature[] = [
     group: "shelf",
     href: "/favorites",
     title: "Favorites",
-    blurb: "Every passage you have starred",
-    icon: "star",
+    blurb: "Every passage you have bookmarked",
+    icon: "bookmark",
     status: "ready",
     capabilities: [
-      "Star any passage, or a whole run of verses",
+      "Bookmark any passage, or a whole run of verses",
       "Kept on the device, newest first",
       "Export to a file, and import it back",
+    ],
+  },
+  {
+    id: "streak",
+    group: "shelf",
+    href: "/streak",
+    title: "Streak",
+    blurb: "The days in a row, and the freezes that protect them",
+    tileBlurb: "Your run, and your freezes",
+    icon: "flame",
+    status: "ready",
+    capabilities: [
+      "The current run of days, greyed out until today's goal is met",
+      "A horizontal strip of recent days: the goal was met, a freeze covered it, or it was missed",
+      "Streak freezes, which keep the run alive through one missed day each",
+      "Refill freezes with gems when the two you can hold run out",
     ],
   },
   {
@@ -328,7 +345,7 @@ export const FEATURES: Feature[] = [
     status: "ready",
     capabilities: [
       "The current run of days, the best one, and every day counted",
-      "Passages read, daily word puzzles solved, flashcards recited, and passages starred",
+      "Passages read, daily word puzzles solved, flashcards recited, and passages bookmarked",
       "Minutes studied today against the daily goal, and the days it was met",
     ],
   },

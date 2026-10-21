@@ -4,7 +4,6 @@ import Link from "next/link";
 import { FeaturePage } from "./feature-page";
 import { Glyph, type GlyphName } from "./glyph";
 
-import { addDays, dayKey } from "@/lib/daily";
 import { useGems } from "@/lib/gems";
 import { useFavorites } from "@/lib/favorites";
 import { useMemory } from "@/lib/memorize";
@@ -39,14 +38,7 @@ export function StatsPage() {
 
   return (
     <FeaturePage featureId="stats">
-      <StreakNote
-        run={run}
-        counted={counted}
-        target={progress.target}
-        lastDay={streak.lastDay}
-      />
-
-      <div className="mt-3 rounded-3xl border border-border bg-surface p-5">
+      <div className="rounded-3xl border border-border bg-surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Daily study goal</p>
@@ -109,10 +101,15 @@ export function StatsPage() {
           label="Streak"
           value={String(run)}
           unit={run === 1 ? "day" : "days"}
+          // The strip and the freezes live on their own page now; the tile
+          // stays here as the number, and opens the page that explains it.
+          href="/streak"
           hint={
             streak.best > 0
-              ? `Best: ${streak.best} ${streak.best === 1 ? "day" : "days"}${counted ? " · today counts" : ""}`
-              : "Reaching the goal on two days running starts one."
+              ? `Best: ${streak.best} ${streak.best === 1 ? "day" : "days"}${counted ? " · today counts" : ""} · ${streak.freezes} ${
+                  streak.freezes === 1 ? "freeze" : "freezes"
+                } left`
+              : "Reaching the goal on two days running starts one. Open your streak."
           }
         />
         <StatTile
@@ -144,11 +141,11 @@ export function StatsPage() {
           }
         />
         <StatTile
-          icon="star"
+          icon="bookmark"
           label="Favorites"
           value={String(favorites.length)}
           hint={
-            favorites.length === 0 ? "Nothing starred yet." : "Passages kept on this device"
+            favorites.length === 0 ? "Nothing bookmarked yet." : "Passages kept on this device"
           }
         />
         <StatTile
@@ -181,154 +178,6 @@ export function StatsPage() {
   );
 }
 
-/**
- * The streak, at the head of the page, drawn as the habit it is.
- *
- * A day counts when that day's goal is reached (lib/streak.ts), which is the one
- * thing a number on a tile cannot say for itself: a reader looking at a streak
- * that has not moved since yesterday cannot tell from the number whether the
- * chain is waiting on them, whether a day was missed, or whether the goal is
- * simply untouched. So the card says it in two marks instead — the flame and the
- * check light when today is in, and stay muted while it is still open — and backs
- * them with a strip of days.
- *
- * The strip is the current run and only the current run: the store keeps the
- * length of a run, its last day, and the number of days ever counted, but not
- * which day each of those was (lib/streak.ts). A full year of squares would have
- * to invent the days before this run, so the run is drawn from its own first day
- * to its last and every other square is left quiet. That still makes the shape of
- * the habit visible — a long run fills most of the strip, a new one is a handful
- * of lit squares at the end — without claiming anything the record does not hold.
- */
-function StreakNote({
-  run,
-  counted,
-  target,
-  lastDay,
-}: {
-  /** Days in the run through yesterday, or 0 when there is none. */
-  run: number;
-  /** Today's goal is met, so today is in the chain. */
-  counted: boolean;
-  /** The day's goal in minutes, or 0 when none is set. */
-  target: number;
-  /** The last day the goal was met, or null before the first. */
-  lastDay: string | null;
-}) {
-  const title = target === 0 ? "No streak yet" : run > 0 ? `${run}-day streak` : "No run going";
-
-  const body = counted
-    ? "Way to go! Come back tomorrow to keep the fire alive!"
-    : target === 0
-      ? "Set a daily goal below and today can be the first."
-      : run > 0
-        ? `Reach today's goal to make it ${run + 1}.`
-        : "Reach today's goal to start one.";
-
-  return (
-    <section
-      className="streak-card rounded-3xl border border-border bg-surface p-4 sm:p-5"
-      data-counted={counted}
-    >
-      <div className="flex items-start gap-3.5">
-        {/* The flame is the app bar's own mark for the streak. It is lit and in
-            colour on the day the goal is met, and greyed while the day is still
-            open — the mark itself is the state, not a badge beside it. */}
-        <span className="streak-icon grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-surface-2">
-          <Glyph
-            name="flame"
-            className={`h-6 w-6 ${
-              counted ? "text-accent-strong" : "text-muted/60 opacity-60 grayscale"
-            }`}
-          />
-        </span>
-
-        <div className="min-w-0 flex-1 pt-0.5">
-          <p className="streak-title font-serif text-lg font-semibold leading-tight text-foreground">
-            {title}
-          </p>
-          <p className="streak-body mt-0.5 text-xs leading-relaxed text-muted">{body}</p>
-        </div>
-
-        {/* The day's own mark: filled when the goal is met, a quiet outline
-            waiting for it otherwise. */}
-        <span
-          aria-hidden="true"
-          className={`streak-check grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
-            counted ? "bg-accent text-accent-contrast" : "bg-surface-2 text-muted/40"
-          }`}
-        >
-          <Glyph name="check" className="h-5 w-5" />
-        </span>
-      </div>
-
-      <StreakGrid run={run} lastDay={lastDay} counted={counted} />
-    </section>
-  );
-}
-
-/** The stretch of days the streak card draws, in weeks. */
-const STREAK_WEEKS = 21;
-const STREAK_DAYS = STREAK_WEEKS * 7;
-
-/**
- * The run as a strip of days: one square per day, the most recent at the
- * bottom-right, and only the days of the current run lit.
- *
- * The run's dates come from its last day and its length, both already in the
- * record, so nothing here has to guess at a missing day. Squares after the run
- * are days the goal has not been met yet (today, while it is still open);
- * squares before it are simply outside this run. The strip is quiet enough to
- * sit under the heading without competing with it, and the day shape reads at a
- * glance: a run is a block of light at the end of the strip.
- */
-function StreakGrid({
-  run,
-  lastDay,
-  counted,
-}: {
-  run: number;
-  lastDay: string | null;
-  counted: boolean;
-}) {
-  const today = dayKey();
-  const from = run > 0 && lastDay ? addDays(lastDay, -(run - 1)) : null;
-  const days = Array.from({ length: STREAK_DAYS }, (_, index) =>
-    addDays(today, index - (STREAK_DAYS - 1))
-  );
-  const lit = days.filter(
-    (day) => from !== null && lastDay !== null && day >= from && day <= lastDay
-  ).length;
-
-  const label =
-    run === 0
-      ? `No days in the current run yet. Each dot is one of the last ${STREAK_DAYS} days.`
-      : `${run} ${run === 1 ? "day" : "days"} in the current run${
-          counted ? ", today included" : ""
-        }. ${lit} of the last ${STREAK_DAYS} days are lit.`;
-
-  return (
-    <div
-      role="img"
-      aria-label={label}
-      className="mt-4 grid grid-flow-col grid-cols-[repeat(21,minmax(0,1fr))] grid-rows-[repeat(7,minmax(0,1fr))] gap-[3px]"
-    >
-      {days.map((day) => {
-        const on = from !== null && lastDay !== null && day >= from && day <= lastDay;
-        return (
-          <span
-            key={day}
-            aria-hidden="true"
-            className={`streak-dot aspect-square rounded-[3px] ${
-              on ? "streak-dot-on bg-accent" : "bg-border/60"
-            }`}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 /** One number, its name, and the line that keeps it honest. */
 function StatTile({
   icon,
@@ -336,15 +185,18 @@ function StatTile({
   value,
   unit,
   hint,
+  href,
 }: {
   icon: GlyphName;
   label: string;
   value: string;
   unit?: string;
   hint: string;
+  /** Somewhere to go for the number's own page, where it has one. */
+  href?: string;
 }) {
-  return (
-    <div className="flex flex-col rounded-3xl border border-border bg-surface p-4">
+  const body = (
+    <>
       <span className="flex items-center gap-2 text-muted">
         <Glyph name={icon} className="h-4 w-4" />
         <span className="text-[11px] font-semibold uppercase tracking-wider">{label}</span>
@@ -356,7 +208,18 @@ function StatTile({
       </span>
 
       <span className="mt-1 text-xs leading-snug text-muted">{hint}</span>
-    </div>
+    </>
+  );
+
+  return href ? (
+    <Link
+      href={href}
+      className="flex flex-col rounded-3xl border border-border bg-surface p-4 transition-colors hover:border-accent/60"
+    >
+      {body}
+    </Link>
+  ) : (
+    <div className="flex flex-col rounded-3xl border border-border bg-surface p-4">{body}</div>
   );
 }
 

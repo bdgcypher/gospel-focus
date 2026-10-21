@@ -9,16 +9,29 @@ const group = groupById("study");
 const reading = groupById("read");
 /** The picker's own entry, so the card points where the catalog says it is. */
 const picker = featureById("picker");
-/** Searching is the way into the words from here, so it leads the wall. */
+/**
+ * Searching is the way into the words from here, so it leads the wall — and it
+ * leads it at full width, as the one card that opens the whole library rather
+ * than one of the shelves inside it. A half-width card beside another read as
+ * a pair when it is really the door.
+ */
 const search = featureById("search");
-/** The rest of the section, in the catalog's order. */
-const rest = featuresInGroup("study").filter((feature) => feature.id !== "search");
+/**
+ * The wall's order, by id. The catalog keeps the study section in the order it
+ * grew; the page has its own, which is the order a reader works in: the two
+ * things you do with a passage (keep it, write it down), then the two that are
+ * still to come. A missing entry drops out rather than leaving a gap.
+ */
+const ORDER = ["memorize", "journal", "plans", "liken"];
+const rest = ORDER.map((id) => featuresInGroup("study").find((feature) => feature.id === id)).filter(
+  (feature): feature is Feature => Boolean(feature),
+);
 
 /**
  * Reading is where studying starts, so the way to the passage picker sits here
  * as well as on the hub. It is a card like the others rather than the wide
- * banner it used to be — one wall, two across, with the search first — so the
- * heading and the line under it come from the Read section's catalog entry and
+ * banner it used to be — one wall, two across under the search's own row — so
+ * the heading and the line under it come from the Read section's catalog entry and
  * the way there from the picker's, the way the rest of the wall comes from the
  * study section's. Its own call to action, though: the reader is drawing a new
  * passage, not "opening" a page — and its own short line as well, since the
@@ -56,7 +69,13 @@ export function StudyPage() {
       status="ready"
     >
       <FeatureGrid>
-        {search && <FeatureCard feature={search} />}
+        {/* The search owns the first row on its own: two columns' worth of card,
+            so the one door into the library is read before the shelves. */}
+        {search && (
+          <div className="col-span-2">
+            <FeatureCard feature={search} />
+          </div>
+        )}
         <FeatureCard feature={readCard} cta="New passage" />
         {rest.map((feature) => (
           <FeatureCard key={feature.id} feature={feature} />

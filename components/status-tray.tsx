@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Glyph, type GlyphName } from "./glyph";
+import { RollingNumber } from "./rolling-number";
 import { useGems } from "@/lib/gems";
 import { focusStatus, useFocus, type FocusStatus } from "@/lib/focus";
 import { countedToday, streakInForce, useStreak } from "@/lib/streak";
@@ -15,7 +17,7 @@ import { studyProgress, useStudy } from "@/lib/study";
  * first screen to say three short things. A chip says the same thing in the
  * corner, keeps saying it on every page rather than only on the hub, and gives
  * each one a place to be tapped: the day's minutes open the study section, the
- * streak opens the stats page, the gate opens its own. The header is the right
+ * streak opens the streak page, the gate opens its own. The header is the right
  * home for them
  * because they describe *how it is going*, not what to do next — and what to do
  * next is the hero directly below it.
@@ -25,6 +27,16 @@ import { studyProgress, useStudy } from "@/lib/study";
  * that a state is *live* is better carried by the glyph and the number than by
  * a background. The pill comes back on hover and on keyboard focus, which is
  * where a background earns its keep — it says which one the pointer is over.
+ *
+ * In the playful skin a lit reading wears the colour of its own mark — the day
+ * in the bar's gold until its goal is met and the completed green after, the
+ * wallet in the button blue, the run in the flame's
+ * orange, the shut gate in the accent gold — so the head of the page reads as
+ * one row of coloured lights rather than four grey numbers. Which colour is
+ * decided here by whether the light is lit (a chip only passes `ink` when it
+ * is), and how that colour is drawn is the stylesheet's business (the
+ * `.status-ink-*` rules in app/globals.css): they hang off `.playful`, so the
+ * focused skin keeps the muted ink it has always had.
  */
 export function StatusTray() {
   const streak = useStreak();
@@ -69,6 +81,12 @@ export function StatusTray() {
       <StatusChip
         href={hasGoal ? "/study" : "/settings#study-goal"}
         tone="quiet"
+        // The reading wears the bar's own colour: the gold of a bar still
+        // filling, then the completed green on the day the goal is met, so the
+        // number and the hairline under it always say the same thing. With no
+        // goal chosen there is no bar to match and nothing filling, so the
+        // chip keeps the ordinary ink of a question still to be answered.
+        ink={hasGoal ? (progress.done ? "goal" : "goal-open") : undefined}
         text={hasGoal ? `${studied}/${progress.target} min` : `${studied}/? min`}
         progress={hasGoal ? progress.percent : 0}
         complete={hasGoal && progress.done}
@@ -85,16 +103,29 @@ export function StatusTray() {
       {/* The wallet, between the minutes that fill it and the streak those
           minutes keep. One gem is one studied minute up to the day's goal
           (lib/gems.ts), so the three chips in a row read as one story: what
-          today is worth, what has been collected, and how long the run is. */}
+          today is worth, what has been collected, and how long the run is.
+
+          Its number follows what is in it, not what was earned today: a reader
+          with gems banked from yesterday is not poor until they study again. Any
+          gem at all lights it in the button blue; an empty wallet is greyed out
+          like its own gem, which is the one state where the number really is
+          nothing.
+
+          It opens the shop rather than the stats page: a wallet is a thing to
+          spend, and the chip is the one place on every page where the reader is
+          already looking at the balance they might want to top up. */}
       <StatusChip
-        href="/stats"
+        href="/shop"
         icon="gem"
-        tone={gems.today > 0 ? "accent" : "quiet"}
-        text={String(gems.total)}
+        tone={gems.total === 0 ? "dim" : gems.today > 0 ? "accent" : "quiet"}
+        ink={gems.total > 0 ? "gem" : undefined}
+        // The two readings roll up once as the page first draws:
+        // each place is its own wheel (components/rolling-number.tsx).
+        text={<RollingNumber value={gems.total} />}
         title={
           gems.today > 0
-            ? `${gems.total} ${gems.total === 1 ? "gem" : "gems"} in the wallet, ${gems.today} earned today — a gem for each minute studied, up to the day's goal. Open your stats.`
-            : `${gems.total} ${gems.total === 1 ? "gem" : "gems"} in the wallet. A minute studied earns a gem, up to the day's goal. Open your stats.`
+            ? `${gems.total} ${gems.total === 1 ? "gem" : "gems"} in the wallet, ${gems.today} earned today — a gem for each minute studied, up to the day's goal. Open the shop.`
+            : `${gems.total} ${gems.total === 1 ? "gem" : "gems"} in the wallet. A minute studied earns a gem, up to the day's goal. Open the shop.`
         }
         label="Gems"
       />
@@ -110,18 +141,21 @@ export function StatusTray() {
           number beside it is the quietest possible way to say the least
           interesting thing in the row. A faded nought says it outright. */}
       <StatusChip
-        href="/stats"
+        href="/streak"
         icon="flame"
-        text={String(run)}
+        text={<RollingNumber value={run} />}
         tone={run > 0 && counted ? "accent" : "dim"}
+        // The flame's orange, earned the same day the number is: a run that has
+        // not been continued today stays grey like the emoji beside it.
+        ink={run > 0 && counted ? "flame" : undefined}
         title={
           run === 0
-            ? "No streak running yet — reaching today's goal starts one. Open your stats."
+            ? "No streak running yet — reaching today's goal starts one. Open your streak."
             : counted
-              ? `You've reached your goal ${run} ${run === 1 ? "day" : "days"} in a row, today included. Open your stats.`
-              : `You've reached your goal ${run} ${run === 1 ? "day" : "days"} in a row, but not today: today counts once the goal is met. Open your stats.`
+              ? `You've reached your goal ${run} ${run === 1 ? "day" : "days"} in a row, today included. Open your streak.`
+              : `You've reached your goal ${run} ${run === 1 ? "day" : "days"} in a row, but not today: today counts once the goal is met. Open your streak.`
         }
-        label="Your stats"
+        label="Your streak"
       />
 
       {/* The padlock is shut in exactly one state: set up and waiting on the
@@ -135,6 +169,7 @@ export function StatusTray() {
         href="/focus"
         icon={status === "locked" ? "lock" : "lock-open"}
         tone={status === "locked" ? "accent" : "dim"}
+        ink={status === "locked" ? "lock" : undefined}
         dot={status === "locked"}
         title={FOCUS_TITLES[status]}
         label="Focus lock"
@@ -154,9 +189,15 @@ interface ChipProps {
   href: string;
   title: string;
   label: string;
-  text?: string;
+  text?: ReactNode;
   /** Accent for a live state, quiet for an ordinary reading, dim for "not yet". */
   tone: "accent" | "quiet" | "dim";
+  /**
+   * The playful skin's colour for this light, matching its own mark. Omitted
+   * when the light is not lit, which leaves the chip its ordinary ink; the
+   * stylesheet decides what each name is worth (app/globals.css).
+   */
+  ink?: "gem" | "flame" | "lock" | "goal" | "goal-open";
   /** An optional glyph for chips that want one (streak, focus, etc.). */
   icon?: GlyphName;
   /** A small mark for a state that is waiting on the reader. */
@@ -186,6 +227,7 @@ function StatusChip({
   label,
   text,
   tone,
+  ink,
   dot = false,
   progress,
   complete = false,
@@ -195,9 +237,15 @@ function StatusChip({
       href={href}
       title={title}
       aria-label={`${label}: ${title}`}
-      className={`group relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-normal transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-strong focus-visible:border-accent/40 focus-visible:bg-accent/10 focus-visible:text-accent-strong ${
-        tone === "accent" ? "text-accent-strong" : tone === "dim" ? "text-muted/70" : "text-muted"
-      }`}
+      // Semibold rather than the ordinary weight: these are three readings at
+      // the top of every page, sized small enough to sit in the bar, and at 12px
+      // the regular weight faded into the header behind them. The playful skin
+      // sets them in Nunito, whose round bowls carry the extra weight without
+      // the line looking bolder than the page — a chip that reads clearly at a
+      // glance rather than one that competes with the wordmark beside it.
+      className={`group relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-semibold transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-strong focus-visible:border-accent/40 focus-visible:bg-accent/10 focus-visible:text-accent-strong ${
+        ink ? `status-ink-${ink} ` : ""
+      }${tone === "accent" ? "text-accent-strong" : tone === "dim" ? "text-muted/70" : "text-muted"}`}
     >
       {/* A column, so a chip that has both a reading and a bar stacks them:
           the glyph (when there is one) and the number on the first line, the

@@ -83,7 +83,8 @@ Library link.
 | --- | --- |
 | **Verse of the day** | The day does the choosing: `lib/daily.ts` seeds the pick from the local date, so the hub, the reminder, and the passage the app opens on all agree — and the reminder is computable offline. |
 | **Daily study goal & timer** | The reader picks a goal (5–30 minutes) and the app starts and stops the session for them while a studying page is open and in front. No visible stopwatch, by design. Minutes are *stored*, not derived, so a second source (time spent in Gospel Library) can add to the same number later. |
-| **Streak** | Consecutive local days whose goal was *met* — a day the app was merely opened does not count. No account required. |
+| **Streak** (`/streak`, `ready`) | Consecutive local days whose goal was *met* — a day the app was merely opened does not count. No account required. The page leads with the run as one large number, grey until today's goal is met, then a horizontal strip of which days counted — paged with arrows or a swipe — then the freezes. |
+| **Streak freezes** (🧊) | Up to two, one at the start. A day missed by midnight spends one automatically and the run keeps its number; a frozen day is painted the buttons' blue in the strip. They are refilled at 200 gems each, or 375 for the pair, from the streak page or the shop (`/shop`), as many as the wallet will hold. |
 | **Daily reminder** | Native local notifications (`@capacitor/local-notifications`), opted into in settings with an hour choice, scheduled a window of days ahead so the verse quoted always matches the app's own draw. |
 | **Status tray** | Streak, minutes against today's goal, and the lock's state ride in the header as chips, so they are visible everywhere rather than only on the hub. |
 
@@ -98,7 +99,7 @@ Library link.
 - **Two navigations, one list**: a top bar on wide screens and a bottom tab bar
   under the thumb on phones, with the menu only in the bottom bar. Which is shown
   is decided in CSS, so there is no layout flash and no hydration mismatch.
-- **The catalog as the source of truth** (`lib/features.ts`, 15 entries): every
+- **The catalog as the source of truth** (`lib/features.ts`, 16 entries): every
   destination's title, blurb, icon, capabilities, and status live in one place,
   and the nav, the hubs, the cards, and the page metadata are all rendered from
   it. Adding a feature is one entry, not five edits.
@@ -120,7 +121,9 @@ Library link.
 | Surface | What it does |
 | --- | --- |
 | **Favorites** (`/favorites`, `ready`) | Every starred passage, newest first, each verse on its own numbered line with past a few folded behind *Show all*. Export and import a CSV that keeps the same shape the references use, so a round trip restores exactly what was saved. On device the backup lands in **Downloads** with no sheet to click through (MediaStore on Android 10+; storage permission once on 9 and older), and is read back through the native file picker. |
-| **Stats & progress** (`/stats`, `ready`) | The current run of days, the best one, and every day counted; passages read; daily word puzzles solved; flashcards recited; passages starred; minutes studied today against the goal, and the days it was met. |
+| **Streak** (`/streak`, `ready`) | The run and a horizontal strip of the days that counted (gold) and the days a freeze kept (the buttons' blue) in one card, with the number and flame above it; the strip is paged with arrows or a swipe, today is the square outlined in the streak's own gold, the freeze card below it leads with the cubes and a `1/2 Freezes` badge, and its *Refill* button — shown only while a slot is empty — opens the refill sheet — “Keep your streak safe!”, or “You are protected!” when both are in hand — with a stepper choosing how many at 200 each or 375 for the pair, a shortfall line that links to the shop, and nothing charged until *Refill* is pressed. In the playful style the card catches a slow orange reflection while today is in. |
+| **Shop** (`/shop`, `ready`) | Gospel Focus Plus at the top — every feature unlocked and 400 gems a month, with *Learn More* opening a sheet that says what it includes and that subscriptions are not on sale yet — then the freezes at the streak sheet's own prices (200, or 375 for the pair) bought straight from a row, and gem packs at $1.99/$4.99/$9.99 (the larger two showing their old price struck through) until checkout exists. Reached from the streak sheet's shortfall line and from the menu. |
+| **Stats & progress** (`/stats`, `ready`) | The current run of days, the best one, and every day counted; passages read; daily word puzzles solved; flashcards recited; passages starred; minutes studied today against the goal, and the days it was met. The streak tile opens `/streak`, where the run's strip now lives. |
 | **Settings** (`/settings`, `ready`) | Daily: the study goal (its one home — the stats page links here), the streak's own readout, the daily reminder and its hour, and the widget row that says the widget is not built. Then theme (light / dark / follow the system) and, separately, style (focused / playful — the playful style swaps the illustrative glyphs for emoji, keeps the menu, arrows, return/backspace keys and close cross drawn, and gives cards and buttons a raised 3D look), reduce motion (which skips the riffle), and the favorites backup. |
 
 ### Games

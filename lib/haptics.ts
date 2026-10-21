@@ -31,6 +31,45 @@ async function impact(style: ImpactStyle): Promise<void> {
   }
 }
 
+/** Whether iOS's selection generator has been prepared for this session. */
+let selectionOpen = false;
+
+/**
+ * The softest tick there is: the detent a picker makes as it slides past a row.
+ *
+ * The plugin has three impacts and the lightest of them — LIGHT — is still a
+ * tap: iOS plays it from `UIImpactFeedbackGenerator`, which is meant to be
+ * audible as an impact, and a bar of buttons that all say that is a bar that
+ * rattles. The selection generator is the one the system keeps for a value
+ * going by, and it is the quietest thing a phone will do on purpose.
+ *
+ * Android has no such distinction in the plugin: its selection waveform is a
+ * tenth of a second at a low amplitude, which reads as a short hum rather than
+ * as a tick, and a press would feel longer than it did before rather than
+ * softer. So the lightest impact stays there, which is already the shortest
+ * pulse the plugin offers and quieter than anything above it.
+ */
+async function soft(): Promise<void> {
+  if (!enabled()) return;
+  try {
+    if (Capacitor.getPlatform() !== "ios") {
+      await Haptics.impact({ style: ImpactStyle.Light });
+      return;
+    }
+    // iOS plays a selection tick from a generator that has been prepared
+    // ahead of the tap. One is prepared on the first press and left ready:
+    // building one per press would pay for the engine on every button, and the
+    // generator prepares itself again after each tick anyway.
+    if (!selectionOpen) {
+      selectionOpen = true;
+      await Haptics.selectionStart();
+    }
+    await Haptics.selectionChanged();
+  } catch {
+    // No vibrator, or haptics unavailable — nothing to do.
+  }
+}
+
 /** One continuous buzz, in milliseconds — the plugin's one measured pulse. */
 async function buzz(ms: number): Promise<void> {
   if (!enabled()) return;
@@ -108,14 +147,14 @@ export async function tapPageTurn(): Promise<void> {
 /**
  * The section mark coming away from the link it was on.
  *
- * One tick, the same weight as a page turning over, at the moment the highlight
+ * One soft tick, the same weight as a press, at the moment the highlight
  * lets go of the words it has been under and starts across the bar. The bar's
  * mark holds its trailing edge for a moment before it snaps across
  * (components/nav-bar.tsx), and that moment is the whole gesture's beat — a
  * finger feels it land even when the eye is on the page that is moving.
  */
 export async function tapSectionSnap(): Promise<void> {
-  await impact(ImpactStyle.Light);
+  await soft();
 }
 
 /** The book coming to rest on the drawn passage. */
@@ -126,13 +165,14 @@ export async function tapBookLanded(): Promise<void> {
 /**
  * A press that lands: every button and link in the app.
  *
- * The same tick a page turn gets, because it is the same thing — a finger
- * touches a thing and the thing answers. It is put here rather than in each
- * control so that a button added tomorrow has a feel without being told to
- * (components/press-feedback.tsx keeps the one listener).
+ * The softest tick the device has, because a page of controls that each knock
+ * is a page that rattles: the answer to a button is acknowledgement, not an
+ * event. It is put here rather than in each control so that a button added
+ * tomorrow has a feel without being told to (components/press-feedback.tsx
+ * keeps the one listener).
  */
 export async function tapControl(): Promise<void> {
-  await impact(ImpactStyle.Light);
+  await soft();
 }
 
 /**
@@ -166,42 +206,68 @@ export async function tapDirectionChange(): Promise<void> {
 export const CROSS_OUT_MS = 400;
 
 /**
- * A word found: the pen starting across it, and one bump where it lands.
+ * The three pulses every scored pattern is written from, and the space each one
+ * leaves behind it.
  *
- * The long buzz is the stroke being drawn and the bump is its far end, so the
- * two together cover the cross-out's own animation rather than playing over
- * it — the hand finishes exactly when the line does.
+ * `S` is a short: one impact at the lightest weight. `M` is the same kind of
+ * tap one step heavier, for the one beat in a tune that lands. `L` is a long: a
+ * single continuous buzz. A pattern is written as the run of them it plays —
+ * "LSM" — rather than as a table of absolute times, because a tune laid out as
+ * offsets is nearly impossible to check by eye, and the spacing is the same
+ * arithmetic every time: a tap clears a hand's reaction, and a long has to
+ * finish before the next pulse starts or Android cuts it off part-way.
  */
-export function tapWordFound(): void {
-  pattern([
-    { at: 0, buzz: 220 },
-    { at: 250, style: ImpactStyle.Light },
-  ]);
+const SHORT_GAP_MS = 90;
+const LONG_MS = 200;
+const LONG_GAP_MS = 50;
+
+function beats(score: string): Beat[] {
+  let at = 0;
+  return [...score].map((step) => {
+    if (step === "S" || step === "M") {
+      const beat = { at, style: step === "S" ? ImpactStyle.Light : ImpactStyle.Medium };
+      at += SHORT_GAP_MS;
+      return beat;
+    }
+    const beat = { at, buzz: LONG_MS };
+    at += LONG_MS + LONG_GAP_MS;
+    return beat;
+  });
 }
 
 /**
- * A line that spelled nothing: two quick buzzes, in a row and then gone.
+ * A word found: long, short, medium.
  *
- * Not a scolding — the board drops a wrong line without a mark on it — so the
- * pair is short and the same weight as a letter. It says "that was not one"
- * once and lets the reader keep looking.
+ * The buzz is the pen starting across the word, the tick is its length going
+ * by, and the medium bump is the far end of the stroke landing — a line being
+ * drawn, heard from the near end. It finishes inside the cross-out's own
+ * animation (CROSS_OUT_MS), so a word that ends the board hands over to the
+ * card's fanfare only once its own sound is done.
  */
-export function tapLineMissed(): void {
-  pattern([
-    { at: 0, style: ImpactStyle.Medium },
-    { at: 90, style: ImpactStyle.Medium },
-  ]);
+export function tapWordFound(): void {
+  pattern(beats("LSM"));
 }
 
-/** The six beats of a win, and the two of a near miss — see the cards below. */
-const GREAT_WORK: Beat[] = [
-  { at: 0, style: ImpactStyle.Light },
-  { at: 100, style: ImpactStyle.Light },
-  { at: 210, buzz: 200 },
-  { at: 440, style: ImpactStyle.Light },
-  { at: 540, style: ImpactStyle.Medium },
-  { at: 640, style: ImpactStyle.Light },
-];
+/**
+ * A line that spelled nothing: short, short, short.
+ *
+ * Not a scolding — the board drops a wrong line without a mark on it — so it is
+ * three light taps and no more: the board says "that was not one" and lets the
+ * reader keep looking. Taps rather than hums, so a miss is never mistaken for
+ * the long buzz that starts a find.
+ */
+export function tapLineMissed(): void {
+  pattern(beats("SSS"));
+}
+
+/**
+ * The twelve beats of a win, and the two of a near miss — see the cards below.
+ *
+ * The win is the app's longest tune: short, short, long, short, long, long,
+ * short, long, short, short, long, long. It is deliberately the one pattern
+ * long enough to be recognised before it is over.
+ */
+const GREAT_WORK: Beat[] = beats("SSLSLLSLSSLL");
 
 const NOT_QUITE: Beat[] = [
   { at: 0, style: ImpactStyle.Light },
@@ -209,12 +275,11 @@ const NOT_QUITE: Beat[] = [
 ];
 
 /**
- * The "Great work" card: short, short, long, short, medium, short.
+ * The "Great work" card: the twelve beats of GREAT_WORK.
  *
- * Six beats rather than one because the card is the end of something — a board
+ * Many beats rather than one because the card is the end of something — a board
  * finished, a word found, a verse named — and a single buzz cannot say that.
- * The long beat in the middle is the moment the card arrives; the three after
- * it are the reader's own satisfaction, settling.
+ * The two long beats that close it are the reader's own satisfaction, settling.
  */
 export function tapGreatWork(after = 0): void {
   pattern(GREAT_WORK, after);

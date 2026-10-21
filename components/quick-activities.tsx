@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Glyph, type GlyphName } from "./glyph";
-import { featureById, groupById } from "@/lib/features";
+import { featureById } from "@/lib/features";
 
 /**
  * The hub's launcher: one heading, four square tiles, one tap each.
@@ -75,19 +75,17 @@ function fromFeature(id: string, label: string, icon: GlyphName): Tile {
 }
 
 const TILES: Tile[] = [
-  fromFeature("picker", "Random Verse", "sparkles"),
+  // The open book, which is the same mark the catalog gives this page and the
+  // one /study leads with: the tile opens a passage, so it wears the book rather
+  // than the sparkle that used to stand for "something new".
+  fromFeature("picker", "Random Verse", "book"),
   fromFeature("memorize", "Memorize", "cards"),
   fromFeature("journal", "Journal", "journal"),
-  // The one tile that leads to a section rather than a page. Play is five
-  // games, so the tile opens the games hub, which lists them — the same
-  // destination as the bottom bar's own Games tab.
-  {
-    href: groupById("games")?.hubHref ?? "/games",
-    label: "Play",
-    icon: "puzzle",
-    hint: "Games",
-    soon: false,
-  },
+  // The one game worth a door of its own: the daily puzzle is the reason to
+  // open the app on a day with no time to read, so it takes the fourth square
+  // rather than sitting one tap deeper in the games hub. The other games are
+  // still there, behind the Games tab.
+  fromFeature("wordle", "Daily Puzzle", "word"),
 ];
 
 /** The heading's id, which is also what the section is labelled by. */

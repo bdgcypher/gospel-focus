@@ -25,7 +25,12 @@ export type GlyphName =
   | "return"
   | "backspace"
   | "gem"
-  | "help";
+  | "ice"
+  | "help"
+  // Not a feature's icon any more — the shelf wears a bookmark — but the decks
+  // sheet still marks its "Soon" row with it, where the star means "featured"
+  // rather than "saved".
+  | "star";
 
 interface Props {
   name: GlyphName;
@@ -41,6 +46,15 @@ interface Props {
    * this is for the handful of places that need the same crisp mark in both.
    */
   plain?: boolean;
+  /**
+   * Take the emoji face even inside a control.
+   *
+   * Controls keep their drawing by default (see app/globals.css), because a
+   * picture beside a label reads as decoration. A mark that is the *product*
+   * rather than a label — the gem on a shop card — is not decorating anything,
+   * so it may ask for the playful styles' picture anyway.
+   */
+  emoji?: boolean;
 }
 
 /**
@@ -67,11 +81,11 @@ interface Props {
  * surrounding text happens to be in — the same glyph can sit in an 11px tab
  * label and a 56px tile and come out the right size in both.
  */
-export function Glyph({ name, className = "h-5 w-5", plain = false }: Props) {
+export function Glyph({ name, className = "h-5 w-5", plain = false, emoji: forceEmoji = false }: Props) {
   const emoji = plain ? null : EMOJI[name];
   return (
     <span
-      className={`glyph inline-flex shrink-0 items-center justify-center ${emoji ? "glyph-has-emoji" : ""} ${className}`}
+      className={`glyph inline-flex shrink-0 items-center justify-center ${emoji ? "glyph-has-emoji" : ""} ${emoji && forceEmoji ? "glyph-force-emoji" : ""} ${className}`}
     >
       <svg
         viewBox="0 0 24 24"
@@ -129,8 +143,12 @@ const EMOJI: Record<GlyphName, string | null> = {
   palette: "🎨",
   lock: "🔒",
   "lock-open": "🔓",
-  journal: "📓",
+  journal: "📔",
   widget: "📱",
+  // The shelf's own mark. The star stays for the one place that means
+  // "featured" rather than "saved" (the ready-made decks in the memorize
+  // sheet), so a reader never sees the same picture for two different things.
+  bookmark: "🔖",
   star: "⭐",
   chart: "📊",
   gear: "⚙️",
@@ -156,6 +174,10 @@ const EMOJI: Record<GlyphName, string | null> = {
   close: null,
   trash: "🗑️",
   gem: "💎",
+  // A streak freeze: the ice cube the shop, the status chip, and the buy badge
+  // all use for it. The drawn face is the same cube, so the focused skin says
+  // "frozen" without reaching for a coloured picture.
+  ice: "🧊",
   help: "💡",
 };
 
@@ -320,6 +342,12 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M12 18.4h.01" />
     </>
   ),
+  // The shelf's mark: the ribbon a reader puts in the place they want to come
+  // back to. It pairs with components/bookmark-icon.tsx, which is the same
+  // drawing writ large — and fillable — for the controls that keep a passage.
+  bookmark: (
+    <path d="M6.75 4.6A1.6 1.6 0 0 1 8.35 3h7.3a1.6 1.6 0 0 1 1.6 1.6V21l-5.25-3.65L6.75 21V4.6Z" />
+  ),
   star: (
     <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
   ),
@@ -339,8 +367,18 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.6a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4Z" />
     </>
   ),
+  // The streak's flame, from System UIcons' "flame-alt" (Corey Ginnivan,
+  // Unlicense — public domain, so nothing to attribute or carry a notice for).
+  // The set draws on a 21-unit grid; the group lifts it onto the house's 24
+  // and the path's stroke is divided by the same factor, so the line stays as
+  // heavy as every other glyph rather than growing with the scale.
   flame: (
-    <path d="M12 3.2c.6 2.6-.6 4.1-2 5.6-1.5 1.6-3 3.2-3 6a5 5 0 0 0 10 0c0-1.4-.5-2.6-1.2-3.6-.5 1-1.2 1.6-2.1 1.9.6-2.1.2-4-.6-5.3-.7-1.2-1.5-2.2-1.1-4.6Z" />
+    <g transform="scale(1.142857)">
+      <path
+        d="M10.5 3Q16 8 16 12.286c0 3.078-1.27 5.198-3.111 6.148c.23-.491.361-1.092.361-1.791q0-2.143-2.75-4.643q-2.75 2.5-2.75 4.643c0 .7.131 1.3.36 1.791c-1.84-.95-3.11-3.07-3.11-6.148Q5 8 10.5 3"
+        strokeWidth={1.575}
+      />
+    </g>
   ),
   calendar: (
     <>
@@ -443,13 +481,27 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
     </>
   ),
   // A gem, for the wallet in the app bar (components/status-tray.tsx): a
-  // brilliant-cut stone with a flat table, a girdle at its widest point and a
-  // point below. The girdle and the two crown facets are what make it read as
-  // a cut stone rather than a plain diamond once the chip draws it at 16px.
+  // brilliant-cut stone rather than a plain diamond. The flat table sits above
+  // the girdle at its widest point, the crown is split into its table facets,
+  // and the pavilion closes to a single point below — the facet lines are what
+  // make it read as a cut stone at chip size.
   gem: (
     <>
-      <path d="M7 4.2h10l4 5-9 11.2L3 9.2Z" />
-      <path d="M3 9.2h18M7 4.2l5 5 5-5" />
+      <path d="M7.4 3.4h9.2l4.9 5.6L12 20.7 2.5 9Z" />
+      <path d="M2.5 9h19" />
+      <path d="M7.4 3.4 6.1 9M16.6 3.4 17.9 9" />
+      <path d="M6.1 9 12 20.7M17.9 9 12 20.7" />
+    </>
+  ),
+  // The freeze's mark: a snowflake, drawn here rather than borrowed. Three
+  // axes with a chevron on each arm is the ordinary way to draw one — the
+  // shape has no author to credit — so the set keeps no licence obligations at
+  // all, and the arms sit inside the 24-unit box with room for the stroke.
+  ice: (
+    <>
+      <path d="M12 2.5v19M2.5 12h19" />
+      <path d="M19.7 15.5 15.6 12l4.1-3.5M4.3 8.5 8.4 12l-4.1 3.5" />
+      <path d="M15.5 4.3 12 8.4 8.5 4.3M8.5 19.7 12 15.6l3.5 4.1" />
     </>
   ),
   // A question mark in a ring, for the hint control that opens the hint sheet

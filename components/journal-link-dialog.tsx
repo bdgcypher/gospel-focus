@@ -41,9 +41,10 @@ const LIMIT = 8;
 /** How many characters of passage search are worth running the index for. */
 const MIN_QUERY = 2;
 
-const SOURCES: { id: LinkSource; label: string; icon: "book" | "star" | "journal" }[] = [
+const SOURCES: { id: LinkSource; label: string; icon: "book" | "bookmark" | "journal" }[] = [
   { id: "passages", label: "Passages", icon: "book" },
-  { id: "notes", label: "Notes", icon: "star" },
+  // Notes are written on saved passages, so the shelf's mark is theirs too.
+  { id: "notes", label: "Notes", icon: "bookmark" },
   { id: "entries", label: "Journal", icon: "journal" },
 ];
 

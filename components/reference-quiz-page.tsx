@@ -22,6 +22,20 @@ import type { Manifest, Passage } from "@/lib/types";
 
 /** The four parts of a reference, in the order the hints give them away. */
 const PARTS = ["volume", "book", "chapter", "verse"] as const;
+
+/**
+ * The volumes in the order a reader meets them, not the order the library was
+ * built: the Bible first, front to back, then the books restored later. The
+ * manifest is a lookup, not a reading order, so the dropdown sorts by this —
+ * which is also the order the hint walks the canon in.
+ */
+const VOLUME_ORDER = ["ot", "nt", "bom", "dc", "pgp"];
+
+/** Where a volume sits in that order; anything unknown goes last. */
+function canonRank(id: string): number {
+  const index = VOLUME_ORDER.indexOf(id);
+  return index === -1 ? VOLUME_ORDER.length : index;
+}
 type Part = (typeof PARTS)[number];
 
 const LABELS: Record<Part, string> = {
@@ -258,10 +272,14 @@ export function ReferenceQuizPage() {
     setResultOpen(true);
   };
 
-  const volumeOptions = (manifest?.volumes ?? []).map((v) => ({
-    value: v.id,
-    label: v.title,
-  }));
+  // Sorted on a copy: the manifest is shared, and the dropdown's order is the
+  // page's opinion rather than a fact about the library.
+  const volumeOptions = [...(manifest?.volumes ?? [])]
+    .sort((a, b) => canonRank(a.id) - canonRank(b.id))
+    .map((v) => ({
+      value: v.id,
+      label: v.title,
+    }));
   const bookOptions = withValue(
     (volume?.books ?? []).map((b) => ({ value: b.name, label: b.name })),
     book,

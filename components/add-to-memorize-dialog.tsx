@@ -492,7 +492,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                         onClick={() => setFavoritesOpen((open) => !open)}
                         className={QUIET}
                       >
-                        <Glyph name="star" className="h-4 w-4" />
+                        <Glyph name="bookmark" className="h-4 w-4" />
                         From favorites
                         {availableFavorites.length > 0 && (
                           <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-accent-strong">
@@ -506,12 +506,12 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                       <div className="mt-3 border-t border-border/70 pt-3">
                         {favorites.length === 0 ? (
                           <p className="text-sm text-muted">
-                            You haven’t starred anything yet. Tap the star on a passage while you are
-                            reading and it will wait here.
+                            You haven’t bookmarked anything yet. Tap the bookmark on a passage while
+                            you are reading and it will wait here.
                           </p>
                         ) : availableFavorites.length === 0 ? (
                           <p className="text-sm text-muted">
-                            Every passage you have starred is already on a card.
+                            Every passage you have bookmarked is already on a card.
                           </p>
                         ) : (
                           <ul className="space-y-1.5">

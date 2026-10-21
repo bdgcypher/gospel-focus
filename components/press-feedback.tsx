@@ -22,14 +22,23 @@ import { tapControl } from "@/lib/haptics";
  * Only touch and pen begin a press here. A mouse already has `:active`, and
  * writing the attribute for it would double the state rather than add one.
  *
- * A press is also the moment the app's haptics fire (lib/haptics.ts): one light
- * tick under the finger, on whatever control took it. That is here rather than
- * in each control for the same reason the attribute is — one listener knows
- * every button and link there is, including the ones written after this file.
- * The exception is a control that plays its own rhythm, which says so with
- * `data-haptic="own"`: the word-search board ticks letter by letter as the
- * finger runs across it, and a tick from the press as well would double the
- * first letter (see components/word-search-page.tsx).
+ * The *tick* is the other half of this, and it is deliberately a different
+ * moment (lib/haptics.ts): one soft tick when the control is activated, not when
+ * it is touched. A finger goes down on a button on its way to somewhere else all
+ * the time — the first touch of a scroll, a page swipe started well inside the
+ * bar — and a buzz there says "you pressed this" about a press the reader never
+ * made and the browser never completed. A `click` only arrives when the gesture
+ * really was a press on that control: sliding off it, scrolling with it, or
+ * dragging the page by it all cancel it. So the look answers the finger straight
+ * away (the attribute) and the tick answers the activation — and a control
+ * activated from a keyboard ticks too, because that is a press that landed.
+ *
+ * It is here rather than in each control for the same reason the attribute is —
+ * one listener knows every button and link there is, including the ones written
+ * after this file. The exception is a control that plays its own rhythm, which
+ * says so with `data-haptic="own"`: the bottom bar's links tick when their mark
+ * comes away (components/nav-bar.tsx), and the word-search board ticks letter by
+ * letter as the finger runs across it (components/word-search-page.tsx).
  */
 const CONTROL = "button, a[href], [role='button']";
 
@@ -58,7 +67,13 @@ export function PressFeedback() {
       held = controlAt(event.target);
       if (!held) return;
       held.dataset.pressed = "true";
-      if (!held.closest("[data-haptic='own']")) void tapControl();
+    };
+
+    const onClick = (event: MouseEvent) => {
+      const control = controlAt(event.target);
+      if (!control) return;
+      if (control.closest("[data-haptic='own']")) return;
+      void tapControl();
     };
 
     // `pointerup` can arrive on another element when the finger has slid off,
@@ -67,6 +82,7 @@ export function PressFeedback() {
     document.addEventListener("pointerdown", onDown, { passive: true });
     document.addEventListener("pointerup", release, { passive: true });
     document.addEventListener("pointercancel", release, { passive: true });
+    document.addEventListener("click", onClick);
     window.addEventListener("blur", release);
 
     return () => {
@@ -74,6 +90,7 @@ export function PressFeedback() {
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("pointerup", release);
       document.removeEventListener("pointercancel", release);
+      document.removeEventListener("click", onClick);
       window.removeEventListener("blur", release);
     };
   }, []);

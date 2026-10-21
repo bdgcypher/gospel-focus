@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -53,12 +52,31 @@ import {
  * drag, and focused cells answer to Enter.
  *
  * A finger is answered as it goes (lib/haptics.ts): a tick for each letter the
- * line reaches, a firmer one when it turns onto another line, two quick buzzes
- * for a line that spelled nothing, and the long stroke of the pen when one
- * does — for as long as the cross-out takes to draw. The board plays these
+ * line reaches, a firmer one when it turns onto another line, three short taps
+ * for a line that spelled nothing, and the stroke of the pen when one does.
+ * The board plays these
  * itself, and says so with `data-haptic="own"`, so the app's one press tick does
  * not double the first letter.
+ *
+ * No grid is drawn on the board at all: the letters sit on the card's own
+ * surface, and the only lines are the ones the reader makes. A line being
+ * drawn is a highlighter stroke — one rounded bar laid along the cells under
+ * the finger — and a word found keeps its bar, with the pen's strike through it
+ * at the end. Over the board, a pill appears while a line is being chosen and
+ * says what it spells: gold while it is being chosen, then green or red for its
+ * verdict before it goes away again.
  */
+
+/** How long a wrong line stays lit, in the highlighter and in the readout. */
+const MISS_MS = 480;
+
+/**
+ * How long a found word stays green above the board. Longer than the cross-out
+ * itself (CROSS_OUT_MS), so the word can be read there once its line has been
+ * drawn rather than only while the pen is moving.
+ */
+const FOUND_MS = 900;
+
 export function WordSearchPage() {
   const preferences = usePreferences();
   const [puzzle, setPuzzle] = useState<WordSearchPuzzle | null>(null);
@@ -74,8 +92,19 @@ export function WordSearchPage() {
   const [announcement, setAnnouncement] = useState("");
   /** The finish card the reader has already closed, so it stays closed. */
   const [resultDismissed, setResultDismissed] = useState(false);
-  /** The cells of a selection that spelled nothing, lit red for a moment. */
-  const [miss, setMiss] = useState<Set<CellIndex>>(new Set());
+  /**
+   * The line just judged, and what it was judged to be, kept a moment so the
+   * pill above the board can show it in green or red and the wrong ones can be
+   * struck through in red. The path comes along so the highlighter can follow
+   * it; `id` counts up because the same line judged twice — a word traced and
+   * then traced again — should still replay its animation.
+   */
+  const [verdict, setVerdict] = useState<{
+    letters: string;
+    outcome: "correct" | "incorrect";
+    path: CellIndex[];
+    id: number;
+  } | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   /** Where every cell's centre sits inside the board, for the found-word lines. */
@@ -99,7 +128,7 @@ export function WordSearchPage() {
   /** Guards against a slow draw landing after a newer one has started. */
   const run = useRef(0);
   const noticeTimer = useRef<number | undefined>(undefined);
-  const missTimer = useRef<number | undefined>(undefined);
+  const verdictTimer = useRef<number | undefined>(undefined);
 
   const flash = useCallback((text: string) => {
     setNotice(text);
@@ -107,10 +136,37 @@ export function WordSearchPage() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 2200);
   }, []);
 
+  /**
+   * Hold a judged line above the board for a moment, then let it go.
+   *
+   * The readout is where a line is read while it is being drawn; a verdict
+   * belongs in the same place, said in the verdict's colour, and then taken
+   * back so the next line starts from an empty readout rather than on top of
+   * the last one's answer.
+   */
+  const showVerdict = useCallback(
+    (
+      letters: string,
+      outcome: "correct" | "incorrect",
+      path: CellIndex[],
+      ms: number
+    ) => {
+      setVerdict((current) => ({
+        letters,
+        outcome,
+        path,
+        id: (current?.id ?? 0) + 1,
+      }));
+      window.clearTimeout(verdictTimer.current);
+      verdictTimer.current = window.setTimeout(() => setVerdict(null), ms);
+    },
+    []
+  );
+
   useEffect(
     () => () => {
       window.clearTimeout(noticeTimer.current);
-      window.clearTimeout(missTimer.current);
+      window.clearTimeout(verdictTimer.current);
     },
     []
   );
@@ -135,7 +191,8 @@ export function WordSearchPage() {
       setSelection([]);
       setError(null);
       setResultDismissed(false);
-      setMiss(new Set());
+      setVerdict(null);
+      window.clearTimeout(verdictTimer.current);
       setAnnouncement(`${next.words.length} words to find in ${next.reference}.`);
     } catch (cause) {
       if (run.current !== current) return;
@@ -162,7 +219,8 @@ export function WordSearchPage() {
     setFoundPaths(new Map());
     setSelection([]);
     setResultDismissed(false);
-    setMiss(new Set());
+    setVerdict(null);
+    window.clearTimeout(verdictTimer.current);
     setChapterOpen(false);
     anchor.current = null;
     void load();
@@ -178,6 +236,30 @@ export function WordSearchPage() {
 
   const size = puzzle?.size ?? 0;
 
+  /**
+   * What the readout above the board says, and in which colour.
+   *
+   * A finger dragging across the board covers the very letters it is reading,
+   * so the line is echoed above it: the letters as they are chosen (gold), and
+   * then the answer to them for a moment (green or red). A live selection wins
+   * over a verdict that has not yet expired — the reader has moved on — and an
+   * empty readout means neither is happening.
+   */
+  const selecting = selection.length > 0;
+  const stage: "idle" | "selecting" | "correct" | "incorrect" = selecting
+    ? "selecting"
+    : (verdict?.outcome ?? "idle");
+  const letters = selecting
+    ? selection.map((cell) => puzzle?.grid[cell] ?? "").join("")
+    : (verdict?.letters ?? "");
+  /** The highlighter along the line under the finger, in board coordinates. */
+  const selectionBand = geometry ? bandFor(geometry.centres, geometry.cell, selection) : null;
+  /** The red bar a wrong line is shown with, until its verdict expires. */
+  const missBand =
+    geometry && verdict?.outcome === "incorrect"
+      ? bandFor(geometry.centres, geometry.cell, verdict.path)
+      : null;
+
   /** The cell under a pointer, if the pointer is over one. */
   const cellFrom = (target: EventTarget | null): CellIndex | null => {
     if (!(target instanceof Element)) return null;
@@ -186,12 +268,6 @@ export function WordSearchPage() {
     const index = Number(cell.dataset.cell);
     return Number.isInteger(index) ? index : null;
   };
-
-  const foundCells = useMemo(() => {
-    const cells = new Set<CellIndex>();
-    for (const path of foundPaths.values()) for (const cell of path) cells.add(cell);
-    return cells;
-  }, [foundPaths]);
 
   /**
    * Measure the board so the found-word lines can be drawn across it.
@@ -248,10 +324,15 @@ export function WordSearchPage() {
         return;
       }
       const hit = wordAt(puzzle.grid, puzzle.words, path);
+      // The letters as they were traced, not the word's spelling: a word can
+      // be drawn from its last letter to its first, and the readout is about
+      // the line the reader made, not about the list entry it matched.
+      const letters = path.map((cell) => puzzle.grid[cell]).join("");
       if (hit && !found.has(hit.word)) {
         const next = new Set(found).add(hit.word);
         setFound(next);
         setFoundPaths((current) => new Map(current).set(hit.word, path));
+        showVerdict(letters, "correct", path, FOUND_MS);
         tapWordFound();
         setAnnouncement(
           next.size === puzzle.words.length
@@ -262,19 +343,18 @@ export function WordSearchPage() {
       } else if (hit) {
         flash("Already found.");
       } else {
-        // A wrong line is shown, not just said: the cells the reader dragged
-        // light red for a moment, which is feedback where their eyes already
-        // are. The notice under the board says it too, for anyone not looking
-        // at the grid — and for a screen reader, which cannot see a flash.
+        // A wrong line is shown, not just said: the highlighter and the pill
+        // both turn red for a moment, which is feedback where the reader's
+        // eyes already are. The notice under the board says it too, for anyone
+        // not looking at the grid — and for a screen reader, which cannot see
+        // a flash.
         flash("No word there — keep looking.");
         tapLineMissed();
-        setMiss(new Set(path));
-        window.clearTimeout(missTimer.current);
-        missTimer.current = window.setTimeout(() => setMiss(new Set()), 480);
+        showVerdict(letters, "incorrect", path, MISS_MS);
       }
       setSelection([]);
     },
-    [flash, found, puzzle]
+    [flash, found, puzzle, showVerdict]
   );
 
   const onPointerDown = useCallback(
@@ -285,7 +365,6 @@ export function WordSearchPage() {
       dragging.current = true;
       anchor.current = index;
       drag.current = { direction: null, cells: [index] };
-      setMiss(new Set());
       setSelection([index]);
       void tapLetter();
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -433,9 +512,68 @@ export function WordSearchPage() {
               </p>
             )}
 
+            {/* The pill over the board: what the line being drawn spells, in
+                the colour of where that line stands — gold while it is being
+                chosen, green for a word, red for a line that was not one. It
+                is not there at all between lines, and goes away again once its
+                verdict has been said: a miss shakes it, a find swells it, and
+                then it leaves. The wrapper keeps the pill's height whether or
+                not it is showing, so the board below never jumps. Hidden from a
+                screen reader, which is given the same verdict in words by the
+                status line under the board and the notice it raises. */}
+            {puzzle && (
+              <div className="relative mt-3 flex h-9 items-center justify-center" aria-hidden="true">
+                <AnimatePresence>
+                  {(selecting || verdict) && (
+                    <motion.div
+                      key="readout"
+                      initial={{ opacity: 0, y: 4, scale: 0.85 }}
+                      animate={
+                        stage === "correct"
+                          ? { opacity: 1, y: 0, scale: [1, 1.2, 0.96, 1.06, 1], x: 0 }
+                          : stage === "incorrect"
+                            ? { opacity: 1, y: 0, scale: 1, x: [0, -7, 7, -4, 4, 0] }
+                            : { opacity: 1, y: 0, scale: 1, x: 0 }
+                      }
+                      // The way out has its own, short transition: a pill
+                      // leaving after a verdict should go quietly, not spend
+                      // the shake's half-second fading.
+                      exit={{
+                        opacity: 0,
+                        y: 4,
+                        scale: 0.85,
+                        transition: { duration: preferences.reduceMotion ? 0 : 0.18, ease: "easeOut" },
+                      }}
+                      transition={
+                        preferences.reduceMotion
+                          ? { duration: 0 }
+                          : stage === "correct"
+                            ? { duration: 0.5, ease: "easeOut" }
+                            : stage === "incorrect"
+                              ? { duration: 0.45, ease: "easeInOut" }
+                              : { duration: 0.16, ease: "easeOut" }
+                      }
+                      className={`flex h-9 items-center justify-center rounded-full border px-4 font-mono text-sm font-semibold uppercase tracking-[0.25em] shadow-sm ${
+                        stage === "correct"
+                          ? "border-correct/50 bg-correct/15 text-correct-text"
+                          : stage === "incorrect"
+                            ? "border-wrong/50 bg-wrong/15 text-loss-ink"
+                            : "border-accent/50 bg-accent/15 text-accent-strong"
+                      }`}
+                    >
+                      {letters}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* The board. `touch-none` keeps a drag across the letters from
                 scrolling the page under the thumb, which is the one thing a
-                drag-to-select grid cannot have. */}
+                drag-to-select grid cannot have. There are no rules on it: the
+                letters sit on the card's own surface, and every line the reader
+                sees is one they made — a highlighter stroke under the letters
+                they are on, and a struck-through bar for a word found. */}
             <div
               ref={gridRef}
               // The board answers a finger letter by letter, so the app's one
@@ -447,36 +585,52 @@ export function WordSearchPage() {
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
-              className="relative mt-4 grid touch-none select-none gap-1 rounded-3xl border border-border bg-surface p-2 sm:gap-1.5 sm:p-3"
+              className="relative mt-1 grid touch-none select-none gap-0 rounded-3xl border border-border bg-surface p-2 sm:p-3"
               style={{ gridTemplateColumns: `repeat(${size || 1}, minmax(0, 1fr))` }}
             >
-              {puzzle?.grid.map((letter, index) => {
-                const inLine = selection.includes(index);
-                const isFound = foundCells.has(index);
-                const isMiss = miss.has(index);
-                return (
-                  <button
-                    key={index}
-                    type="button"
-                    data-cell={index}
-                    onKeyDown={(event) => onCellKey(index, event)}
-                    aria-label={`Row ${Math.floor(index / puzzle.size) + 1}, column ${
-                      (index % puzzle.size) + 1
-                    }: ${letter}`}
-                    className={`grid aspect-square place-items-center rounded-md border text-[13px] font-semibold uppercase transition-colors sm:rounded-lg sm:text-base ${
-                      inLine
-                        ? "border-accent bg-accent/25 text-accent-strong"
-                        : isFound
-                          ? "border-correct/60 bg-correct/20 text-correct-text"
-                          : isMiss
-                            ? "border-wrong bg-wrong/20 text-wrong"
-                            : "border-border bg-surface text-foreground"
-                    }`}
-                  >
-                    {letter}
-                  </button>
-                );
-              })}
+              {/* The highlighters, under the letters. First in the board, so
+                  the letters are painted over them: the bars tint the paper and
+                  leave the type its own colour. A miss is drawn in red here
+                  too, on the same path, for as long as its pill is up. */}
+              {geometry && (
+                <svg
+                  aria-hidden="true"
+                  width={geometry.width}
+                  height={geometry.height}
+                  className="pointer-events-none absolute inset-0"
+                >
+                  {[...foundPaths].map(([word, path]) => {
+                    const band = bandFor(geometry.centres, geometry.cell, path);
+                    return band ? (
+                      <Highlighter
+                        key={word}
+                        band={band}
+                        className="fill-correct/25"
+                        fade={!preferences.reduceMotion}
+                      />
+                    ) : null;
+                  })}
+                  {missBand && <Highlighter band={missBand} className="fill-wrong/25" />}
+                  {selectionBand && (
+                    <Highlighter band={selectionBand} className="fill-accent/30" />
+                  )}
+                </svg>
+              )}
+
+              {puzzle?.grid.map((letter, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  data-cell={index}
+                  onKeyDown={(event) => onCellKey(index, event)}
+                  aria-label={`Row ${Math.floor(index / puzzle.size) + 1}, column ${
+                    (index % puzzle.size) + 1
+                  }: ${letter}`}
+                  className="grid aspect-square place-items-center text-[13px] font-semibold uppercase text-foreground sm:text-base"
+                >
+                  {letter}
+                </button>
+              ))}
 
               {/* The word just found, crossed out with one stroke drawn from its
                   first letter to its last. Over the cells and deaf to
@@ -689,6 +843,80 @@ function SolvedDialog({
       </div>
     </div>,
     document.body
+  );
+}
+
+/** One highlighter stroke, in the board overlay's own coordinates. */
+interface Band {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle: number;
+}
+
+/**
+ * The bar that lies along a run of cells.
+ *
+ * Its axis is the line between the first and last letters' centres, so a
+ * diagonal lies on the diagonal; it is lengthened by most of a cell at each end
+ * and rounded to half its own thickness, which is a highlighter coming to rest
+ * just past the word rather than a box drawn from corner to corner. It is
+ * narrower than a cell, so the rows above and below it are left untouched, and
+ * a single tapped letter still gets a dab of its own.
+ */
+function bandFor(
+  centres: Map<number, { x: number; y: number }>,
+  cell: number,
+  path: CellIndex[]
+): Band | null {
+  const start = centres.get(path[0]);
+  const end = centres.get(path[path.length - 1]);
+  if (!start || !end) return null;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  return {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2,
+    width: Math.hypot(dx, dy) + cell * 0.9,
+    height: cell * 0.74,
+    angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+  };
+}
+
+/**
+ * One bar laid on the board.
+ *
+ * `fade` is for a word just found: the bar is painted in over the same stretch
+ * of time as its strike, so the highlight arrives with the pen instead of
+ * snapping on ahead of it.
+ */
+function Highlighter({
+  band,
+  className,
+  fade = false,
+}: {
+  band: Band;
+  className: string;
+  fade?: boolean;
+}) {
+  const shape = {
+    x: band.x - band.width / 2,
+    y: band.y - band.height / 2,
+    width: band.width,
+    height: band.height,
+    rx: band.height / 2,
+    transform: `rotate(${band.angle} ${band.x} ${band.y})`,
+    className,
+  };
+  if (!fade) return <rect {...shape} />;
+  return (
+    <motion.rect
+      {...shape}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CROSS_OUT_MS / 1000, ease: "easeOut" }}
+    />
   );
 }
 

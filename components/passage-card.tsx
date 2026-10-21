@@ -1,10 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import type { Passage } from "@/lib/types";
 import { isNative, openExternal } from "@/lib/external";
+import { BookmarkIcon } from "./bookmark-icon";
 import { Glyph } from "./glyph";
 import { NoteDialog } from "./note-dialog";
 import { SaveToMemorizeDialog } from "./save-to-memorize-dialog";
@@ -41,8 +49,6 @@ export function PassageCard({ passage, drawKey }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   /** The card's own share button, watched to know when it has been scrolled past. */
   const shareRef = useRef<HTMLButtonElement | null>(null);
-  /** The expanded chapter's own row of controls, which stands in for the bar. */
-  const [sectionControls, setSectionControls] = useState<HTMLElement | null>(null);
 
   const favorites = useFavorites();
   const notes = useNotes();
@@ -57,8 +63,6 @@ export function PassageCard({ passage, drawKey }: Props) {
   const mainVerse = passage.highlightVerse;
   /** Only once the card's own button is out of sight above the reader. */
   const shareScrolledAway = useScrolledPast(shareRef);
-  /** And only while the chapter's own controls are out of sight too. */
-  const sectionControlsOnScreen = useOnScreen(sectionControls);
 
   useEffect(() => {
     if (expanded && highlightRef.current) {
@@ -127,7 +131,7 @@ export function PassageCard({ passage, drawKey }: Props) {
 
   /** What a selection's members are called: verses in scripture, paragraphs in a talk. */
   const unit = isScripture ? "verse" : "paragraph";
-  /** With several verses picked, the star saves them rather than the one passage. */
+  /** With several verses picked, the bookmark saves them rather than the one passage. */
   const starred = selection ? selectionSaved : saved;
   const count = selection?.length ?? 0;
   const starLabel = selection
@@ -176,8 +180,76 @@ export function PassageCard({ passage, drawKey }: Props) {
     expanded && selected.size > 0
       ? `Share ${selected.size} ${selected.size === 1 ? "verse" : "verses"}`
       : "Share image";
-  /** The floating bar is only worth showing when it is the nearer controls. */
-  const showFloatingBar = shareScrolledAway && !sectionControlsOnScreen && !shareOpen;
+  /**
+   * The floating button is only worth showing when it is the nearer controls:
+   * once the card's own row has scrolled away above the reader. It then stays
+   * up for the rest of the card, foot of an open chapter included — the block
+   * down there is one Collapse link, not a set of controls to hand over to.
+   */
+  const showFloatingBar = shareScrolledAway && !shareOpen;
+
+  /**
+   * What the floating button opens: every job this card has, as a mark.
+   *
+   * The card's own controls say these in words, in the body of the card. By the
+   * time this button is up they are behind the reader, scrolled away — the
+   * choices are already known, so the button only has to name them to a screen
+   * reader and draw them for everyone else. Icons rather than a row of labels
+   * because they fan out round the button instead of sitting in a bar: at this
+   * size a word would be wider than an option and the arc would fall apart.
+   *
+   * Saving turns on what is picked, exactly as the bar's Favorite did: the
+   * passage itself, or the whole selection once several verses are chosen.
+   */
+  const floatingActions: FloatingAction[] = [
+    {
+      id: "read",
+      label: expanded ? "Collapse the chapter" : "Read the whole chapter",
+      short: expanded ? "Collapse" : "Read more",
+      icon: expanded ? <CollapseIcon /> : <BookIcon />,
+      onSelect: toggleExpanded,
+    },
+    {
+      // A link rather than a button, so the passage can still be opened in a
+      // new tab on the web — the shell intercepts it where there are no tabs.
+      id: "library",
+      label: passage.urlLabel,
+      short: "Library",
+      icon: <LinkIcon />,
+      href: passage.url,
+    },
+    {
+      id: "favorite",
+      label: starLabel,
+      short: "Favorite",
+      icon: <BookmarkIcon filled={starred} />,
+      onSelect: toggleStar,
+    },
+    {
+      id: "notes",
+      label: note ? "Edit the note" : "Add a note",
+      short: "Notes",
+      icon: <Glyph name="journal" className="h-5 w-5" />,
+      onSelect: () => setNoteOpen(true),
+    },
+    {
+      id: "memorize",
+      label: picked.length > 0 ? `Memorize ${picked.length} ${unit}` : "Add to your memory list",
+      short: "Memorize",
+      icon: <Glyph name="cards" className="h-5 w-5" />,
+      onSelect: () => {
+        setMemorySections(picked);
+        setMemoryOpen(true);
+      },
+    },
+    {
+      id: "share",
+      label: shareLabel,
+      short: "Share",
+      icon: <ShareIcon />,
+      onSelect: () => setShareOpen(true),
+    },
+  ];
 
   /**
    * The bar floats over the page, so the scrolling content is given a matching
@@ -221,23 +293,27 @@ export function PassageCard({ passage, drawKey }: Props) {
             </span>
           </div>
 
+          {/* Two controls, one size. The box is stated rather than grown from
+              the mark inside it: a drawn glyph is an inline box and carries the
+              line's descender space with it, while the bookmark is an svg that
+              does not — so padding alone made the note a rounded rectangle
+              taller than the circle beside it. A grid cell of its own makes
+              both 36px squares, which is what `rounded-full` needs to be a
+              circle. */}
           <div className="flex shrink-0 items-center gap-1">
-            {/* Writing a note stars the passage on the way (see the dialog's
+            {/* Writing a note saves the passage on the way (see the dialog's
                 onSave): a note is kept, and what the app keeps is favorites. */}
             <button
               type="button"
               onClick={() => setNoteOpen(true)}
               aria-label={note ? `Edit the note on ${passage.reference}` : `Add a note to ${passage.reference}`}
               title={note ? "Edit note" : "Add a note"}
-              className={`-mt-1 shrink-0 rounded-full border p-2 transition-colors ${
+              className={`-mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-colors ${
                 note
                   ? "border-accent/50 bg-accent/15 text-accent-strong"
                   : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
               }`}
             >
-              {/* The star beside it is a 20px mark in the same 8px padding, so
-                  this one matches: two controls in a row of the same job should
-                  be the same size. */}
               <Glyph name="journal" className="h-5 w-5" />
             </button>
 
@@ -247,13 +323,13 @@ export function PassageCard({ passage, drawKey }: Props) {
               aria-pressed={starred}
               aria-label={starLabel}
               title={starLabel}
-              className={`-mr-1 -mt-1 shrink-0 rounded-full border p-2 transition-colors ${
+              className={`-mr-1 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-colors ${
                 starred
                   ? "border-accent/50 bg-accent/15 text-accent-strong"
                   : "border-border bg-surface-2 text-muted hover:border-accent/60 hover:text-accent-strong"
               }`}
             >
-              <StarIcon filled={starred} />
+              <BookmarkIcon filled={starred} />
             </button>
           </div>
         </div>
@@ -384,89 +460,35 @@ export function PassageCard({ passage, drawKey }: Props) {
                 })}
               </div>
 
-              {/* These are the bar's three jobs, at the foot of the chapter —
-                  fold it back up, share the selection, or open the passage —
-                  and the bar stands down while this block is on screen (see
-                  showFloatingBar above). */}
-              <div ref={setSectionControls} className="mt-6 flex flex-col gap-2.5">
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                  <button
-                    type="button"
-                    onClick={toggleExpanded}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
-                  >
-                    <CollapseIcon />
-                    Collapse
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShareOpen(true)}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
-                  >
-                    <ShareIcon />
-                    {selected.size > 0 ? `Share ${selected.size} selected` : "Share this passage"}
-                  </button>
-
-                  {/* Saving the picked verses as one card, alongside Share. */}
-                  {selection && (
-                    <button
-                      type="button"
-                      onClick={() => toggleSelectionFavorite(passage, selection)}
-                      aria-pressed={selectionSaved}
-                      className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
-                    >
-                      <StarIcon filled={selectionSaved} />
-                      {selectionSaved ? `Saved ${count} ${unit}s` : `Save ${count} ${unit}s`}
-                    </button>
-                  )}
-
-                  {/* The same picked verses as learning material: a card can
-                      hold a run, so the whole selection becomes one card rather
-                      than a card per verse. */}
-                  {picked.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMemorySections(picked);
-                        setMemoryOpen(true);
-                      }}
-                      className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
-                    >
-                      <Glyph name="cards" className="h-4 w-4" />
-                      Memorize {picked.length} {unit}
-                      {picked.length === 1 ? "" : "s"}
-                    </button>
-                  )}
-                </div>
-
-                {/* self-start: a flex child would otherwise stretch, leaving a
-                    full-width target for the link. */}
-                <a
-                  href={passage.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    if (isNative()) {
-                      e.preventDefault();
-                      void openExternal(passage.url);
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 self-start text-sm font-medium text-accent-strong hover:underline"
-                >
-                  <LinkIcon />
-                  Continue in the Gospel Library
-                </a>
-              </div>
+              {/* One job at the foot of the chapter: fold it back up, which
+                  is only worth repeating here because the button above is a
+                  whole chapter's scroll away. Everything else the bar carries
+                  — share, favorite, memorize, the library link — is left to
+                  the bar, so this block never becomes a second set of
+                  controls that push the bar out of sight. */}
+              <button
+                type="button"
+                onClick={toggleExpanded}
+                className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
+              >
+                <CollapseIcon />
+                Collapse
+              </button>
             </div>
           </motion.section>
         )}
       </AnimatePresence>
 
-      {/* The bar every action lives in once the card's own controls are out of
-          sight: fold the chapter back up, open the passage in the Gospel
-          Library, or share the selection — all without scrolling back.
-          Portalled to the body for the same reason as the dialog below: the
+      {/* Every action this card has, once its own controls are out of sight.
+
+          A bar of four labelled buttons used to sit here. On a phone it was as
+          wide as the passage it floated over and read as a second navigation
+          bar, and every job added to the card made it tighter — notes and
+          memorizing would have been six words across a 390px screen. One gold
+          button is the same target in any width, and the jobs fan out round it
+          as marks when it is open.
+
+          Portalled to the body for the same reason as the dialogs below: the
           card is transformed while it rises into place (and clipped by its own
           overflow), and a fixed element inside it would be pinned to the card
           instead of to the screen. */}
@@ -474,74 +496,11 @@ export function PassageCard({ passage, drawKey }: Props) {
         createPortal(
           <AnimatePresence>
             {showFloatingBar && (
-              <motion.div
-                initial={prefs.reduceMotion ? false : { opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 14 }}
-                transition={{ type: "spring", stiffness: 320, damping: 30, mass: 0.7 }}
-                // Only the bar itself takes taps — the strip it floats in spans
-                // the width of the screen, and the page behind it stays live.
-                className="share-bar pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4"
-              >
-                {/* All four actions live here, however the chapter is drawn:
-                    fold it back up, open it in the Gospel Library, save it to
-                    favorites, or share it. Each is an icon and a single word,
-                    and the tighter gaps plus p-1 are what keep all four on one
-                    line on a phone. */}
-                <div className="pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-xl border border-border bg-surface/95 p-1 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.75)] backdrop-blur">
-                  <button
-                    type="button"
-                    onClick={toggleExpanded}
-                    aria-expanded={expanded}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
-                  >
-                    {expanded ? <CollapseIcon /> : <BookIcon />}
-                    {expanded ? "Collapse" : "Read more"}
-                  </button>
-
-                  <a
-                    href={passage.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={passage.urlLabel}
-                    onClick={(e) => {
-                      if (isNative()) {
-                        e.preventDefault();
-                        void openExternal(passage.url);
-                      }
-                    }}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
-                  >
-                    <LinkIcon />
-                    Gospel Library
-                  </a>
-
-                  {/* Saving turns on what is picked: the passage itself when
-                      nothing more is selected, or the whole selection — a run
-                      or a scattered set — once several verses are. */}
-                  <button
-                    type="button"
-                    onClick={toggleStar}
-                    aria-pressed={starred}
-                    aria-label={starLabel}
-                    title={starLabel}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
-                  >
-                    <StarIcon filled={starred} />
-                    Favorite
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShareOpen(true)}
-                    aria-label={shareLabel}
-                    className="flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full px-1 py-2.5 text-[10px] font-semibold text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
-                  >
-                    <ShareIcon />
-                    Share
-                  </button>
-                </div>
-              </motion.div>
+              <PassageActions
+                actions={floatingActions}
+                url={passage.url}
+                reduceMotion={prefs.reduceMotion}
+              />
             )}
           </AnimatePresence>,
           document.body
@@ -575,25 +534,6 @@ export function PassageCard({ passage, drawKey }: Props) {
 }
 
 /**
- * Whether the element is on screen. Held as state rather than a ref because the
- * element it watches only exists while the chapter is open — a callback ref
- * hands it over when it mounts, and null when it folds away.
- */
-function useOnScreen(node: HTMLElement | null): boolean {
-  const [onScreen, setOnScreen] = useState(false);
-
-  useEffect(() => {
-    if (!node || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [node]);
-
-  // A folded chapter has no controls of its own, so nothing is in the way.
-  return node ? onScreen : false;
-}
-
-/**
  * Whether the element has scrolled off the top of the viewport — the moment the
  * floating bar becomes the nearer set of controls. Intersection alone is not
  * enough: on a phone the card's own controls start below the fold, and a
@@ -617,20 +557,269 @@ function useScrolledPast(ref: RefObject<HTMLElement | null>): boolean {
   return past;
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
+/**
+ * The card's own controls, floating, for a reader who has scrolled past them.
+ *
+ * Two shapes of the same six jobs, chosen by the stylesheet at the
+ * navigation's breakpoint (see `.passage-actions-*` in app/globals.css).
+ *
+ * On a phone — where a thumb is doing the reaching, and a row of six would be
+ * narrower than the words it sat over — it is one gold button in the corner,
+ * shut, that opens into a fan of marks round it: a quarter arc, one 44px target
+ * per job, every one of them within reach of the button.
+ *
+ * On a wide screen it is a labelled bar along the foot of the page, always out.
+ * A pointer has room for the words and no corner to tuck a button into, and
+ * six bare marks would each need a hover to say what they do.
+ *
+ * Everything here is a plain button or link, so the app's press feedback gives
+ * each one its tick without being asked (components/press-feedback.tsx). The
+ * open/shut state lives here rather than in the card because it belongs to the
+ * thing being animated: the button unmounts whenever the card's own controls
+ * come back into view, and a menu that stayed open in memory would spring back
+ * open the next time a reader scrolled away.
+ */
+function PassageActions({
+  actions,
+  url,
+  reduceMotion,
+}: {
+  actions: FloatingAction[];
+  /** The passage's page, opened outside the shell where there is no tab to open. */
+  url: string;
+  reduceMotion: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const dock = useRef<HTMLDivElement | null>(null);
+
+  // A thin press anywhere else puts the fan away, and so does Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: PointerEvent) => {
+      if (dock.current && !dock.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  /**
+   * Take an option. The fan shuts before the option does its job, so a dialog
+   * that opens over the page is not showing an open menu underneath it — which
+   * would otherwise still be there when the dialog closed.
+   */
+  const choose = (action: FloatingAction) => {
+    setOpen(false);
+    action.onSelect?.();
+  };
+
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={1.9}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 14 }}
+      transition={{ type: "spring", stiffness: 320, damping: 30, mass: 0.7 }}
+      // Only the controls themselves take taps — the strip they float in spans
+      // the width of the screen, and the page behind it stays live.
+      className="passage-fab-dock pointer-events-none fixed inset-x-0 bottom-0 z-40"
     >
-      <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
-    </svg>
+      {/* Phones and upright tablets: one gold button in the corner, with the
+          fan round it. Docked right by the stylesheet, and hidden there on a
+          wide screen. */}
+      <div
+        ref={dock}
+        className="passage-actions-fan pointer-events-auto relative h-14 w-14"
+      >
+        <AnimatePresence>
+          {open && (
+            <ul role="menu" aria-label="Passage actions" className="m-0 list-none p-0">
+              {actions.map((action, index) => {
+                const offset = arcOffset(index, actions.length);
+                return (
+                  <motion.li
+                    key={action.id}
+                    // The list item is the animation's box, not a thing the
+                    // menu exposes: the option inside it is the item.
+                    role="none"
+                    className="absolute inset-0 grid place-items-center"
+                    initial={reduceMotion ? false : { opacity: 0, scale: 0.4, x: 0, y: 0 }}
+                    animate={{ opacity: 1, scale: 1, x: offset.x, y: offset.y }}
+                    exit={{ opacity: 0, scale: 0.4, x: 0, y: 0 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 520,
+                      damping: 34,
+                      mass: 0.6,
+                      delay: reduceMotion ? 0 : index * 0.015,
+                    }}
+                  >
+                    {action.href ? (
+                      <a
+                        href={action.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        role="menuitem"
+                        aria-label={action.label}
+                        title={action.label}
+                        onClick={(event) => {
+                          setOpen(false);
+                          if (isNative()) {
+                            event.preventDefault();
+                            void openExternal(url);
+                          }
+                        }}
+                        className={FLOATING_OPTION}
+                      >
+                        {action.icon}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => choose(action)}
+                        aria-label={action.label}
+                        title={action.label}
+                        className={FLOATING_OPTION}
+                      >
+                        {action.icon}
+                      </button>
+                    )}
+                  </motion.li>
+                );
+              })}
+            </ul>
+          )}
+        </AnimatePresence>
+
+        {/* The button itself: the app's gold, the same size as the memorize
+            page's, with a plus that turns into the cross it always was — a
+            quarter turn, not a second icon. */}
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label={open ? "Close passage actions" : "Passage actions"}
+          title={open ? "Close" : "Passage actions"}
+          className="relative z-10 grid h-14 w-14 place-items-center rounded-full bg-accent text-accent-contrast shadow-[0_1px_2px_rgba(0,0,0,0.16),0_10px_24px_-8px_rgba(0,0,0,0.45)]"
+        >
+          <Glyph
+            name="plus"
+            className={`h-6 w-6 transition-transform duration-300 ${open ? "rotate-45" : ""}`}
+          />
+        </button>
+      </div>
+
+      {/* Wide screens: the same six jobs in a bar, always out. There is no
+          thumb to make room for and no corner to tuck into, so the labels can
+          sit beside their marks instead of behind a button. */}
+      <div className="passage-actions-bar pointer-events-none">
+        <div
+          role="group"
+          aria-label="Passage actions"
+          className="pointer-events-auto flex w-full max-w-lg items-stretch gap-0.5 rounded-xl border border-border bg-surface/95 p-1 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_18px_50px_-24px_rgba(0,0,0,0.75)] backdrop-blur"
+        >
+          {actions.map((action) =>
+            action.href ? (
+              <a
+                key={action.id}
+                href={action.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={action.label}
+                title={action.label}
+                onClick={(event) => {
+                  if (isNative()) {
+                    event.preventDefault();
+                    void openExternal(url);
+                  }
+                }}
+                className={FLOATING_BAR_OPTION}
+              >
+                {action.icon}
+                <span className="truncate">{action.short}</span>
+              </a>
+            ) : (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => choose(action)}
+                aria-label={action.label}
+                title={action.label}
+                className={FLOATING_BAR_OPTION}
+              >
+                {action.icon}
+                <span className="truncate">{action.short}</span>
+              </button>
+            )
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
+}
+
+/** One option on the floating button's fan. */
+interface FloatingAction {
+  id: string;
+  /** Spoken, and shown on hover — the option itself is only a mark. */
+  label: string;
+  /** The word the wide-screen bar wears beside the mark. */
+  short: string;
+  icon: ReactNode;
+  /** An option that goes somewhere is a link, so it can open a new tab. */
+  href?: string;
+  onSelect?: () => void;
+}
+
+/**
+ * The mark each option wears: a light disc with the page behind it, so the
+ * circles read as controls over the words rather than as part of them.
+ *
+ * The surface is the card's own — not the slightly darker second surface the
+ * card's buttons use — because these sit on top of text rather than on a card,
+ * and a tone this close to the parchment left them looking like smudges. Every
+ * mark inside is set to the same 20px, whatever size its own drawing defaults
+ * to, so six different drawings look like one set.
+ */
+const FLOATING_OPTION =
+  "grid h-11 w-11 place-items-center rounded-full border border-border bg-surface text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.14),0_8px_20px_-8px_rgba(0,0,0,0.45)] transition-colors hover:border-accent/60 hover:text-accent-strong [&_svg]:h-5 [&_svg]:w-5";
+
+/**
+ * One option in the wide-screen bar: its mark and its word, sharing the width
+ * six ways. The word is what makes the bar worth having on a desk — a row of
+ * marks in a corner still leaves you hovering to find out which is which — so
+ * the text stays on one line rather than wrapping the bar to two rows.
+ */
+const FLOATING_BAR_OPTION =
+  "flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-1 py-2.5 text-[11px] font-semibold leading-none text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_span.glyph]:h-4 [&_span.glyph]:w-4";
+
+/**
+ * Where one option sits round the floating button, in pixels from its centre.
+ *
+ * A quarter arc, opening up and to the left — the only directions with room
+ * for them, with the button in the bottom corner. The radius is what keeps six 44px
+ * options a few pixels apart while every one of them is still within a thumb's
+ * reach of the button: closer and the circles touch, further and the fan climbs
+ * past the passage the reader is trying to read.
+ */
+const FAN_FROM = 92;
+const FAN_TO = 184;
+const FAN_RADIUS = 148;
+
+function arcOffset(index: number, count: number): { x: number; y: number } {
+  const step = count > 1 ? (FAN_TO - FAN_FROM) / (count - 1) : 0;
+  const angle = ((FAN_FROM + step * index) * Math.PI) / 180;
+  return {
+    x: Math.round(Math.cos(angle) * FAN_RADIUS),
+    y: Math.round(-Math.sin(angle) * FAN_RADIUS),
+  };
 }
 
 function CircleIcon() {

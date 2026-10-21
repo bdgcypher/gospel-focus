@@ -368,17 +368,18 @@ export function InspirationApp() {
               <section className="text-center sm:text-left">
                 {/* The full column width, so the draw button below spans it. */}
                 <div className="mx-auto w-full">
-                  {/* The heading says which passage is on the page — the
-                      sparkle for a draw, the day's for the daily one — and the
-                      line under it is left with the icon rather than centred,
-                      so it reads as this page's title, not a label on the
-                      button. */}
+                  {/* The heading says which passage is on the page, and the
+                      open book beside it is the mark /study leads with and the
+                      one the catalog gives this page: the same drawing for the
+                      same act, whether the passage was drawn or cited. The line
+                      under it is left with the icon rather than centred, so it
+                      reads as this page's title, not a label on the button. */}
                   {/* The back control rides the heading row, in line with the
                       title it belongs to — the same place every page built on
                       the shared frame puts it. */}
                   <div className="flex items-center gap-3 text-left">
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-surface text-accent-strong">
-                      <Glyph name="sparkles" className="h-6 w-6" />
+                      <Glyph name="book" className="h-6 w-6" />
                     </span>
                     <div className="min-w-0 flex-1">
                       {/* The back control shares the title's line rather than

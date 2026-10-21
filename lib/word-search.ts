@@ -281,17 +281,20 @@ function readerHref(passage: Passage): string {
  */
 export function lineBetween(size: number, from: CellIndex, to: CellIndex): CellIndex[] | null {
   if (from === to) return [from];
-  const dr = Math.sign(rowOf(to, size) - rowOf(from, size));
-  const dc = Math.sign(colOf(to, size) - colOf(from, size));
-  const steps = Math.max(
-    Math.abs(rowOf(to, size) - rowOf(from, size)),
-    Math.abs(colOf(to, size) - colOf(from, size))
-  );
+  // The distances, not their signs: a drag of nine rows and four columns is a
+  // steep diagonal that is not one of the eight, and comparing signs would let
+  // it through — the line would then step four columns across every nine rows
+  // and wander off the row it started on, which is a selection no word can sit
+  // on and cells the reader never touched.
+  const rows = rowOf(to, size) - rowOf(from, size);
+  const columns = colOf(to, size) - colOf(from, size);
   // A knight's move, a bent drag, or anything else that is not one of the
   // eight directions: no word can run along it.
-  const straight = dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc);
-  if (!straight) return null;
+  if (rows !== 0 && columns !== 0 && Math.abs(rows) !== Math.abs(columns)) return null;
 
+  const dr = Math.sign(rows);
+  const dc = Math.sign(columns);
+  const steps = Math.max(Math.abs(rows), Math.abs(columns));
   const path: CellIndex[] = [];
   for (let i = 0; i <= steps; i += 1) {
     path.push((rowOf(from, size) + dr * i) * size + (colOf(from, size) + dc * i));

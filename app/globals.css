@@ -73,15 +73,21 @@
   /* The result card's losing tone. Its own token so the red can be tuned for
      the parchment and the dark page separately, like the two marks above. */
   --wrong: #b3261e;
+  /* A day kept by a streak freeze: the same blue the playful buttons wear, so
+     a saved day reads as the app's own cool note rather than a second ice
+     palette. The squares in the streak strip carry no text, so the face needs
+     no contrast ink of its own. */
+  --frozen: #1dadf1;
   --page: #fffefb;
   --page-edge: #e8dcc3;
   --spine: #d9c9a6;
   /* The bottom navigation's own height, without the safe-area inset, and with
-     the half-rem of air the bar keeps under its tabs (see `.app-nav-bottom`).
-     One number for the navigation itself, the room reserved for it under the
-     page, and the floating action bar that has to clear it — so they cannot
-     drift apart. */
-  --bottom-nav-height: 4.25rem;
+     the three-quarter rem of air the bar keeps under its tabs (see
+     `.app-nav-bottom`). One number for the navigation itself, the room reserved
+     for it under the page, and the floating action bar that has to clear it — so
+     they cannot drift apart. Tall enough that a tab's mark and its word sit in
+     the middle of the bar with air above and below them rather than filling it. */
+  --bottom-nav-height: 4.75rem;
 }
 
 /* The paper-and-ink night: the same neutral greys as the playful night, so the
@@ -106,6 +112,7 @@
   --present: #e4b009;
   --present-contrast: #241b09;
   --wrong: #ff9a90;
+  --frozen: #1dadf1;
   --page: #1e1e1e;
   --page-edge: #3a3a3a;
   --spine: #4b4b4b;
@@ -193,6 +200,17 @@
   --present: var(--accent);
   --present-contrast: var(--accent-contrast);
   --wrong: var(--loss-bar);
+  /* The freeze's square in the strip wears the same blue as the skin's buttons
+     — the app's one cool note — rather than a second ice palette of its own. */
+  --frozen: var(--cta);
+  /* The status lights' own inks, for the playful skin's coloured readings
+     (components/status-tray.tsx). The wallet and the flame get their colours
+     here rather than borrowing the button blue or the accent gold: those are
+     faces, and as small type on the page they would not hold their contrast.
+     The padlock reads in `--accent-strong` and a met goal in `--goal-ink`,
+     which are already inks, so the pair needs no entries of their own. */
+  --gem-ink: #0a6d96;
+  --flame-ink: #b5470a;
   --page: #fffdf7;
   --page-edge: #e8d2a8;
   --spine: #e3c99c;
@@ -283,6 +301,13 @@ html.playful .font-serif {
   --loss-bar: #e95453;
   --loss-bar-contrast: #1a1a1a;
   --loss-bar-edge: #b23a3a;
+  --frozen: var(--cta);
+  /* The two inks the playful night lifts for its dark page: the blue of the
+     wallet and the flame's orange are brightened so both clear the near-black
+     behind them. The padlock's gold is `--accent-strong` and the goal's green
+     `--goal-ink`, which this palette already brightens. */
+  --gem-ink: #4cc4f2;
+  --flame-ink: #ff9a3d;
   --page: #1e1e1e;
   --page-edge: #3a3a3a;
   --spine: #4b4b4b;
@@ -343,6 +368,7 @@ html.playful .font-serif {
   --color-present: var(--present);
   --color-present-contrast: var(--present-contrast);
   --color-wrong: var(--wrong);
+  --color-frozen: var(--frozen);
   --color-page: var(--page);
   --color-page-edge: var(--page-edge);
   --color-spine: var(--spine);
@@ -437,16 +463,26 @@ a.rounded-full[class*="px-"] {
   border-radius: 0.75rem;
 }
 
-/* Cards: a lit face, a shaded foot and a solid base edge under the card. The
-   three together are what makes the card read as a raised block rather than as
-   a flat rectangle with a drop shadow: light from above, shadow where the face
-   turns under, and a visible side you could put a finger on.
+/* Cards: a lit face, a shaded foot and a solid base edge under the card — but
+   only for a card you can press. The depth is an affordance rather than
+   decoration: it says this one is a control, and it gives a little when the
+   pointer reaches it or a thumb lands on it (the hover and press rules below),
+   so the reader learns the app's grammar from the shape alone. A card that goes
+   nowhere is a surface, and a surface has no height to give: it keeps the face
+   and the border the utilities already gave it and nothing else. That is why
+   the selector asks for an anchor or a button before it asks for a card — the
+   feature tiles and the quick activities lift, while the sections beside them
+   (the day's goal, the streak panel, a game's result) sit flat.
+
+   The three parts together are what makes the card read as a raised block
+   rather than as a flat rectangle with a drop shadow: light from above, shadow
+   where the face turns under, and a visible side you could put a finger on.
 
    The base edge is a touch thicker than before and the drop is a little longer,
    which is what gives the largest raised thing in the style a bit more lift —
    just enough to feel like a block with weight, without turning it into a tray
    sitting above the page. */
-.playful :is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card) {
+.playful :is(a, button):is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card) {
   background-image:
     radial-gradient(120% 95% at 50% -40%, var(--card-highlight), transparent 62%),
     linear-gradient(
@@ -465,34 +501,122 @@ a.rounded-full[class*="px-"] {
   transition-timing-function: ease;
 }
 
-/* The completed study card is a raised block too, on its own green face and a
-   green side, so the reward reads with the same weight as everything else. */
-.playful :is(.rounded-2xl, .rounded-3xl).bg-goal-card {
-  --card-face: var(--goal-card);
-  --card-edge-color: var(--goal-border);
-}
-
-/* The games' result cards are raised blocks on the same material: a win on the
-   completed day's green and a loss on its own red, each with a matching side
-   and foot. */
-.playful :is(.rounded-2xl, .rounded-3xl).bg-win-card {
-  --card-face: var(--win-card);
-  --card-edge-color: var(--win-border);
-}
-
-.playful :is(.rounded-2xl, .rounded-3xl).bg-loss-card {
-  --card-face: var(--loss-card);
-  --card-edge-color: var(--loss-border);
+/* Everything else of that shape is a surface, and a surface takes no height: no
+   lit face, no base edge, no drop — the border it already carries is the whole
+   drawing. This also wipes the soft shadow a card may have brought with it by
+   hand (the reader's passage card in components/passage-card.tsx, which needs it
+   on paper), so the skin is left with one depth and one meaning for it. A
+   dialog is the exception: it is not a card but a sheet laid over the page, and
+   the result modals keep their own `shadow-2xl` to sit above it. */
+.playful :is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card):not(a):not(button):not([role="dialog"]) {
+  box-shadow: none;
 }
 
 /* The streak panel keeps the app's ordinary card face — the same paper the
    cards below it use — and is marked only by the flame's amber along its rim.
    A whole face in that amber made the day strip and the tiles compete with the
    page around them; one coloured edge says "streak" without the card becoming
-   a second surface. The raised block itself still comes from the shared card
-   rule, so the panel sits at the same height as its neighbours. */
+   a second surface. The panel goes nowhere, so it takes no depth either: it sits
+   flat among the raised tiles, marked by its border alone. */
 .playful .streak-card {
   border-color: var(--accent);
+}
+
+/* The streak card catches the light on a day that is in the run: a soft band
+   of the flame's orange crosses the card every nine seconds and then leaves it
+   still. It is a reflection rather than a loop — most of the cycle is spent
+   resting — so it rewards the reader who happens to be looking without turning
+   the strip into a screen saver. The band only exists when `data-counted` says
+   today's goal is met, and only under `.playful`: on paper the card stays
+   matte, which is the skin's whole manner.
+
+   The band is clipped by the card's own `overflow-hidden`, so it never leaves
+   the rounded face, and it is `pointer-events: none` so it cannot get between
+   the reader and a strip arrow. Motion off — the preference or the device's —
+   takes it away entirely rather than leaving a still stripe on the card. */
+.streak-shine {
+  display: none;
+}
+
+.playful .streak-card[data-counted="true"] .streak-shine {
+  display: block;
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgb(255 197 84 / 0.14) 46%,
+    rgb(255 214 138 / 0.5) 50%,
+    rgb(255 245 219 / 0.68) 51.5%,
+    rgb(255 197 84 / 0.14) 57%,
+    transparent 63%
+  );
+  transform: translateX(-130%);
+  animation: streak-shine 9s cubic-bezier(0.4, 0, 0.2, 1) 2.5s infinite;
+  will-change: transform;
+}
+
+@keyframes streak-shine {
+  0% {
+    transform: translateX(-130%);
+  }
+  18% {
+    transform: translateX(130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+/* The same selector as the light above, with the motion flag on the root: the
+   reflection's own rule is four classes deep, so a plainer `display: none`
+   would lose to it however late it came in the sheet. The root is written
+   `html.playful` rather than `html[data-reduce-motion] .playful` because the
+   playful class is on the root itself — a descendant combinator would be
+   asking for a second, inner element that does not exist. */
+html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .streak-shine {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playful .streak-card[data-counted="true"] .streak-shine {
+    animation: none;
+    display: none;
+  }
+}
+
+/* The header's status lights read in the colour of their own mark: the wallet
+   in the button blue, the flame in its orange, the shut padlock in the accent
+   gold, the day's minutes in the bar's gold until the goal is met, and then in
+   the completed day's green. Only the playful skin colours its readings this
+   way — on paper the tray keeps the muted ink it has always used, which is why
+   the rules hang off `.playful` rather than giving each chip a colour of its
+   own. A chip only carries one of these classes when it is lit (a wallet with
+   nothing in it, a run not continued today and an open gate are greyed out like
+   their glyphs), so an unlit chip matches none of them. */
+.playful .status-ink-gem {
+  color: var(--gem-ink);
+}
+
+.playful .status-ink-flame {
+  color: var(--flame-ink);
+}
+
+.playful .status-ink-lock {
+  color: var(--accent-strong);
+}
+
+.playful .status-ink-goal {
+  color: var(--goal-ink);
+}
+
+/* The same reading before the goal is met, in the gold of the bar it is filling:
+   `--accent-strong`, not the bar's own `--accent`, which is a face and would not
+   hold as 12px type on the page. In the night palette the two are a shade apart;
+   by day the reading tone is the darker gold that can actually be read. */
+.playful .status-ink-goal-open {
+  color: var(--accent-strong);
 }
 
 /* In the night palette the card's lit face is held back. The same sixteen
@@ -501,9 +625,9 @@ a.rounded-full[class*="px-"] {
    looking raised and start looking like wells in the card. The night card keeps
    a hair of light at its top and a hairline highlight, and takes its weight
    from the dark base edge instead — which leaves the lighter tone for the
-   things you press. The completed day's card is drawn the same way, from
-   whatever face the palette gives it. */
-.playful.dark :is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card) {
+   things you press. A finished game's card is drawn the same way, from whatever
+   face the palette gives it. */
+.playful.dark :is(a, button):is(.rounded-2xl, .rounded-3xl):is(.bg-surface, .bg-goal-card, .bg-win-card, .bg-loss-card) {
   background-image:
     radial-gradient(120% 95% at 50% -40%, var(--card-highlight), transparent 62%),
     linear-gradient(
@@ -894,6 +1018,53 @@ a.rounded-full[class*="px-"] {
   display: block;
 }
 
+/* The exception: a mark that is the product rather than the control's label.
+   A shop card's gem is the thing being sold, so it asks for its picture even
+   though the card is a button (the `emoji` prop on components/glyph.tsx). The
+   classes out-weigh the control rule above instead of relying on source order
+   alone, so a later skin rule cannot quietly undo it. */
+.playful :is(button, a):not(.flex-col):not(.app-nav-bottom *):not(.app-status-tray *) .glyph-force-emoji.glyph-has-emoji .glyph-vector {
+  display: none;
+}
+
+.playful :is(button, a):not(.flex-col):not(.app-nav-bottom *):not(.app-status-tray *) .glyph-force-emoji.glyph-has-emoji .glyph-emoji {
+  display: block;
+  font-size: min(92cqw, 92cqh);
+}
+
+/* --- Freeze cubes --------------------------------------------------------
+   One freeze's two faces (components/freeze-cube.tsx): the house drawing for
+   the focused styles, the emoji for the playful ones. The cube is not a
+   `Glyph`'s usual swap because the two faces want different sizes — the
+   drawing fills a square box while the emoji keeps its own width in type — so
+   the pair lives here instead, with the same "both drawn, one shown" rule. */
+.freeze-cube-emoji {
+  display: none;
+}
+
+.playful .freeze-cube-emoji {
+  display: block;
+}
+
+.playful .freeze-cube-drawn {
+  display: none;
+}
+
+/* An empty slot. The focused styles say "not in hand" the same way the status
+   tray's dim streak chip does — the muted ink at 70%, the mark itself at 60% —
+   so the placeholder cube reads as the streak's own quiet grey. The playful
+   picture keeps its own blue whatever colour it is given and is faded instead,
+   so only that face takes the opacity there; the drawing would be multiplied
+   twice if the wrapper carried it. */
+.freeze-cube-empty .freeze-cube-drawn {
+  opacity: 0.6;
+}
+
+.playful .freeze-cube-empty .freeze-cube-emoji {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
 /* --- Riffling book animation ------------------------------------------- */
 .riffling-stage {
   perspective: 1400px;
@@ -957,6 +1128,18 @@ a.rounded-full[class*="px-"] {
 .page-back {
   transform: rotateY(180deg);
   border-radius: 1rem 0 0 1rem;
+}
+
+/* The draw carried on the last page's back. Its box is the whole page inside
+   the margin, so a passage taller than the page is cut there — inside the
+   paper's own margin, not hard against the page's edge — and the last line
+   fades out instead of being sliced across. A passage that fits is untouched:
+   the fade sits in the last stretch of a box the text has not reached. */
+.page-draw {
+  margin: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1219,12 +1402,12 @@ a.rounded-full[class*="px-"] {
      around. A fixed element sits outside the body's safe-area padding, so the
      navigation clears the gesture bar itself.
 
-     The half-rem at the foot is breathing room under the tabs: the row of
-     targets sits a little above the edge of the screen instead of on it. It is
-     part of `--bottom-nav-height`, so the page still reserves the bar's whole
-     height and the floating bars still clear it. */
+     The three-quarter rem at the foot is breathing room under the tabs: the row
+     of targets sits a little above the edge of the screen instead of on it. It
+     is part of `--bottom-nav-height`, so the page still reserves the bar's
+     whole height and the floating bars still clear it. */
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Room for the bar under the page. Relative to the body's own inset padding,
@@ -1564,32 +1747,65 @@ html[data-reduce-motion="true"] [data-nav-preview] {
   padding-bottom: 4.5rem;
 }
 
-/* --- Floating action bar ------------------------------------------------ */
-/* The bar's own padding, widened by the device's safe-area insets. A fixed
+/* --- Floating actions dock ---------------------------------------------- */
+/* Where a floating control sits at the foot of the screen: the passage card's
+   gold button, which opens into the card's own jobs.
+
+   The dock's own padding, widened by the device's safe-area insets. A fixed
    element sits outside the body's safe-area padding, so the insets have to be
-   added here — which is what keeps the bar clear of the gesture bar on
+   added here — which is what keeps the control clear of the gesture bar on
    Android. The plain values come first on purpose: a declaration the browser
    can't resolve is dropped whole, and if the env() ones were the only padding
    a browser without them would fall back to the padding utilities instead of
    none at all. */
-.share-bar {
+.passage-fab-dock {
   padding-right: 1rem;
   padding-bottom: 1rem;
   padding-left: 1rem;
   padding-right: calc(1rem + env(safe-area-inset-right, 0px));
   padding-left: calc(1rem + env(safe-area-inset-left, 0px));
-  /* The bar rides above the bottom navigation, and that is what keeps it clear
-     of the gesture bar — the navigation carries the bottom inset itself (see
-     app-nav-bottom above). Adding the inset here as well would lift the bar a
-     gesture bar's worth higher than it has any business being. */
+  /* The control rides above the bottom navigation, and that is what keeps it
+     clear of the gesture bar — the navigation carries the bottom inset itself
+     (see app-nav-bottom above). Adding the inset here as well would lift it a
+     gesture bar's worth higher than it belongs. */
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
-  .share-bar {
-    /* Nothing underneath the bar, so it clears the gesture bar itself. */
+  .passage-fab-dock {
+    /* Nothing underneath it, so it clears the gesture bar itself. */
     bottom: 0;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* The dock holds two shapes of the same six jobs, and the stylesheet picks
+   between them at the navigation's breakpoint — the same one, and for the same
+   reason: no viewport is read and nothing is decided after a render, so a
+   rotation doesn't flash the wrong one and the prerender can't disagree with
+   the browser.
+
+   A thumb in a corner gets the gold button and its fan. A pointer on a wide
+   screen gets the labelled bar along the foot, with its own words, because
+   hovering six marks to find out which is which is what the corner menu was
+   like for a mouse. */
+.passage-actions-fan {
+  /* The dock is a block, so an auto margin is what puts the button right. */
+  margin-left: auto;
+}
+
+.passage-actions-bar {
+  display: none;
+}
+
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  .passage-actions-fan {
+    display: none;
+  }
+
+  .passage-actions-bar {
+    display: flex;
+    justify-content: center;
   }
 }
 
@@ -1609,10 +1825,15 @@ html[data-reduce-motion="true"] [data-nav-preview] {
   }
 }
 
-/* The bar covers the foot of the page while it is up, so the scrolling content
-   is given a matching strip of room to clear it. Set from the card while the
-   bar is shown (see components/passage-card.tsx). */
-html[data-floating-bar="on"] main {
+/* The button covers the foot of the page while it is up — and its fan reaches
+   further still — so the scrolling content is given a matching strip of room to
+   clear it. Set from the card while the button is shown (see
+   components/passage-card.tsx).
+
+   The footer takes the strip too: the button now stays up all the way down the
+   page, so without it the small print was the one line the bar sat over. */
+html[data-floating-bar="on"] main,
+html[data-floating-bar="on"] footer {
   padding-bottom: 7.5rem;
 }
 
@@ -1634,3 +1855,4 @@ html[data-capacitor="android"] body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
 }
+
