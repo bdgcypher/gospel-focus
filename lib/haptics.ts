@@ -35,24 +35,45 @@ async function impact(style: ImpactStyle): Promise<void> {
 let selectionOpen = false;
 
 /**
+ * How long a soft pulse lasts on Android, in milliseconds.
+ *
+ * Android's LIGHT impact is fifty milliseconds at an amplitude of about a
+ * hundred and ten out of two hundred and fifty-five — a small buzz, and one a
+ * hand reads as an event rather than as a tick. The system's own key taps are
+ * far shorter than that, which is why a page of buttons that all knock felt
+ * louder than the keyboard it was being compared to. A measured pulse of ten
+ * milliseconds has roughly half the punch of LIGHT and lands as a short tap:
+ * enough to know the press happened, not enough to hear it. The slightly longer
+ * one is for a page coming to rest, the one navigation beat worth a little
+ * more than a tick.
+ */
+const SOFT_MS = 10;
+const FIRM_MS = 18;
+
+/**
  * The softest tick there is: the detent a picker makes as it slides past a row.
  *
  * The plugin has three impacts and the lightest of them — LIGHT — is still a
  * tap: iOS plays it from `UIImpactFeedbackGenerator`, which is meant to be
  * audible as an impact, and a bar of buttons that all say that is a bar that
  * rattles. The selection generator is the one the system keeps for a value
- * going by, and it is the quietest thing a phone will do on purpose.
+ * going by, and it is the quietest thing a phone will do on purpose. A firm
+ * pulse — a book coming to rest — keeps the lightest impact, a step above the
+ * tick and still well below the medium a game's answer is allowed.
  *
  * Android has no such distinction in the plugin: its selection waveform is a
- * tenth of a second at a low amplitude, which reads as a short hum rather than
- * as a tick, and a press would feel longer than it did before rather than
- * softer. So the lightest impact stays there, which is already the shortest
- * pulse the plugin offers and quieter than anything above it.
+ * tenth of a second at full amplitude, which reads as a hum rather than as a
+ * tick. So the pulse is measured here instead — see SOFT_MS — because a short
+ * pulse is the only soft thing the plugin can ask an Android phone for.
  */
-async function soft(): Promise<void> {
+async function soft(firm = false): Promise<void> {
   if (!enabled()) return;
   try {
     if (Capacitor.getPlatform() !== "ios") {
+      await Haptics.vibrate({ duration: firm ? FIRM_MS : SOFT_MS });
+      return;
+    }
+    if (firm) {
       await Haptics.impact({ style: ImpactStyle.Light });
       return;
     }
@@ -139,9 +160,16 @@ function pulse(beat: Beat): void {
   void (beat.style ? impact(beat.style) : buzz(beat.buzz ?? 0));
 }
 
-/** One page turning over: the lightest tick the device offers. */
+/**
+ * One page turning over: the app's softest pulse.
+ *
+ * A riffle turns a dozen pages in a second, so this is the beat heard most
+ * often in the app — anything above the soft pulse would turn a draw into a
+ * rattle. It is the same tick as a press on purpose: both are the page moving
+ * under the reader, not an answer to anything.
+ */
 export async function tapPageTurn(): Promise<void> {
-  await impact(ImpactStyle.Light);
+  await soft();
 }
 
 /**
@@ -157,9 +185,16 @@ export async function tapSectionSnap(): Promise<void> {
   await soft();
 }
 
-/** The book coming to rest on the drawn passage. */
+/**
+ * The book coming to rest on the drawn passage.
+ *
+ * The same soft tick as the turns before it, held a little longer, so the end
+ * of the riffle is felt as the settle rather than as another page going by.
+ * It is deliberately not a medium any more: a book arriving is navigation, and
+ * navigation is not supposed to report like a verdict.
+ */
 export async function tapBookLanded(): Promise<void> {
-  await impact(ImpactStyle.Medium);
+  await soft(true);
 }
 
 /**
@@ -212,7 +247,7 @@ export const CROSS_OUT_MS = 400;
  * `S` is a short: one impact at the lightest weight. `M` is the same kind of
  * tap one step heavier, for the one beat in a tune that lands. `L` is a long: a
  * single continuous buzz. A pattern is written as the run of them it plays —
- * "LSM" — rather than as a table of absolute times, because a tune laid out as
+ * "SSLL" — rather than as a table of absolute times, because a tune laid out as
  * offsets is nearly impossible to check by eye, and the spacing is the same
  * arithmetic every time: a tap clears a hand's reaction, and a long has to
  * finish before the next pulse starts or Android cuts it off part-way.
@@ -236,16 +271,17 @@ function beats(score: string): Beat[] {
 }
 
 /**
- * A word found: long, short, medium.
+ * A word found: medium, short, long.
  *
- * The buzz is the pen starting across the word, the tick is its length going
- * by, and the medium bump is the far end of the stroke landing — a line being
- * drawn, heard from the near end. It finishes inside the cross-out's own
- * animation (CROSS_OUT_MS), so a word that ends the board hands over to the
- * card's fanfare only once its own sound is done.
+ * The bump is the hand catching the word, the tick is its length going by, and
+ * the buzz is the pen following through past the last letter. Ending on the
+ * long rather than opening with it is what makes the find sound like a stroke
+ * finishing: the heavy beat is the follow-through, not the start. It finishes
+ * inside the cross-out's own animation (CROSS_OUT_MS), so a word that ends the
+ * board hands over to the card's fanfare only once its own sound is done.
  */
 export function tapWordFound(): void {
-  pattern(beats("LSM"));
+  pattern(beats("MSL"));
 }
 
 /**
@@ -254,7 +290,7 @@ export function tapWordFound(): void {
  * Not a scolding — the board drops a wrong line without a mark on it — so it is
  * three light taps and no more: the board says "that was not one" and lets the
  * reader keep looking. Taps rather than hums, so a miss is never mistaken for
- * the long buzz that starts a find.
+ * the long buzz that ends a find.
  */
 export function tapLineMissed(): void {
   pattern(beats("SSS"));

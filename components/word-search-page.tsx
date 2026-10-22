@@ -648,25 +648,17 @@ export function WordSearchPage() {
                     const start = geometry.centres.get(path[0]);
                     const end = geometry.centres.get(path[path.length - 1]);
                     if (!start || !end) return null;
-                    // Past the far edge of the first and last cells: half a
-                    // cell reaches the edge, so six tenths leaves a sliver of a
-                    // cell sticking out at each end — a word struck through by
-                    // hand, not one underlined exactly to its last letter. A
-                    // diagonal word gets three quarters, a little further: its
-                    // stroke leaves the cells through their corners, where a
-                    // sliver reads as stopping short rather than overshooting.
-                    // The overlay paints outside its own box for this, so a word
-                    // at the board's rim is not cut off.
+                    // The stroke stops inside the bar the word is marked
+                    // with, which ends a little short of the cell's edge, so
+                    // the line never runs on into the blank paper beside the
+                    // word. It used to overshoot by six tenths of a cell —
+                    // enough to reach across the borders the cells were once
+                    // drawn with — and with those gone the ends read as too
+                    // long at either side of the letters. The overlay still
+                    // paints outside its own box, for a word at the board's
+                    // rim.
                     const span = Math.hypot(end.x - start.x, end.y - start.y) || 1;
-                    // Asked of the cell index, not the pixels: a cell's centre
-                    // lands on a fraction, and two cells in one row can be a
-                    // hundredth of a pixel apart, which read as a diagonal.
-                    const first = path[0];
-                    const last = path[path.length - 1];
-                    const diagonal =
-                      Math.floor(first / size) !== Math.floor(last / size) &&
-                      first % size !== last % size;
-                    const over = geometry.cell * (diagonal ? 0.75 : 0.6);
+                    const over = geometry.cell * 0.44;
                     const ux = ((end.x - start.x) / span) * over;
                     const uy = ((end.y - start.y) / span) * over;
                     const from = { x: start.x - ux, y: start.y - uy };

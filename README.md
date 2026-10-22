@@ -214,14 +214,16 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   promising a page that isn't there. *Reduce motion* still turns the page, it just
   doesn't draw it.
 - **Everything a finger presses answers back.** On a device with a vibrator,
-  every button and link gives one light tick as it is pressed. The word-search
-  board plays its own rhythm instead: a tick for every letter a line reaches, a
-  firmer one when the drag turns a corner, a double buzz for a line that spelled
-  nothing, and then the long stroke of the pen with a bump at its end while the
-  word's cross-out is drawn. Every game's ending has its own tune — six beats
-  for a win, two for a near miss, and the same two wherever the near miss
-  happens, because the daily puzzle and the quiz end in the same card. Outside
-  the native shell all of it is silent: nothing on the web is made to vibrate.
+  every button and link gives one short, soft pulse as it is pressed, and so
+  does a page turning over, held a little longer as the book comes to rest. The
+  word-search board plays its own rhythm instead: a tick for every letter a line
+  reaches, a firmer one when the drag turns a corner, three short taps for a
+  line that spelled nothing, and then a bump, a tick and the long stroke of the
+  pen while the word's cross-out is drawn. Every game's ending has its own tune
+  — six beats for a win, two for a near miss, and the same two wherever the near
+  miss happens, because the daily puzzle and the quiz end in the same card.
+  Outside the native shell all of it is silent: nothing on the web is made to
+  vibrate.
   The card and the tune both wait for the move that ended the game to finish:
   the word search's last cross-out, the puzzle's last row of letters turning
   over, the quiz's last guess going red. *Reduce motion* opens the card at once,
