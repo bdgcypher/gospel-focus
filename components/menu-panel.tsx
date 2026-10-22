@@ -20,6 +20,7 @@ export function MenuPanel({ open, onClose }: Props) {
   // the page it opens cannot describe it differently.
   const stats = featureById("stats");
   const streak = featureById("streak");
+  const journal = featureById("journal");
 
   // Escape closes the pane, like any other dialog.
   useEffect(() => {
@@ -68,13 +69,32 @@ export function MenuPanel({ open, onClose }: Props) {
               </button>
             </header>
 
+            {/* Top to bottom: the reader's own shelf first (what they saved
+                and what they wrote), then the run those readings build, then
+                the two places that spend and explain it, and settings last as
+                the least frequented door. */}
             <nav className="space-y-2 px-5 py-4">
               <MenuLink
-                href={stats?.href ?? "/stats"}
+                href="/favorites"
                 onClick={onClose}
-                icon={<Glyph name={stats?.icon ?? "chart"} />}
-                label={stats?.title ?? "Stats & Progress"}
-                hint={stats?.blurb ?? "Streaks, passages, cards, and time studied"}
+                // The bookmark is only filled in once something is saved, so
+                // the menu itself says whether the shelf is empty.
+                icon={<BookmarkIcon filled={favorites.length > 0} />}
+                label="Favorites"
+                hint={
+                  favorites.length === 0
+                    ? "No passages saved yet"
+                    : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`
+                }
+              />
+              {/* Named from the catalog like the two below it, so the menu
+                  cannot go on calling a page unbuilt after it ships. */}
+              <MenuLink
+                href={journal?.href ?? "/journal"}
+                onClick={onClose}
+                icon={<Glyph name={journal?.icon ?? "journal"} />}
+                label="Journal"
+                hint={journal?.blurb ?? "Your own words, kept beside the verses"}
               />
               <MenuLink
                 href={streak?.href ?? "/streak"}
@@ -94,24 +114,11 @@ export function MenuPanel({ open, onClose }: Props) {
                 hint="Gems, streak freezes, and Gospel Focus Plus"
               />
               <MenuLink
-                href="/favorites"
+                href={stats?.href ?? "/stats"}
                 onClick={onClose}
-                // The bookmark is only filled in once something is saved, so
-                // the menu itself says whether the shelf is empty.
-                icon={<BookmarkIcon filled={favorites.length > 0} />}
-                label="Favorites"
-                hint={
-                  favorites.length === 0
-                    ? "No passages saved yet"
-                    : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`
-                }
-              />
-              <MenuLink
-                href="/journal"
-                onClick={onClose}
-                icon={<Glyph name="journal" />}
-                label="Journal"
-                hint="Notes and highlights — not built yet"
+                icon={<Glyph name={stats?.icon ?? "chart"} />}
+                label={stats?.title ?? "Stats & Progress"}
+                hint={stats?.blurb ?? "Streaks, passages, cards, and time studied"}
               />
               <MenuLink
                 href="/settings"

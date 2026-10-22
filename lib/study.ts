@@ -45,7 +45,7 @@ export interface StudyState {
 export const GOAL_CHOICES = [5, 10, 15, 20, 30];
 
 /** A sane ceiling, so a mistyped goal can't make the bar meaningless. */
-const MAX_GOAL_MINUTES = 240;
+export const MAX_GOAL_MINUTES = 240;
 
 const KEY = "gospel-focus:study:v1";
 

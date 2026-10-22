@@ -585,8 +585,8 @@ lib/memorize.ts           the memory deck and its recitation log
 lib/wordle.ts             the daily puzzle: marking, the day's word, the board
 lib/favorites.ts          starred passages (see also favorites-csv/io)
 lib/focus.ts              the Focus lock's own state and its timed bypass
-lib/reminders.ts          the daily passage notification, scheduled in advance
-lib/preferences.ts        theme, motion, reminder hour, and the filters
+lib/reminders.ts          the daily study notification, scheduled in advance
+lib/preferences.ts        theme, motion, reminder time, and the filters
 lib/share-image.ts        drafting the share cards
 lib/native-files.ts       native sharing / file picking / downloads (Capacitor)
 lib/external.ts           the Gospel Library URL builder and browser opener

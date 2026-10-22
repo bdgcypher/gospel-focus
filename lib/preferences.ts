@@ -23,10 +23,12 @@ export type StyleChoice = "focused" | "playful";
 export interface Preferences {
   /** Skip the page-riffle animation and drop straight onto the draw. */
   reduceMotion: boolean;
-  /** Whether the daily passage reminder is wanted on this device. */
+  /** Whether the daily study reminder is wanted on this device. */
   dailyReminder: boolean;
   /** The hour (0–23) the daily reminder fires, in the device's local time. */
   reminderHour: number;
+  /** The minute (0–59) past that hour, so a reminder can land at 7:30. */
+  reminderMinute: number;
   /**
    * Which sources the draw may use. Kept here rather than in the picker's
    * state so the daily reminder picks from the same set the reader chose —
@@ -77,6 +79,9 @@ const DEFAULTS: Preferences = {
   reduceMotion: false,
   dailyReminder: false,
   reminderHour: 7,
+  // On the hour: the time people most often name for a morning habit, and the
+  // one the reminder had before a minute could be chosen at all.
+  reminderMinute: 0,
   filters: { volumes: {}, books: {}, conferences: {}, conferenceMaster: true },
   // Recalling the words from the reference is the harder half, so that is what
   // a fresh install asks for first.
@@ -131,6 +136,7 @@ function read(): Preferences {
   }
 
   const hour = Number(stored.reminderHour);
+  const minute = Number(stored.reminderMinute);
   cache = {
     reduceMotion:
       typeof stored.reduceMotion === "boolean"
@@ -142,6 +148,8 @@ function read(): Preferences {
     // notification permission the moment it is first opened.
     dailyReminder: stored.dailyReminder === true,
     reminderHour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : DEFAULTS.reminderHour,
+    reminderMinute:
+      Number.isInteger(minute) && minute >= 0 && minute <= 59 ? minute : DEFAULTS.reminderMinute,
     filters: readFilters(stored.filters),
     flashcardSide: stored.flashcardSide === "passage" ? "passage" : "reference",
     style: stored.style === "playful" ? "playful" : "focused",

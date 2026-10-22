@@ -6,7 +6,7 @@ import { pickDailyPassage } from "./picker";
 import type { Filters, Manifest, Passage } from "./types";
 
 /**
- * The daily passage reminder.
+ * The daily study reminder.
  *
  * Android and iOS can't run JavaScript at a notification's fire time, so the
  * verse has to be worked out while the app is open and handed to the platform
@@ -100,19 +100,32 @@ export async function requestReminderPermission(): Promise<ReminderPermission> {
 }
 
 /** The date the reminder fires on a given local day. */
-function fireTime(day: string, hour: number): Date {
+function fireTime(day: string, hour: number, minute: number): Date {
   const [year, month, date] = day.split("-").map(Number);
-  return new Date(year, month - 1, date, hour, 0, 0, 0);
+  return new Date(year, month - 1, date, hour, minute, 0, 0);
 }
 
-/** What the notification says: the verse, its reference, and where it's from. */
+/** The invitation every reminder opens with, before the day's verse. */
+const INVITATION = "Connect with the Lord today!";
+
+/**
+ * What the notification says: the invitation, then the verse, its reference,
+ * and where it's from.
+ *
+ * The invitation is split across the title and the first line of the body
+ * rather than set in the title whole: Android gives a title one line, and the
+ * sentence is twice that, so keeping it together would have it cut off before
+ * it finished. As it is, the collapsed notification reads "Time for study and
+ * prayer." over "Connect with the Lord today!" with the verse preview after
+ * it, and the expanded one carries the verse entire.
+ */
 export function reminderCopy(passage: Passage) {
   const text = passage.text.trim();
   const preview = text.length > PREVIEW_CHARS ? `${text.slice(0, PREVIEW_CHARS).trimEnd()}…` : text;
   return {
-    title: "Today's passage",
-    body: preview,
-    largeBody: `${text}\n\n— ${passage.reference}\n${passage.sourceLabel}`,
+    title: "Time for study and prayer.",
+    body: `${INVITATION} ${preview}`,
+    largeBody: `${INVITATION}\n\n${text}\n\n— ${passage.reference}\n${passage.sourceLabel}`,
   };
 }
 
@@ -136,11 +149,13 @@ export async function syncDailyReminders({
   manifest,
   filters,
   hour,
+  minute,
   today = dayKey(),
 }: {
   manifest: Manifest;
   filters: Filters;
   hour: number;
+  minute: number;
   today?: string;
 }): Promise<ReminderSyncResult | null> {
   if (!isNative()) return null;
@@ -150,9 +165,9 @@ export async function syncDailyReminders({
   const days: string[] = [];
   for (let offset = 0; offset < REMINDER_HORIZON_DAYS; offset += 1) {
     const day = addDays(today, offset);
-    // Today only counts if the hour hasn't passed: scheduling a notification
-    // for a moment already gone would fire it the instant it is handed over.
-    if (fireTime(day, hour).getTime() > now) days.push(day);
+    // Today only counts if the moment hasn't passed: scheduling a notification
+    // for a time already gone would fire it the instant it is handed over.
+    if (fireTime(day, hour, minute).getTime() > now) days.push(day);
   }
   if (!days.length) return null;
 
@@ -175,13 +190,23 @@ export async function syncDailyReminders({
       // Carried on the notification so the tap knows where to go without
       // having to work out which day it was for (components/reminder-sync.tsx).
       extra: { route: REMINDER_ROUTE, day },
+      // Not an exact alarm on purpose. Asking for one on Android 12+ throws
+      // up the system "Alarms & reminders" screen, and a reading nudge has no
+      // business demanding that; inexact still fires while the device dozes,
+      // which is the part that matters.
+      //
+      // It belongs here, on the notification, and not in `schedule` below —
+      // which is where it was, unnoticed. The Android plugin reads this flag
+      // from the notification object (LocalNotification.kt), defaulting to
+      // true, so the nested one was ignored and every schedule was treated as
+      // exact: with the permission deliberately absent from the APK, the plugin
+      // took the reader to the "Alarms & reminders" screen on every reminder
+      // sync, where the toggle cannot be turned on. Opening the picker or a
+      // notification both trigger a top-up, which is why the app appeared to
+      // jump there by itself a second after opening.
+      isExactNotification: false,
       schedule: {
-        at: fireTime(day, hour),
-        // Not an exact alarm on purpose. Asking for one on Android 12+ throws
-        // up the system "Alarms & reminders" screen, and a reading nudge has no
-        // business demanding that; inexact still fires while the device dozes,
-        // which is the part that matters.
-        isExactNotification: false,
+        at: fireTime(day, hour, minute),
         allowWhileIdle: true,
       },
     })),

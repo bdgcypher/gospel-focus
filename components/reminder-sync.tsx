@@ -38,7 +38,12 @@ export function ReminderSync() {
     const timer = window.setTimeout(() => {
       void loadManifest()
         .then((manifest) =>
-          syncDailyReminders({ manifest, filters: prefs.filters, hour: prefs.reminderHour })
+          syncDailyReminders({
+            manifest,
+            filters: prefs.filters,
+            hour: prefs.reminderHour,
+            minute: prefs.reminderMinute,
+          })
         )
         .catch(() => {
           // A reminder that couldn't be scheduled shouldn't interrupt reading;
@@ -46,7 +51,7 @@ export function ReminderSync() {
         });
     }, 1200);
     return () => window.clearTimeout(timer);
-  }, [prefs.dailyReminder, prefs.filters, prefs.reminderHour]);
+  }, [prefs.dailyReminder, prefs.filters, prefs.reminderHour, prefs.reminderMinute]);
 
   useEffect(() => {
     if (!isNative()) return;

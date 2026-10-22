@@ -360,7 +360,7 @@ export const FEATURES: Feature[] = [
     capabilities: [
       "Light, dark, or follow the system",
       "Reduce motion, which skips the riffle",
-      "The daily passage reminder and its hour",
+      "The daily study reminder and its time of day",
       "Favorites backup: export and import",
     ],
   },

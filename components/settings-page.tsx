@@ -33,11 +33,16 @@ import { setPreference, usePreferences, type StyleChoice } from "@/lib/preferenc
 
 type ThemeChoice = "light" | "dark" | "system";
 
-/** An hour of the day as the reader would say it, e.g. 7 -> "7:00 AM". */
-function formatHour(hour: number): string {
+/** A time of day as the reader would say it, e.g. 7, 0 -> "7:00 AM". */
+function formatTime(hour: number, minute: number): string {
   const suffix = hour < 12 ? "AM" : "PM";
   const shown = hour % 12 === 0 ? 12 : hour % 12;
-  return `${shown}:00 ${suffix}`;
+  return `${shown}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+/** The value a `<input type="time">` wants, e.g. 7:05 -> "07:05". */
+function timeValue(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 const THEMES: { id: ThemeChoice; label: string }[] = [
@@ -64,9 +69,6 @@ const STYLES: { id: StyleChoice; label: string }[] = [
   { id: "focused", label: "Focused" },
   { id: "playful", label: "Playful" },
 ];
-
-/** Every hour the reminder can be set to, as `0`–`23`. */
-const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -145,10 +147,11 @@ export function SettingsPage() {
         manifest,
         filters: prefs.filters,
         hour: prefs.reminderHour,
+        minute: prefs.reminderMinute,
       });
       setReminderStatus(
         result
-          ? `Set — a passage arrives each day at ${formatHour(prefs.reminderHour)}, for the next ${result.scheduled} days.`
+          ? `Set — a verse arrives each day at ${formatTime(prefs.reminderHour, prefs.reminderMinute)}, for the next ${result.scheduled} days.`
           : "Set. The reminder will be scheduled the next time the app opens."
       );
     } catch (error) {
@@ -159,18 +162,28 @@ export function SettingsPage() {
   };
 
   /**
-   * Move the reminder to another hour.
+   * Move the reminder to another time.
    *
-   * Nothing is scheduled here: the app's reminder sync watches this preference
-   * from every screen and reschedules the window a moment later, so a reader
-   * who steps through a few hours only causes one round of scheduling. The
-   * note under the card says where it now stands.
+   * Nothing is scheduled here: the app's reminder sync watches these
+   * preferences from every screen and reschedules the window a moment later, so
+   * a reader who steps through a few times only causes one round of scheduling.
+   * The note under the card says where it now stands.
+   *
+   * The value arrives as "HH:MM" — from the system picker on a phone, from the
+   * field's own segments on a desktop — and is only stored once it is a whole
+   * time, so the empty value a picker reports mid-edit leaves the reminder
+   * where it was.
    */
-  const onPickHour = (hour: number) => {
-    if (!Number.isInteger(hour) || hour < 0 || hour > 23) return;
+  const onPickTime = (value: string) => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+    if (!match) return;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return;
     setPreference("reminderHour", hour);
+    setPreference("reminderMinute", minute);
     setReminderStatus(
-      prefs.dailyReminder ? `Set — a passage arrives each day at ${formatHour(hour)}.` : null
+      prefs.dailyReminder ? `Set — a verse arrives each day at ${formatTime(hour, minute)}.` : null
     );
   };
 
@@ -389,54 +402,57 @@ export function SettingsPage() {
                 <p className="text-sm font-medium text-foreground">Daily study goal</p>
 
                 <div className="mt-3">
-                  <GoalPicker onPick={setGoalMinutes} current={progress.target || undefined} />
+                  <GoalPicker
+                    onPick={setGoalMinutes}
+                    current={progress.target || undefined}
+                    allowCustom
+                  />
                 </div>
               </div>
 
               <div className="rounded-3xl border border-border bg-surface p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">Daily passage reminder</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {reminderUsable
-                        ? `One verse a day at ${formatHour(prefs.reminderHour)}, drawn from the sources you have selected.`
-                        : "Only works in the installed app — a browser can't deliver reminders while it is closed."}
-                    </p>
+                    <p className="text-sm font-medium text-foreground">Daily study reminder</p>
+                    <p className="mt-0.5 text-xs text-muted">Get notified when it is time to study.</p>
+                    {!reminderUsable && (
+                      <p className="mt-1 text-xs text-muted">
+                        Only works in the installed app — a browser can&apos;t deliver reminders while it is
+                        closed.
+                      </p>
+                    )}
                   </div>
                   <Switch
                     checked={prefs.dailyReminder}
                     onChange={(value) => void onToggleReminder(value)}
-                    label="Daily passage reminder"
+                    label="Daily study reminder"
                     disabled={!reminderUsable || reminderBusy}
                   />
                 </div>
 
-                {/* The hour the reminder lands at. A plain select rather than a
-                    time field: the app schedules whole hours (lib/reminders.ts),
-                    so a minute picker would only offer choices it then rounded
-                    away. It is here whether the reminder is on or off, so the
-                    time can be chosen first — and a change while it is on is
-                    rescheduled by the app's own sync (components/reminder-sync.tsx),
-                    which is watching this preference. A browser can't deliver
-                    the reminder at all, so there the control is shown but shut:
-                    the note above already says why. */}
+                {/* The time the reminder lands at. A real time field rather
+                    than the row of hours this used to be: on a phone it opens
+                    the system's own picker (the wheel on iOS, the clock dialog
+                    on Android), and on a desktop its segments can simply be
+                    typed into. It is here whether the reminder is on or off, so
+                    the time can be chosen first — and a change while it is on
+                    is rescheduled by the app's own sync
+                    (components/reminder-sync.tsx), which watches it. A browser
+                    can't deliver the reminder at all, so there the control is
+                    shown but shut: the note in the card's header says why. */}
                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3">
                   <label htmlFor="reminder-time" className="text-sm font-medium text-foreground">
                     Reminder time
                   </label>
-                  <select
+                  <input
                     id="reminder-time"
-                    value={prefs.reminderHour}
-                    onChange={(event) => onPickHour(Number(event.target.value))}
+                    type="time"
+                    step={60}
+                    value={timeValue(prefs.reminderHour, prefs.reminderMinute)}
+                    onChange={(event) => onPickTime(event.target.value)}
                     disabled={!reminderUsable || reminderBusy}
                     className="rounded-full border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent/60 focus:border-accent/60 focus:outline-none disabled:cursor-default disabled:opacity-45 disabled:hover:border-border"
-                  >
-                    {HOURS.map((hour) => (
-                      <option key={hour} value={hour}>
-                        {formatHour(hour)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 {reminderBlocked && (

@@ -24,9 +24,9 @@ import { featureById } from "@/lib/features";
  * one is a plain name for the block, read in a glance and never in the way of
  * the tap. It is also what labels the section — the block carries no name of
  * its own (`aria-labelledby`, not `aria-label`), so the words on the screen are
- * the ones a screen reader is given. It sits at the left edge of the capped
- * column rather than of the page, because it belongs to the tiles under it and
- * a desktop would otherwise leave it stranded a few hundred pixels away.
+ * the ones a screen reader is given. It sits at the left edge of the column,
+ * like every other block on the hub, because it belongs to the tiles under it
+ * and a desktop would otherwise leave it stranded a few hundred pixels away.
  *
  * Two across a phone, four from `sm`. A square is about 139px across two
  * columns at 320px — a home-screen mark with room for its name — where four
@@ -34,11 +34,13 @@ import { featureById } from "@/lib/features";
  * names in half (see components/feature-card.tsx). Four across is what a
  * desktop has room for, which is the other half of the same arithmetic.
  *
- * The squares are given a ceiling on top of that rather than the page's full
- * width. The hub's other blocks are cards as wide as the page, which on a
- * desktop is over a thousand pixels: four squares of that size are not tiles,
- * they are panes, and the mark and the name adrift in the middle of one read as
- * an unfinished layout. Capped and centred, the row stays a row at every width.
+ * The row runs the whole width of the page's column, like the cards above it.
+ * It used to be capped and centred at 32rem, which on a desktop left four
+ * small squares floating in the middle of a thousand-pixel column, with their
+ * heading starting somewhere else entirely. Left-aligned and filling the
+ * column, the row ends where every other card on the page ends, and each tile
+ * grows with it — a little larger than before, and still a tile rather than a
+ * pane, because the square's own aspect is what sizes it.
  */
 
 interface Tile {
@@ -93,7 +95,7 @@ const HEADING_ID = "quick-activities-heading";
 
 export function QuickActivities() {
   return (
-    <section aria-labelledby={HEADING_ID} className="mx-auto mt-8 w-full max-w-lg">
+    <section aria-labelledby={HEADING_ID} className="mt-8 w-full">
       <h2
         id={HEADING_ID}
         className="mb-3 font-serif text-lg font-semibold text-foreground sm:mb-4 sm:text-xl"
@@ -142,7 +144,7 @@ function QuickTile({ tile }: { tile: Tile }) {
       title={tile.soon ? `${tile.hint} — not built yet` : tile.hint}
       className="group flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-2 text-center transition-colors hover:border-accent/60 focus-visible:border-accent/60"
     >
-      <Glyph name={tile.icon} className="h-12 w-12 shrink-0 text-accent-strong sm:h-14 sm:w-14" />
+      <Glyph name={tile.icon} className="h-12 w-12 shrink-0 text-accent-strong sm:h-16 sm:w-16" />
 
       <span className="text-sm font-medium leading-tight text-foreground transition-colors group-hover:text-accent-strong">
         {tile.label}
