@@ -410,17 +410,23 @@ export function SettingsPage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-border bg-surface p-5">
+              {/* Offered on a phone and in the installed app, not on a desktop
+                  page: a reminder is something a phone delivers, and a browser
+                  at that width cannot deliver one at all. In the app the row
+                  stays at every width — a tablet can take notifications — so
+                  it is the browser that is hidden rather than the wide screen
+                  itself. `reminderUsable` rather than the platform check
+                  because it is false until the client has mounted, which is
+                  also what the prerendered page says: the first client render
+                  agrees with it, and the app's own shell then reveals the row
+                  instead of React leaving a mismatched class in place. */}
+              <div
+                className={`${reminderUsable ? "" : "sm:hidden"} rounded-3xl border border-border bg-surface p-5`}
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">Daily study reminder</p>
                     <p className="mt-0.5 text-xs text-muted">Get notified when it is time to study.</p>
-                    {!reminderUsable && (
-                      <p className="mt-1 text-xs text-muted">
-                        Only works in the installed app — a browser can&apos;t deliver reminders while it is
-                        closed.
-                      </p>
-                    )}
                   </div>
                   <Switch
                     checked={prefs.dailyReminder}
@@ -439,7 +445,8 @@ export function SettingsPage() {
                     is rescheduled by the app's own sync
                     (components/reminder-sync.tsx), which watches it. A browser
                     can't deliver the reminder at all, so there the control is
-                    shown but shut: the note in the card's header says why. */}
+                    shown but shut — and only on a phone-sized page, since the
+                    card is hidden where a reminder would never be used. */}
                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3">
                   <label htmlFor="reminder-time" className="text-sm font-medium text-foreground">
                     Reminder time
@@ -469,7 +476,11 @@ export function SettingsPage() {
                   on the device — so the menu and this row are how it is found.
                   The copy is the catalog's, so this, the menu and the page
                   can't describe it three ways. */}
-              <div className="rounded-3xl border border-border bg-surface p-5">
+              {/* Hidden on desktop for the same reason as the reminder: a
+                  home-screen widget is a thing you put on a phone. */}
+              <div
+                className={`${reminderUsable ? "" : "sm:hidden"} rounded-3xl border border-border bg-surface p-5`}
+              >
                 <p className="text-sm font-medium text-foreground">Home-Screen Widgets</p>
                 <p className="mt-0.5 text-xs text-muted">
                   {widget?.blurb ?? "Verse of the day, streak, and a one-tap draw"} — not built yet.
