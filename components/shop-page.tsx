@@ -238,9 +238,6 @@ function GemSection() {
   return (
     <section>
       <h2 className="font-serif text-lg font-semibold text-foreground">Gems</h2>
-      <p className="mt-0.5 text-sm text-muted">
-        A top-up for the days you would rather read than count minutes.
-      </p>
 
       <div className="mt-3 space-y-2.5">
         {GEM_PACKS.map((pack) => (

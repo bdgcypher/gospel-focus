@@ -42,11 +42,11 @@ export function StatsPage() {
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Daily study goal</p>
-            <p className="mt-0.5 text-xs text-muted">
-              {progress.target === 0
-                ? "No goal yet. Set how long you want to give the scriptures each day."
-                : `${progress.target} minutes a day. The time you spend reading and studying counts on its own.`}
-            </p>
+            {progress.target === 0 && (
+              <p className="mt-0.5 text-xs text-muted">
+                No goal yet. Set how long you want to give the scriptures each day.
+              </p>
+            )}
           </div>
 
           {/* Editing lives in settings, and this is the way there. The lengths
@@ -142,6 +142,9 @@ export function StatsPage() {
         />
         <StatTile
           icon="bookmark"
+          // The shelf's own drawn mark, whatever the skin: a bookmark that is
+          // a label here, not a picture of something on sale.
+          plain
           label="Favorites"
           value={String(favorites.length)}
           hint={
@@ -186,6 +189,7 @@ function StatTile({
   unit,
   hint,
   href,
+  plain,
 }: {
   icon: GlyphName;
   label: string;
@@ -194,11 +198,13 @@ function StatTile({
   hint: string;
   /** Somewhere to go for the number's own page, where it has one. */
   href?: string;
+  /** Keep the drawn mark in the playful skins as well (see components/glyph.tsx). */
+  plain?: boolean;
 }) {
   const body = (
     <>
       <span className="flex items-center gap-2 text-muted">
-        <Glyph name={icon} className="h-4 w-4" />
+        <Glyph name={icon} className="h-4 w-4" plain={plain} />
         <span className="text-[11px] font-semibold uppercase tracking-wider">{label}</span>
       </span>
 

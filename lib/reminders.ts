@@ -22,6 +22,13 @@ import type { Filters, Manifest, Passage } from "./types";
 export const REMINDER_HORIZON_DAYS = 14;
 
 /**
+ * Where a tapped reminder takes the reader: the day's verse, open in the
+ * reader. The notification quotes the words, so the tap has to land on the
+ * passage they came from rather than on a list of everything.
+ */
+export const REMINDER_ROUTE = "/read?action=daily";
+
+/**
  * Notification ids live here and nowhere else, so rescheduling can clear its
  * own without touching anything else the app might ever schedule.
  */
@@ -165,6 +172,9 @@ export async function syncDailyReminders({
     notifications: drawn.map(({ day, passage }, index) => ({
       id: ID_BASE + index,
       ...reminderCopy(passage),
+      // Carried on the notification so the tap knows where to go without
+      // having to work out which day it was for (components/reminder-sync.tsx).
+      extra: { route: REMINDER_ROUTE, day },
       schedule: {
         at: fireTime(day, hour),
         // Not an exact alarm on purpose. Asking for one on Android 12+ throws

@@ -92,7 +92,12 @@ export function StreakPage() {
           given the flame beside it rather than a badge above it; the dimmed
           state is a lower strength of the page's own ink. */}
       <section
-        className="streak-card relative overflow-hidden rounded-3xl border border-border bg-surface p-4 sm:p-5"
+        // A completed run gets a heavier rim in the flame's own gold, so the
+        // card reads as finished before the number inside it is read; the
+        // border is stated rather than grown, so the card keeps its size.
+        className={`streak-card relative overflow-hidden rounded-3xl bg-surface p-4 sm:p-5 ${
+          counted ? "border-2 border-accent" : "border border-border"
+        }`}
         data-counted={counted}
       >
         {counted && <span className="streak-shine" aria-hidden="true" />}
@@ -101,14 +106,14 @@ export function StreakPage() {
           <div className="min-w-0">
             <p
               className={`font-serif text-6xl font-bold leading-none tabular-nums sm:text-7xl ${
-                counted ? "text-foreground" : "text-muted/40"
+                counted ? "text-accent-strong" : "text-muted/40"
               }`}
             >
               <RollingNumber value={run} />
             </p>
             <p
               className={`mt-2 text-lg font-bold leading-tight sm:text-xl ${
-                counted ? "text-foreground" : "text-muted/50"
+                counted ? "text-accent-strong" : "text-muted/50"
               }`}
             >
               day streak!
@@ -146,11 +151,6 @@ export function StreakPage() {
       )}
 
       <FreezeCard freezes={streak.freezes} onRefill={() => setRefilling(true)} />
-
-      <p className="mt-4 text-xs leading-relaxed text-muted">
-        A freeze is spent for you at midnight when a day goes by without the goal, and keeps the run
-        exactly as it was. Studying earns the gems they are refilled with.
-      </p>
 
       <RefillFreezeDialog open={refilling} onClose={() => setRefilling(false)} />
     </FeaturePage>
@@ -333,7 +333,7 @@ function RefillFreezeSheet({ onClose }: { onClose: () => void }) {
         <p className="mt-1.5 text-sm leading-relaxed text-muted">
           {full
             ? "Both freezes are in place. Come back when one is spent to top up."
-            : "A freeze keeps your run alive through one missed day. It is spent for you at midnight, and the number stays exactly where it is."}
+            : "Don't risk losing your streak if you forget a day or life gets crazy."}
         </p>
 
         {/* The quantity, always. A reader with one freeze has a dead "+" rather

@@ -168,7 +168,7 @@ export const FEATURES: Feature[] = [
     title: "Memorize",
     tileTitle: "Memorize",
     blurb: "Hide the words a few at a time, then say it whole",
-    tileBlurb: "Hide the words, then recall",
+    tileBlurb: "Improve your scripture recall",
     icon: "cards",
     status: "ready",
     capabilities: [
@@ -202,7 +202,7 @@ export const FEATURES: Feature[] = [
     title: "Context & Likening",
     tileTitle: "Context",
     blurb: "Where a passage sits, and what it might mean today",
-    tileBlurb: "Its setting and its meaning",
+    tileBlurb: "Don't just read, understand!",
     icon: "sparkles",
     status: "planned",
     capabilities: [
@@ -217,7 +217,7 @@ export const FEATURES: Feature[] = [
     href: "/journal",
     title: "Journal & Notes",
     blurb: "Your own words, kept beside the verses",
-    tileBlurb: "Notes beside the verses",
+    tileBlurb: "Jot down thoughts and feelings",
     icon: "journal",
     status: "ready",
     capabilities: [
@@ -232,7 +232,7 @@ export const FEATURES: Feature[] = [
     group: "games",
     href: "/games/reference-quiz",
     title: "What's That Verse?",
-    blurb: "Read a verse, name its reference",
+    blurb: "Recognize or guess a verses reference",
     icon: "quiz",
     status: "ready",
     capabilities: [
@@ -262,7 +262,7 @@ export const FEATURES: Feature[] = [
     href: "/games/word-search",
     title: "Word Search",
     tileTitle: "Word Search",
-    blurb: "Find the passage's key words in a grid",
+    blurb: "Find words from a selected scripture",
     icon: "word-search",
     status: "ready",
     capabilities: [

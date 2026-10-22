@@ -672,7 +672,11 @@ function HintSheet({
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted">
-                      <Glyph name="gem" className="h-3.5 w-3.5" />
+                      {/* The playful skins get the real stone here rather than
+                          the drawn one: this price sits on a button the reader
+                          is choosing between, and the picture is what the
+                          wallet in the app bar is showing them too. */}
+                      <Glyph name="gem" emoji className="h-3.5 w-3.5" />
                       <span className="tabular-nums">{cost}</span>
                     </span>
                   )}
