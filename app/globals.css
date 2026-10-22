@@ -1297,7 +1297,9 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 }
 
 .journal-body[data-empty="true"]::before {
-  content: "Note down thoughts or impressions...";
+  /* The editor's own words, so the journal and a note can each ask their own
+     question in the same box. */
+  content: attr(data-placeholder);
   color: var(--muted);
   pointer-events: none;
   position: absolute;

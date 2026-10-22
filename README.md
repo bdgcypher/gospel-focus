@@ -29,10 +29,11 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
 - **Expand to the whole chapter** (or the full conference talk) with the selected
   verse highlighted and auto-scrolled into view.
 - **Share what you pick** — tap verses (or paragraphs) in the expanded view to
-  share just those. The drawn passage comes up already selected, so a quick pick
-  can't quietly drop it, and a floating set of controls follows you down the page
-  — collapse the chapter, open the passage in the Gospel Library, take a note,
-  memorize the pick, share the selection, or save it to favorites — so a long
+  share just those. The chapter opens with nothing picked, so the first tap
+  selects rather than clears, and the verse the draw landed on stays marked so
+  you know where you are. A floating set of controls follows you down the page
+  — collapse the chapter, open the passage in the Gospel Library, memorize the
+  pick, save it to favorites, take a note, or share the selection — so a long
   chapter never has to be scrolled back through. On a phone it is a gold button
   in the corner that fans out into those jobs; on a wide screen it is a labelled
   bar along the foot of the page, where a pointer has room for the words. It
@@ -245,8 +246,9 @@ _**Gospel Focus**_ pulls in passages from all LDS standard works and general con
   typing or by dictation, formatted with bold, italic, underline, lists, and
   links, and pointing at a passage in the library, a note written on a starred
   passage, or another entry. Notes are written from the reader (which stars the
-  passage as it takes one) or from a favorite in `/favorites`, and the journal's
-  link picker searches all three kinds.
+  passage as it takes one) or from a favorite in `/favorites`, and are written
+  with the same toolbar — bold, italic, underline, lists, links, dictation — as
+  an entry. The journal's link picker searches all three kinds.
 
 ## Getting started
 

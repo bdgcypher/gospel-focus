@@ -328,11 +328,12 @@ function StatusLine({
   allCommon: boolean;
 }) {
   if (status === "idle") {
+    // Nothing to count until a search has loaded the index; the empty state
+    // below is the whole of what is said before then.
+    if (!documents) return null;
     return (
       <p className="mt-3 text-sm text-muted">
-        {documents
-          ? `${documents.toLocaleString("en-US")} passages — every verse and conference paragraph.`
-          : "Every verse and conference paragraph in the library, searched at once."}
+        {`${documents.toLocaleString("en-US")} passages — every verse and conference paragraph.`}
       </p>
     );
   }
@@ -464,13 +465,7 @@ function Highlighted({
 function Idle({ onPick }: { onPick: (query: string) => void }) {
   return (
     <div className="mt-6 rounded-3xl border border-dashed border-border bg-surface/70 p-5">
-      <p className="text-sm text-muted">
-        Search reads the passage text itself, so a phrase finds the verse it came from — and a
-        reference like <span className="font-medium text-foreground">alma 32</span> finds the
-        chapter.
-      </p>
-
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         {EXAMPLES.map((example) => (
           <button
             key={example}

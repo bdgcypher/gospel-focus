@@ -2,7 +2,7 @@
 
 import type { JournalEntry } from "./journal";
 import { bodyText, displayTitle } from "./journal";
-import type { Note } from "./notes";
+import { noteText, type Note } from "./notes";
 import type { SearchHit } from "./search";
 
 /**
@@ -65,7 +65,8 @@ export function noteTarget(note: Note): LinkTarget {
     source: "notes",
     text: note.reference,
     href: `/favorites#${encodeURIComponent(note.favoriteId)}`,
-    detail: note.text,
+    // The words, not the markup: this line is read and searched, not rendered.
+    detail: noteText(note.text),
   };
 }
 

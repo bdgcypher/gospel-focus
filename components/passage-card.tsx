@@ -59,8 +59,6 @@ export function PassageCard({ passage, drawKey }: Props) {
   const note = noteFor(notes, savedId);
 
   const isScripture = passage.kind === "scripture";
-  /** The verse (or paragraph) the draw landed on — what the card is showing. */
-  const mainVerse = passage.highlightVerse;
   /** Only once the card's own button is out of sight above the reader. */
   const shareScrolledAway = useScrolledPast(shareRef);
 
@@ -83,14 +81,11 @@ export function PassageCard({ passage, drawKey }: Props) {
       setExpanded(false);
       return;
     }
-    // Opening the chapter starts on the draw itself: the verse the book landed
-    // on comes up already picked, so sharing a few verses from around it can't
-    // quietly drop the passage the card is showing.
-    setSelected(
-      mainVerse !== null && passage.verses.some((v) => v.number === mainVerse)
-        ? new Set([mainVerse])
-        : new Set<number>()
-    );
+    // Opening the chapter starts with nothing picked: the chapter is there to
+    // be read, and the verse the draw landed on is already marked by the card.
+    // A pre-picked verse made the first tap on it a de-selection, which read as
+    // the app refusing the tap rather than as a share being prepared.
+    setSelected(new Set());
     setExpanded(true);
   };
 
@@ -219,6 +214,18 @@ export function PassageCard({ passage, drawKey }: Props) {
       href: passage.url,
     },
     {
+      id: "memorize",
+      label: picked.length > 0 ? `Memorize ${picked.length} ${unit}` : "Add to your memory list",
+      short: "Memorize",
+      icon: <Glyph name="cards" className="h-5 w-5" />,
+      onSelect: () => {
+        setMemorySections(picked);
+        setMemoryOpen(true);
+      },
+    },
+    {
+      // Saving sits between memorizing and the note, because that is the order a
+      // passage is worked with: take it with you, keep it, write on it.
       id: "favorite",
       label: starLabel,
       short: "Favorite",
@@ -231,16 +238,6 @@ export function PassageCard({ passage, drawKey }: Props) {
       short: "Notes",
       icon: <Glyph name="journal" className="h-5 w-5" />,
       onSelect: () => setNoteOpen(true),
-    },
-    {
-      id: "memorize",
-      label: picked.length > 0 ? `Memorize ${picked.length} ${unit}` : "Add to your memory list",
-      short: "Memorize",
-      icon: <Glyph name="cards" className="h-5 w-5" />,
-      onSelect: () => {
-        setMemorySections(picked);
-        setMemoryOpen(true);
-      },
     },
     {
       id: "share",

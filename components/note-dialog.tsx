@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Glyph } from "./glyph";
+import { RichTextEditor } from "./rich-text-editor";
 
 interface Props {
   open: boolean;
@@ -13,11 +14,11 @@ interface Props {
   source: string;
   /** The passage itself, in brief, under the heading. */
   passage: string;
-  /** What is already written, or "" for a passage with no note yet. */
+  /** What is already written, as HTML, or "" for a passage with no note yet. */
   initial: string;
   /**
-   * Save the note. Empty text means "no note" — the caller decides whether that
-   * deletes an old one or simply never writes a new one (see lib/notes.ts).
+   * Save the note. An empty body means "no note" — the caller decides whether
+   * that deletes an old one or simply never writes a new one (see lib/notes.ts).
    */
   onSave: (text: string) => void;
   /** Offered only when there is a note to remove. */
@@ -34,38 +35,34 @@ interface Props {
  * about would scroll away behind a field that unfolded inside the card; a sheet
  * keeps both in view, and it is the same sheet from either page.
  *
- * The text is held here, not by the page: the field starts from whatever is
- * stored when it opens and the page is told once, on save. Escape and the
- * backdrop close it without saving, because a note half-written is not a thing
- * to persist by accident.
+ * The text is held here, not by the page: the body starts from whatever is
+ * stored when it opens and the page is told once, on save. It is written with
+ * the journal's own editor (components/rich-text-editor.tsx), so a note can be
+ * bold, in a list, or linked back into the app exactly as an entry can. Escape
+ * and the backdrop close it without saving, because a note half-written is not
+ * a thing to persist by accident.
  */
 export function NoteDialog({ open, title, source, passage, initial, onSave, onDelete, onClose }: Props) {
   // The caller gives this component a fresh key per opening (see the favorites
   // page and the passage card), so the draft starts from the stored note without
   // an effect to reset it: the note being edited is decided by what mounted.
-  const [text, setText] = useState(initial);
-  const field = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    // The field is the reason the sheet opened, so it takes the cursor.
-    const id = window.setTimeout(() => field.current?.focus(), 120);
-    return () => window.clearTimeout(id);
-  }, [open]);
+  const html = useRef(initial);
+  /** The link picker sits over this sheet, so it answers Escape before the sheet does. */
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !linking) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, linking, onClose]);
 
   if (typeof document === "undefined") return null;
 
   const save = () => {
-    onSave(text);
+    onSave(html.current);
     onClose();
   };
 
@@ -116,17 +113,17 @@ export function NoteDialog({ open, title, source, passage, initial, onSave, onDe
               {passage}
             </p>
 
-            <label htmlFor="journal-note" className="mt-4 block text-xs font-semibold uppercase tracking-wider text-muted">
-              Your note
-            </label>
-            <textarea
-              id="journal-note"
-              ref={field}
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              rows={5}
+            <RichTextEditor
+              initialHtml={initial}
+              onChange={(next) => {
+                html.current = next;
+              }}
+              autoFocus
               placeholder="What struck you about this passage?"
-              className="mt-1.5 w-full resize-y rounded-2xl border border-border bg-surface-2 px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted focus:border-accent/60 focus:outline-none"
+              ariaLabel="Your note"
+              className="mt-4"
+              bodyClassName="min-h-[9rem]"
+              onLinkOpenChange={setLinking}
             />
 
             <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
@@ -154,7 +151,7 @@ export function NoteDialog({ open, title, source, passage, initial, onSave, onDe
                 onClick={save}
                 className="inline-flex items-center gap-1.5 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
               >
-                {initial ? "Save note" : "Add note"}
+                Save
               </button>
             </div>
           </motion.div>

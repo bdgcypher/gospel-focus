@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Favorite } from "./favorites";
+import { bodyText, sanitizeBody } from "./journal";
 
 /**
  * The notes a reader writes on the passages they have kept.
@@ -17,6 +18,12 @@ import type { Favorite } from "./favorites";
  * the words). That is what lets the notes be listed, searched, and linked to
  * from the journal without loading the library or the favorites list — the same
  * reason a favorite carries its own words.
+ *
+ * The note's words are rich text, stored as sanitized HTML exactly the way a
+ * journal entry's body is (see lib/journal.ts) — the note is written with the
+ * same editor. Notes written before the toolbar existed are plain text in the
+ * same field, so `noteHtml` also knows how to read one: the tags say which kind
+ * a record is, and a plain one keeps its line breaks.
  */
 
 export interface Note {
@@ -28,12 +35,41 @@ export interface Note {
   sourceLabel: string;
   /** The passage itself, so a note reads on its own. */
   passage: string;
-  /** What the reader wrote. */
+  /** What the reader wrote, as sanitized HTML. */
   text: string;
   updatedAt: number;
 }
 
 const KEY = "gospel-focus:notes:v1";
+
+/**
+ * Whether a stored note is HTML or the plain text an older build wrote.
+ *
+ * A note written with the toolbar always opens a tag; a note typed before it
+ * existed never does, since what was typed was stored as it stood. The pattern
+ * needs a letter after the bracket so a stray “a < b” is still read as words.
+ */
+function looksLikeHtml(text: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(text);
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * A note as the HTML the page renders: sanitized, and with an older plain-text
+ * note's line breaks kept rather than collapsed into one paragraph.
+ */
+export function noteHtml(text: string): string {
+  if (!text) return "";
+  return looksLikeHtml(text) ? sanitizeBody(text) : escapeHtml(text).replace(/\n/g, "<br />");
+}
+
+/** The note as words: tags out, for previews and for the journal's link search. */
+export function noteText(text: string): string {
+  return bodyText(noteHtml(text));
+}
 
 /** One shared empty snapshot, so the server render and first client render agree. */
 const EMPTY: Note[] = [];
@@ -99,9 +135,11 @@ export function noteFor(notes: Note[], favoriteId: string): Note | null {
  * the way the reader means it.
  */
 export function saveNote(favorite: Favorite, text: string): void {
-  const trimmed = text.trim();
+  const html = noteHtml(text);
   const rest = read().filter((note) => note.favoriteId !== favorite.id);
-  if (!trimmed) {
+  // An empty editor is not always an empty string — clearing the body can
+  // leave an empty paragraph behind — so the words decide, not the markup.
+  if (!bodyText(html).trim()) {
     write(rest);
     return;
   }
@@ -111,7 +149,7 @@ export function saveNote(favorite: Favorite, text: string): void {
       reference: favorite.reference,
       sourceLabel: favorite.sourceLabel,
       passage: favorite.text,
-      text: trimmed,
+      text: html,
       updatedAt: Date.now(),
     },
     ...rest,

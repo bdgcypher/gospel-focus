@@ -10,7 +10,7 @@ import { NoteDialog } from "./note-dialog";
 import { isNative, openExternal } from "@/lib/external";
 import { clearFavorites, removeFavorite, useFavorites, type Favorite } from "@/lib/favorites";
 import { addFavoriteToMemory, removeMemory, useMemory } from "@/lib/memorize";
-import { noteFor, removeNote, saveNote, useNotes } from "@/lib/notes";
+import { noteFor, noteHtml, removeNote, saveNote, useNotes } from "@/lib/notes";
 
 /** How many verses a card shows before it offers to expand. */
 const COLLAPSE_AFTER = 3;
@@ -162,11 +162,14 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
       {note && (
         <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/10 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-strong">
-            Your note
+            Notes
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/85">
-            {note.text}
-          </p>
+          {/* Sanitized on the way in and again on the way out: what is in
+              storage is data, and data is not trusted with the page's DOM. */}
+          <div
+            className="journal-body mt-1 text-sm leading-relaxed text-foreground/85"
+            dangerouslySetInnerHTML={{ __html: noteHtml(note.text) }}
+          />
         </div>
       )}
 
