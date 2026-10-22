@@ -1,4 +1,4 @@
-The three PNGs in this folder are renders of glyphs from Noto Color Emoji
+The PNGs in this folder are renders of glyphs from Noto Color Emoji
 (https://fonts.google.com/noto/specimen/Noto+Color+Emoji), copyright Google
 Inc., used under the SIL Open Font License reproduced below.
 

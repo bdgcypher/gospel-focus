@@ -119,7 +119,7 @@ export function Glyph({ name, className = "h-5 w-5", plain = false, emoji: force
  *
  * Seen when a platform's emoji font has the wrong picture — or no picture — for
  * a codepoint. Shipping the art keeps the mark the same on every phone, which
- * matters for the three below because they carry a page's identity rather than
+ * matters for the four below because they carry a page's identity rather than
  * decorating a label.
  */
 interface EmojiArt {
@@ -139,12 +139,12 @@ interface EmojiArt {
  * carries meaning on its own (and they are hidden from screen readers).
  *
  * Most are the character itself, which lets the app wear whatever emoji the
- * device wears. The three that are `EmojiArt` are the newest characters the
+ * device wears. The four that are `EmojiArt` are the newest characters the
  * app uses, and experience says some device fonts do not draw them correctly:
- * on those phones 🧠 comes out as the orange heart beside it, 🟩 as the purple
- * square and 🧊 as the bubble tea — the codepoint after each. Shipping those
- * three as artwork makes the brain, the puzzle's green and the freeze cube
- * right whatever the font does.
+ * on those phones 🧠 comes out as the orange heart beside it, 🧩 as the test
+ * tube, 🟩 as the purple square and 🧊 as the bubble tea — the codepoint after
+ * each. Shipping those four as artwork makes the brain, the puzzle piece, the
+ * puzzle's green and the freeze cube right whatever the font does.
  *
  * A null is a deliberate "keep the drawing": these are the marks that tell a
  * reader what a control *does*, where a picture of the same thing would be
@@ -163,7 +163,7 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   // the card's tile is already a warm cream, and the red emoji shouted beside
   // it. The hollow mark sits at the weight of the other tiles' pictures.
   quiz: "❔️",
-  puzzle: "🧩",
+  puzzle: { art: "/emoji/puzzle.png" },
   letters: "🔠",
   grid: "🔳",
   "word-search": "🔎",
