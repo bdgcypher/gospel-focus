@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
+import { NotQuiteFace } from "./not-quite-face";
 import { SearchSelect, type SelectOption } from "./search-select";
 import { spendGems, useGems } from "@/lib/gems";
 import { useResultHaptics } from "@/lib/haptics";
@@ -831,7 +832,7 @@ function ResultSheet({
               }`}
             >
               {won ? "Good Work!" : "Not Quite!"}{" "}
-              <span aria-hidden="true">{won ? "🎉" : "🫤"}</span>
+              <span aria-hidden="true">{won ? "🎉" : <NotQuiteFace />}</span>
             </h2>
             <p className={`mt-1 text-sm ${won ? "text-win-muted" : "text-loss-muted"}`}>
               {won

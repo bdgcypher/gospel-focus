@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom";
 import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
+import { NotQuiteFace } from "./not-quite-face";
 import { PassagePanel } from "./passage-panel";
 import { useResultHaptics } from "@/lib/haptics";
 import { resolveCitation } from "@/lib/picker";
@@ -774,7 +775,7 @@ function ResultDialog({
               }`}
             >
               {solved ? "Good Work!" : "Not Quite!"}{" "}
-              <span aria-hidden="true">{solved ? "🎉" : "🫤"}</span>
+              <span aria-hidden="true">{solved ? "🎉" : <NotQuiteFace />}</span>
             </h2>
             <p className={`mt-1 text-sm ${solved ? "text-win-muted" : "text-loss-muted"}`}>
               {solved ? (
