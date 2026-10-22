@@ -99,13 +99,32 @@ export function Glyph({ name, className = "h-5 w-5", plain = false, emoji: force
       >
         {PATHS[name]}
       </svg>
-      {emoji && (
-        <span className="glyph-emoji" aria-hidden="true">
-          {emoji}
-        </span>
-      )}
+      {emoji &&
+        (typeof emoji === "string" ? (
+          <span className="glyph-emoji" aria-hidden="true">
+            {emoji}
+          </span>
+        ) : (
+          // A 160px icon the build ships as-is (`images.unoptimized`), so there
+          // is nothing for next/image to do but add a wrapper around it.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="glyph-emoji glyph-emoji-art" src={emoji.art} alt="" aria-hidden="true" />
+        ))}
     </span>
   );
+}
+
+/**
+ * An emoji the app draws from its own file rather than from the device's font.
+ *
+ * Seen when a platform's emoji font has the wrong picture — or no picture — for
+ * a codepoint. Shipping the art keeps the mark the same on every phone, which
+ * matters for the three below because they carry a page's identity rather than
+ * decorating a label.
+ */
+interface EmojiArt {
+  /** A path under public/, copied into the app unchanged. */
+  readonly art: string;
 }
 
 /**
@@ -119,17 +138,25 @@ export function Glyph({ name, className = "h-5 w-5", plain = false, emoji: force
  * green square. The app's own words stay beside each one, so the emoji never
  * carries meaning on its own (and they are hidden from screen readers).
  *
+ * Most are the character itself, which lets the app wear whatever emoji the
+ * device wears. The three that are `EmojiArt` are the newest characters the
+ * app uses, and experience says some device fonts do not draw them correctly:
+ * on those phones 🧠 comes out as the orange heart beside it, 🟩 as the purple
+ * square and 🧊 as the bubble tea — the codepoint after each. Shipping those
+ * three as artwork makes the brain, the puzzle's green and the freeze cube
+ * right whatever the font does.
+ *
  * A null is a deliberate "keep the drawing": these are the marks that tell a
  * reader what a control *does*, where a picture of the same thing would be
  * slower to read and would change the control's look rather than decorate it.
  */
-const EMOJI: Record<GlyphName, string | null> = {
+const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   search: "🔍",
   home: "🏠",
   book: "📖",
   // The memory deck's mark: a brain in the playful styles, the drawn card
   // beside it. Memorizing is what the glyph means, not the object it is on.
-  cards: "🧠",
+  cards: { art: "/emoji/brain.png" },
   map: "🗺️",
   sparkles: "✨",
   // The quiz card and page wear the white ornament rather than the red mark:
@@ -164,7 +191,7 @@ const EMOJI: Record<GlyphName, string | null> = {
   arrow: null,
   return: null,
   backspace: null,
-  word: "🟩",
+  word: { art: "/emoji/green-square.png" },
   flip: "🔄",
   plus: "➕",
   minus: "➖",
@@ -177,7 +204,7 @@ const EMOJI: Record<GlyphName, string | null> = {
   // A streak freeze: the ice cube the shop, the status chip, and the buy badge
   // all use for it. The drawn face is the same cube, so the focused skin says
   // "frozen" without reaching for a coloured picture.
-  ice: "🧊",
+  ice: { art: "/emoji/ice-cube.png" },
   help: "💡",
 };
 

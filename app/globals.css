@@ -1016,6 +1016,15 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
   line-height: 1;
 }
 
+/* A glyph whose playful face is shipped artwork rather than a character (the
+   brain, the puzzle's green square, the ice cube). Sized from the glyph's own
+   box like the emoji it stands in for, so it fits a tab and a tile alike. */
+.glyph-emoji-art {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+}
+
 .playful .glyph-has-emoji .glyph-vector {
   display: none;
 }
