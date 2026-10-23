@@ -173,7 +173,7 @@ export function StatusTray() {
         dot={status === "locked"}
         title={
           status === "locked" && !hasGoal
-            ? "Focus lock is on, but no daily goal is set — nothing is held until there is one."
+            ? "Focus lock is on, but no daily goal is set — nothing is disabled until there is one."
             : FOCUS_TITLES[status]
         }
         label="Focus lock"

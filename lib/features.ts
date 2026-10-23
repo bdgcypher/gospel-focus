@@ -249,8 +249,8 @@ export const FEATURES: Feature[] = [
     icon: "lock",
     status: "ready",
     capabilities: [
-      "Set it up in one step, then see at a glance whether it is holding",
-      "Pick the apps to hold back from the ones installed on your phone",
+      "Set it up in one step, then see at a glance whether it is locked",
+      "Pick the apps to disable from the ones installed on your phone",
       "The day's study releases them — the minutes read against your daily goal",
       "One switch for the lock, and it asks before it lets you off: 15 minutes, 30 minutes, or the rest of the day, then it closes itself again",
       "A lock screen over the chosen apps until that happens",

@@ -484,20 +484,40 @@ export function SettingsPage() {
                         : "Off — reading in the Gospel Library app is not counted towards your goal yet."}
                   </p>
 
-                  <p className="mt-3 text-xs leading-relaxed text-muted">
-                    Counting it needs accessibility access, so Gospel Focus can tell which app is open.
-                    It is the same access Focus Lock asks for, and it has to be switched on in
-                    Android&apos;s own settings. Nothing on the screen is read.
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => void openFocusAccessibilitySettings()}
-                    className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
-                  >
-                    <Glyph name="book" className="h-3.5 w-3.5" />
-                    {access?.enabled ? "Android's accessibility settings" : "Turn on Gospel Library Sync"}
-                  </button>
+                  {/* The same row /focus shows for the same grant: the two are
+                      one permission, so they are read and worded the same way
+                      rather than each explaining it in its own words. */}
+                  {access && (
+                    <div
+                      className={`mt-3 rounded-2xl border p-3 ${
+                        access.enabled ? "border-border bg-surface-2/60" : "border-accent/40 bg-accent/5"
+                      }`}
+                    >
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Glyph
+                          name={access.enabled ? "check" : "lock"}
+                          plain
+                          className="h-3.5 w-3.5 text-accent-strong"
+                        />
+                        {access.enabled
+                          ? "Accessibility access enabled"
+                          : "Accessibility access is off"}
+                      </p>
+                      {!access.enabled && (
+                        <p className="mt-1 text-xs leading-relaxed text-muted">
+                          Nothing is being counted. Android needs access so Gospel Focus can tell
+                          which app is open. Gospel Focus does not read your screen.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void openFocusAccessibilitySettings()}
+                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+                      >
+                        {access.enabled ? "Manage access" : "Turn on access"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

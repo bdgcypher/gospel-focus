@@ -206,14 +206,14 @@ call outside the passage library and the Gospel Library link.
 | **Daily puzzle** (`/games/puzzle`) | Six guesses at a four-to-six-letter word hidden in the day's chapter. The same day-seeded draw as the hub and reminder; a day with no usable word draws one seed further along. Standard marking, on-screen and physical keyboard, pinned per local day. A result card ends the board with the verse and a practice **Play again**. |
 | **Word-search** (`/games/word-search`) | The passage's own significant words hidden in a ten-by-ten grid in eight directions, fresh per passage. Drag, or focus a cell and press Enter to choose first and last letters. Finishing prints the verse and links into the chapter; the passage line opens the chapter in a side panel. |
 
-### Focus — the lock and its gate
+### Focus — the lock and its app list
 
-`/focus` holds the whole state, and the gate reads it:
+`/focus` holds the whole state, and Android's half reads it:
 
 - setting the lock up in one step;
 - a switch that reads the lock's own state rather than a stored flag;
 - a picker built from the apps installed on the phone, so a choice is a package
-  the gate can match rather than a name typed into a box;
+  the lock can match rather than a name typed into a box;
 - a hand bypass with a length — 15 minutes, 30 minutes, or the rest of today —
   that closes itself when the deadline passes;
 - the lock opening itself once the day's goal is met, and a manual re-arm after
@@ -232,12 +232,12 @@ armed again after a reboot with no foreground service and no notification.
 
 `FocusLockPlugin` lists the launcher apps, reports whether access is on, opens
 Android's accessibility settings, and writes the lock's state — set up, the day
-the goal was met, the day it was re-armed, the held packages, the bypass deadline
-— to `SharedPreferences`; `components/focus-sync.tsx` keeps that copy in step with
-the page. The day keys are what let the gate re-arm itself at midnight without the
+the goal was met, the day it was re-armed, the chosen packages, the bypass
+deadline — to `SharedPreferences`; `components/focus-sync.tsx` keeps that copy in step with
+the page. The day keys are what let the lock re-arm itself at midnight without the
 app running. Without the permission nothing is blocked, and the page says so on
 its face. iOS waits for Screen Time; the web build keeps the state and the list
-but has no gate.
+but cannot block.
 
 ### Platform & plumbing
 
@@ -254,7 +254,7 @@ but has no gate.
 - **Native bridges**, all local plugins beside `MainActivity`: `OpenUrlPlugin`,
   `ImageClipboardPlugin`, `FileDownloadPlugin`, `FocusLockPlugin`, plus the native
   file picker for reading a backup back in. `FocusAccessibilityService`, declared
-  beside them, is the Focus Lock's gate.
+  beside them, draws the Focus Lock's lock screen.
 - **Icons & system chrome**: night-qualified launcher icons, the Android 13+
   themed monochrome layer, and safe-area padding in both themes.
 - **Local persistence**: one versioned key per concern, each read through a
@@ -304,8 +304,8 @@ What is built and checked by the requirements above:
 
 - Blocking only while the lock is armed and the day's goal is unmet; a bypass or
   an earned day disarms it, a manual re-arm arms it again for the rest of the day.
-- The bypass rules stay authoritative, and the service closes the gate at the
-  deadline even if the reader is sitting in the held app when it passes.
+- The bypass rules stay authoritative, and the service takes the lock screen down
+  at the deadline even if the reader is sitting in a disabled app when it passes.
 - Nothing is blocked while the permission is missing; `/focus` reports the
   permission from the device and offers Android's settings screen.
 - The list is the reader's, built from the device's launcher apps — no preset.
@@ -315,7 +315,7 @@ What is built and checked by the requirements above:
 
 What is left before calling it finished:
 
-- **On-device validation.** The gate compiles and packages into the APK; it has
+- **On-device validation.** The lock screen compiles and packages into the APK; it has
   not yet been run against a real phone's launcher, keyboard, permission screens,
   Doze, or a reboot. Do that first.
 - **The permission conversation.** Watch a first-time reader go through Android's
@@ -373,7 +373,7 @@ before code.
 - Gospel Library links, the daily reminder, and the home-screen widgets.
 - Favorites, history, streaks and freezes, notes, journal, and share-as-image.
 - Search, memorization (including decks the reader builds), stats, and settings.
-- **Focus Lock in full, including the Android gate.**
+- **Focus Lock in full, including the Android lock screen.**
 - Every game already shipped.
 
 **Paid — Gospel Focus Plus and its content packs:**

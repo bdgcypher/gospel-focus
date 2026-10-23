@@ -152,13 +152,13 @@ on device:
 
 All of it lives in `lib/native-files.ts`; browser paths are untouched.
 
-### Focus Lock's gate
+### Focus Lock on Android
 
 The Focus Lock's Android half is an `AccessibilityService`
 (`FocusAccessibilityService.java`), declared in the manifest with
 `BIND_ACCESSIBILITY_SERVICE` and narrowed by `res/xml/focus_lock_service.xml`.
 It hears `TYPE_WINDOW_STATE_CHANGED`, compares the package in front with the
-reader's list, and draws a `TYPE_ACCESSIBILITY_OVERLAY` gate over a match. One
+reader's list, and draws a `TYPE_ACCESSIBILITY_OVERLAY` lock screen over a match. One
 permission is enough: an accessibility overlay needs no display-over-other-apps
 grant, and `canRetrieveWindowContent` is false, so it never sees the screen. The
 system starts the service itself, which is what carries the lock across a reboot.
@@ -168,14 +168,14 @@ launcher apps, report whether the service is enabled, open Android's
 accessibility settings, and write `{ lockOn, earnedDay, relockedDay, bypassUntil,
 packages }` into the `focus_lock` SharedPreferences file the service reads. The
 web store stays authoritative — `lib/focus.ts` decides, `components/focus-sync.tsx`
-publishes on every change — and the day keys let the gate re-arm itself at
-midnight while the app is closed. Android's Settings app is never gated, since it
-is where the permission is turned off again.
+publishes on every change — and the day keys let the lock re-arm itself at
+midnight while the app is closed. Android's Settings app is never covered, since
+it is where the permission is turned off again.
 
-The gate wears the reader's own theme and skin rather than a fixed palette of its
+The lock screen wears the reader's own theme and skin rather than a fixed palette of its
 own: `setAppearance` writes light/dark, focused/playful and whether the theme
 follows the device into `gate_appearance` (`GateAppearance.java`), and
-`components/gate-appearance-sync.tsx` keeps it current. A gate already on screen is
+`components/gate-appearance-sync.tsx` keeps it current. A lock screen already up is
 redrawn rather than waiting for the next window change.
 
 The same service counts the minutes the reader spends in the Gospel Library
@@ -185,7 +185,7 @@ which credits it to the day's study goal as far as the goal still has room — s
 reading in the Church's app counts, and no further than the bar.
 
 Without the permission nothing is blocked, and `/focus` says so on its face. The
-gate has been compiled and packaged; it still wants a pass on a real device. On
+Android half compiles and packages; it still wants a pass on a real device. On
 Android 13+, a sideloaded build may first need **Allow restricted settings** in
 App info before the service can be switched on.
 

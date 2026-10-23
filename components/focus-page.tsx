@@ -56,15 +56,15 @@ function useFocusPlatform(): FocusPlatform {
 /**
  * The Focus page.
  *
- * Two cards, both of them real state: the lock itself — set up or not, holding
+ * Two cards, both of them real state: the lock itself — set up or not, locking
  * or standing open by hand while a bypass runs out, with Android's permission and
- * what it enables — and the apps the reader means to hold back.
+ * what it enables — and the apps the reader means to disable.
  *
  * The blocking is now real too: on Android, an accessibility service draws a lock
  * screen over the chosen apps until the day's study is done
  * (android/app/.../FocusAccessibilityService.java), and the page is where the
  * permission is asked for and the list is chosen. Nothing here asserts that the
- * gate is working, though — the permission row reads the device, so a reader who
+ * lock is working, though — the permission row reads the device, so a reader who
  * has not turned access on is told nothing is being blocked rather than being
  * left to believe a switch.
  */
@@ -123,10 +123,11 @@ export function FocusPage() {
  * something the reader has not chosen yet.
  *
  * Once it is up, the switch reads the lock rather than a stored flag. On means
- * the chosen apps are being held, and switching it *on* is never the thing to
+ * the chosen apps are disabled, and switching it *on* is never the thing to
  * think twice about: it shuts a bypass that is still open, and with the day's
- * goal already met it is how the reader says they want the apps held anyway —
- * the one answer that outlasts the study that opened the gate (lib/focus.ts).
+ * goal already met it is how the reader says they want the apps disabled
+ * anyway — the one answer that outlasts the study that unlocked it
+ * (lib/focus.ts).
  * Off is the confessional half — nothing is written until the sheet is
  * confirmed, and what confirming writes is a bypass with a length on it, so the
  * click that means "not now" cannot quietly leave the lock open for good.
@@ -153,7 +154,6 @@ function FocusCard({
 }) {
   const [bypassing, setBypassing] = useState(false);
   const setUp = status !== "unset";
-  const platform = useFocusPlatform();
 
   return (
     <div className="rounded-3xl border border-border bg-surface p-5">
@@ -168,14 +168,14 @@ function FocusCard({
           </p>
           <p className="mt-0.5 text-xs text-muted">
             {status === "unset"
-              ? "Nothing is being held back yet."
+              ? "Nothing is disabled yet."
               : status === "earned"
-                ? "Today's study is done, so the apps are free until tomorrow. Turn it back on to hold them anyway."
+                ? "Today's study is done, so the apps are free until tomorrow. Turn it back on to disable them anyway."
                 : status === "overridden"
                   ? "Open by hand. It closes again when the time runs out."
                   : goalMinutes === 0
-                    ? "Pick a daily goal below. The lock opens when that day's study is done, so nothing is held until there is one."
-                    : "The apps below stay held until the day's study is done."}
+                    ? "Pick a daily goal below. The lock opens when that day's study is done, so nothing is disabled until there is one."
+                    : "Selected apps are disabled until the day's study goal is completed."}
           </p>
         </div>
 
@@ -189,7 +189,7 @@ function FocusCard({
               if (on) {
                 // Ends a bypass, and — with the goal already met — records the
                 // re-arm for the rest of the day, so the day's study that opened
-                // the gate cannot close the reader's own answer on the next
+                // the lock cannot close the reader's own answer on the next
                 // render.
                 lockNow();
                 return;
@@ -204,7 +204,7 @@ function FocusCard({
       {setUp ? (
         <>
           <StudyProgress goalMinutes={goalMinutes} minutes={minutes} percent={percent} />
-          <AccessibilityRow goalSet={goalMinutes > 0} />
+          <AccessibilityRow />
         </>
       ) : (
         <button
@@ -217,21 +217,13 @@ function FocusCard({
         </button>
       )}
 
-      <p className="mt-4 border-t border-border/70 pt-3 text-xs text-muted">
-        {platform === "android"
-          ? "The lock, the app list, and the lock screen are real. Apps are held only while Android's accessibility access is on and the lock is armed."
-          : platform === "web"
-            ? "The lock, the bypass, and the app list are real, and the home screen reads them. Holding other apps back needs the Android app."
-            : "The lock, the bypass, and the app list are real, and the home screen reads them."}
-      </p>
-
       <BypassDialog open={bypassing} onClose={() => setBypassing(false)} />
     </div>
   );
 }
 
 /**
- * Whether Android will let the gate draw at all, said plainly.
+ * Whether Android will let the lock draw at all, said plainly.
  *
  * The switch and the app list can both look ready while the permission that makes
  * either mean anything is off, so this reads the device rather than the stored
@@ -240,11 +232,14 @@ function FocusCard({
  * anything — and the row stays quiet until the first answer arrives rather than
  * announcing "off" for a frame.
  *
+ * Once it is on, the row says only that and keeps the way to manage it: there is
+ * nothing left to explain, and the page below already lists the apps it covers.
+ *
  * On the web it is a sentence rather than a control: there is no permission to
  * grant and no other app to see, and offering a button that could not change
  * anything would be the placeholder this app does not keep.
  */
-function AccessibilityRow({ goalSet }: { goalSet: boolean }) {
+function AccessibilityRow() {
   const platform = useFocusPlatform();
   const [access, setAccess] = useState<FocusAccessibility | null>(null);
 
@@ -275,7 +270,7 @@ function AccessibilityRow({ goalSet }: { goalSet: boolean }) {
     return (
       <p className="mt-4 rounded-2xl border border-border bg-surface-2/60 p-3 text-xs leading-relaxed text-muted">
         Blocking other apps is the Android app&apos;s half. On the web the lock keeps its state and
-        the home screen reads it, but nothing is held.
+        the home screen reads it, but nothing is blocked.
       </p>
     );
   }
@@ -294,20 +289,19 @@ function AccessibilityRow({ goalSet }: { goalSet: boolean }) {
           plain
           className="h-3.5 w-3.5 text-accent-strong"
         />
-        {access.enabled ? "Accessibility access is on" : "Accessibility access is off"}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-muted">
-        {access.enabled
-          ? goalSet
-            ? "The apps you choose below are held while the lock is on."
-            : "Access is ready, but nothing is held until you pick a daily goal."
-          : "Nothing is being blocked. Android needs access so Focus Lock can see which app opened and draw its lock screen over one on your list. Gospel Focus does not read your screen."}
+        {access.enabled ? "Accessibility access enabled" : "Accessibility access is off"}
       </p>
       {!access.enabled && (
-        <p className="mt-1.5 text-xs leading-relaxed text-muted">
-          Installed from a file, Android may grey the service out until you allow restricted
-          settings for Gospel Focus in App info.
-        </p>
+        <>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Nothing is being blocked. Android needs access so Focus Lock can see which app opened
+            and draw its lock screen over one on your list. Gospel Focus does not read your screen.
+          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted">
+            Installed from a file, Android may grey the service out until you allow restricted
+            settings for Gospel Focus in App info.
+          </p>
+        </>
       )}
       <button
         type="button"
@@ -368,7 +362,7 @@ function StudyProgress({
         <span className={`font-semibold tabular-nums ${done ? "text-goal-strong" : "text-foreground"}`}>
           {Math.min(minutes, goalMinutes)} / {goalMinutes} min studied
         </span>
-        <span>{done ? "Today's goal met" : "counting while you study"}</span>
+        <span>{done ? null : "counting while you study"}</span>
       </div>
       <div
         role="progressbar"
@@ -390,7 +384,7 @@ function StudyProgress({
 }
 
 /**
- * The apps the reader means to hold back.
+ * The apps the reader means to disable.
  *
  * On Android the list is the device's own: the picker is built from every app with
  * a launcher icon, so a choice is a package the accessibility service can match
@@ -442,19 +436,17 @@ function AppsCard({ apps }: { apps: HeldApp[] }) {
     [apps]
   );
 
-  // Every launcher app would be a long scroll and a lot of buttons; the search is
-  // the way through it, and the first sixty covers the whole of most phones'
-  // home screens. Typing narrows before the cut, so a match is never hidden by it.
+  // Every launcher app, in the order the device reports them, with the search
+  // narrowing it: the list is the device's own, so a reader looking for the app
+  // they are thinking of should never be told it is not there.
   const visible = useMemo(() => {
     if (!installed) return [];
     const needle = query.trim().toLowerCase();
-    const list = needle
-      ? installed.filter(
-          (app) =>
-            app.label.toLowerCase().includes(needle) || app.package.toLowerCase().includes(needle)
-        )
-      : installed;
-    return list.slice(0, 60);
+    if (!needle) return installed;
+    return installed.filter(
+      (app) =>
+        app.label.toLowerCase().includes(needle) || app.package.toLowerCase().includes(needle)
+    );
   }, [installed, query]);
 
   const typed = platform === "web" || listingFailed;
@@ -467,13 +459,13 @@ function AppsCard({ apps }: { apps: HeldApp[] }) {
 
   return (
     <div className="rounded-3xl border border-border bg-surface p-5">
-      <p className="text-sm font-medium text-foreground">Apps to hold back</p>
+      <p className="text-sm font-medium text-foreground">Apps to disable</p>
       <p className="mt-0.5 text-xs text-muted">
         {apps.length === 0
           ? android
             ? "Nothing chosen yet. Pick the apps that tend to take the time you meant to give."
             : "Nothing chosen yet. Add the apps that tend to take the time you meant to give."
-          : `${apps.length} ${apps.length === 1 ? "app" : "apps"} chosen on this device.`}
+          : `${apps.length} selected.`}
       </p>
 
       {apps.length > 0 && (
@@ -511,7 +503,7 @@ function AppsCard({ apps }: { apps: HeldApp[] }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the apps on this device"
+            placeholder="Search apps..."
             aria-label="Search apps"
             className="mt-4 h-11 w-full rounded-2xl border border-border bg-surface-2 px-3.5 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:outline-none"
           />
@@ -555,15 +547,6 @@ function AppsCard({ apps }: { apps: HeldApp[] }) {
               })}
             </ul>
           )}
-
-          {/* The list is cut at sixty rows so a phone with a few hundred apps
-              does not render all of them; the search is the way through, and this
-              says the cut exists rather than letting an app look missing. */}
-          {installed && !query.trim() && installed.length > visible.length && (
-            <p className="mt-2 text-[11px] text-muted">
-              Showing the first {visible.length} — search to find the rest.
-            </p>
-          )}
         </>
       )}
 
@@ -580,7 +563,7 @@ function AppsCard({ apps }: { apps: HeldApp[] }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="e.g. Instagram"
-            aria-label="App to hold back"
+            aria-label="App to disable"
             className="h-11 min-w-0 flex-1 rounded-2xl border border-border bg-surface-2 px-3.5 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:outline-none"
           />
           <button
@@ -596,9 +579,9 @@ function AppsCard({ apps }: { apps: HeldApp[] }) {
 
       <p className="mt-4 border-t border-border/70 pt-3 text-xs text-muted">
         {android && !listingFailed
-          ? "Holding an app back uses Android's accessibility service: it sees which app comes to the front and draws the lock screen over the ones on this list. It does not read your screen. The list stays on this device."
+          ? "Disabling apps with Focus Lock uses Android's accessibility service: it sees which app comes to the front and draws the lock screen over the ones on this list. It does not read your screen. The list stays on this device."
           : platform === "web"
-            ? "These names stay on this device as a note. Holding an app back needs the Android app's own app list, so a name typed here cannot block anything."
+            ? "These names stay on this device as a note. Disabling an app needs the Android app's own app list, so a name typed here cannot block anything."
             : "The list stays on this device."}
       </p>
     </div>
