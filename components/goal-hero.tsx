@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Glyph } from "./glyph";
 import { GoalPicker } from "./goal-picker";
+import { readFocusAccessibility, type FocusAccessibility } from "@/lib/native-focus";
 import { setGoalMinutes, studyProgress, useStudy } from "@/lib/study";
 
 /**
@@ -31,11 +32,14 @@ import { setGoalMinutes, studyProgress, useStudy } from "@/lib/study";
  * offer the way in. Nothing on it edits the goal — the goal is set once, in
  * settings, where a reader who wants a different one goes. Under the bar sits one
  * quiet line saying what does and doesn't count, which is the question a reader
- * meeting the bar for the first time actually has.
+ * meeting the bar for the first time actually has. What it says about the Gospel
+ * Library depends on the device, and only ever claims what is true there (see
+ * `useLibraryReading`).
  */
 export function GoalHero() {
   const study = useStudy();
   const progress = studyProgress(study);
+  const library = useLibraryReading();
   /** Whether the length chips are out, while a goal is being created. */
   const [creating, setCreating] = useState(false);
 
@@ -124,12 +128,76 @@ export function GoalHero() {
           />
 
           <p className={`mt-3 text-xs ${done ? "text-goal-muted" : "text-muted"}`}>
-            Any time spent on Study Activities is counted towards your goal
+            {library?.supported && library.enabled ? (
+              // Counting, so say so plainly.
+              "Any time spent on Study Activities or in the Gospel Library App is counted towards your goal"
+            ) : library?.supported ? (
+              // Not counting, but this device could: the way to turn it on, in
+              // the sentence rather than hidden in settings.
+              <>
+                Any time spent on Study Activities is counted towards your goal. Set up{" "}
+                <Link
+                  href="/settings#gospel-library-sync"
+                  className="font-medium text-accent-strong underline decoration-accent/40 underline-offset-2 transition-colors hover:decoration-accent-strong"
+                >
+                  Gospel Library Sync
+                </Link>{" "}
+                to count study done in the Gospel Library App as well.
+              </>
+            ) : (
+              // Everywhere else — the web, a desktop page, iOS — the Gospel
+              // Library half cannot exist, so the line says nothing about it
+              // rather than offering a setting that would not work.
+              "Any time spent on Study Activities is counted towards your goal"
+            )}
           </p>
         </div>
       )}
     </section>
   );
+}
+
+/**
+ * Where the device stands on counting Gospel Library reading: can it, and is it.
+ *
+ * It is counted by the accessibility service — the same grant Focus Lock asks for,
+ * off until the reader gives it — so the card cannot promise it merely because
+ * the app is on Android, and cannot offer to set it up in a browser that has no
+ * such settings screen at all. This reads the device rather than the stored
+ * state, the way the Focus page's own permission row does, and re-reads it when
+ * the reader comes back from Android's settings, which is the only way to know
+ * they changed anything.
+ *
+ * Null until the first answer arrives, so the line starts as the claim that is
+ * always true and grows the rest a moment later rather than the other way round:
+ * a promise withdrawn on load is worse than one arriving late.
+ */
+function useLibraryReading(): FocusAccessibility | null {
+  const [access, setAccess] = useState<FocusAccessibility | null>(null);
+
+  useEffect(() => {
+    let live = true;
+
+    const read = () => {
+      // Resolves to `supported: false` on the web and on iOS, where there is no
+      // such service to grant — and on a build whose bridge is missing.
+      void readFocusAccessibility().then((next) => {
+        if (live) setAccess(next);
+      });
+    };
+
+    read();
+    const onVisible = () => {
+      if (!document.hidden) read();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  return access;
 }
 
 /**

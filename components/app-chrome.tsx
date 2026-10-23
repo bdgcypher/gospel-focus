@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AppHeader } from "./app-header";
 import { FocusSync } from "./focus-sync";
+import { GateAppearanceSync } from "./gate-appearance-sync";
+import { GospelLibrarySync } from "./gospel-library-sync";
 import { BottomNav } from "./nav-bar";
 import { MenuPanel } from "./menu-panel";
 import { NavSwipe } from "./nav-swipe";
@@ -78,6 +80,11 @@ export function AppChrome({ children }: { children: ReactNode }) {
           only thing that reports it. */}
       <StudyTracker />
 
+      {/* And adds the time the reader spent reading in the Gospel Library, which
+          the accessibility service counted while the app was away. Android only:
+          nowhere else can see another app. */}
+      <GospelLibrarySync />
+
       {/* And puts a day in the streak once those minutes have reached the day's
           goal. Also invisible: the number in the app bar is the only place it
           shows. */}
@@ -88,6 +95,11 @@ export function AppChrome({ children }: { children: ReactNode }) {
           screen they are. Silent on the web and on iOS, where nothing can be
           held back anyway. */}
       <FocusSync />
+
+      {/* Dresses that gate in the reader's own theme and skin, so the screen it
+          draws over a held app looks like the app itself rather than like a
+          separate product. Silent off Android. */}
+      <GateAppearanceSync />
 
       {/* A finger across the page, or across the bar, steps to the section
           beside this one. Silent everywhere except the four section pages

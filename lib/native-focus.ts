@@ -28,6 +28,28 @@ export interface FocusAccessibility {
   enabled: boolean;
 }
 
+/**
+ * How the gate should be drawn, so it looks like the app it is standing over.
+ *
+ * The gate is a native window drawn while the app is somewhere else, so it cannot
+ * read the WebView's storage for either of these. They are pushed instead, on
+ * every change of theme or skin.
+ */
+export interface GateAppearance {
+  /** The reader's theme is dark, as the page resolved it. */
+  dark: boolean;
+  /** The reader wears the playful skin rather than the focused one. */
+  playful: boolean;
+  /**
+   * The theme is "follow the device" rather than a choice.
+   *
+   * Sent as well as `dark` because the device can turn over while the app is
+   * closed — a system night mode at sunset — and the gate, drawn then, has to read
+   * the screen it is actually on rather than the answer the page gave at noon.
+   */
+  follow: boolean;
+}
+
 /** What the accessibility service needs to know, written on every change. */
 export interface FocusDeviceState {
   /** The held apps' package names; entries typed by hand have none and are skipped. */
@@ -53,6 +75,7 @@ interface FocusLockPlugin {
   openSettings(): Promise<void>;
   listApps(): Promise<{ apps: HeldApp[] }>;
   sync(options: FocusDeviceState): Promise<void>;
+  setAppearance(options: GateAppearance): Promise<void>;
 }
 
 const FocusLock = registerPlugin<FocusLockPlugin>("FocusLock");
@@ -130,6 +153,24 @@ export async function syncFocusDevice(state: FocusDeviceState): Promise<void> {
   if (!focusLockSupported()) return;
   try {
     await FocusLock.sync(state);
+  } catch {
+    // See above.
+  }
+}
+
+/**
+ * Hand the gate its colours.
+ *
+ * Two booleans rather than a palette, so the colours themselves stay in one
+ * place — the stylesheet they are read from (see FocusAccessibilityService's
+ * `palette`) — and a skin added later is a native change rather than a shipped
+ * value that can drift. A gate already on the screen is redrawn by the service;
+ * a failure is ignored like the lock's own, since the gate keeps the look it had.
+ */
+export async function syncGateAppearance(appearance: GateAppearance): Promise<void> {
+  if (!focusLockSupported()) return;
+  try {
+    await FocusLock.setAppearance(appearance);
   } catch {
     // See above.
   }

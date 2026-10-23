@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { FeatureCard, FeatureGrid } from "./feature-card";
 import { FeaturePage } from "./feature-page";
 import { featureById, featuresInGroup, groupById, type Feature } from "@/lib/features";
+import { citationHref } from "@/lib/picker";
 
 const group = groupById("study");
 /** The section reading belongs to. Its own copy, so the two can't disagree. */
@@ -64,7 +66,32 @@ export function StudyPage() {
   return (
     <FeaturePage
       title={group?.label ?? "Study"}
-      subtitle={group?.blurb ?? "Tools for taking the words with you"}
+      // The strapline is a verse rather than the catalog's line, set the way the
+      // memorizer and the reference quiz set theirs: the words in the serif italic
+      // they are read in, the citation after them and kept whole. These tools exist
+      // to carry the reader into the best books, which is what it says.
+      subtitle={
+        <span>
+          <span className="font-serif italic text-foreground/85">
+            &ldquo;seek ye out of the best books words of wisdom; seek learning, even by study and
+            also by faith.&rdquo;
+          </span>{" "}
+          <span className="whitespace-nowrap font-semibold">
+            —{" "}
+            <Link
+              href={citationHref({
+                kind: "scripture",
+                book: "Doctrine and Covenants",
+                chapter: "88",
+                section: 118,
+              })}
+              className="text-accent-strong hover:underline"
+            >
+              Doctrine and Covenants 88:118
+            </Link>
+          </span>
+        </span>
+      }
       icon="book"
       status="ready"
     >

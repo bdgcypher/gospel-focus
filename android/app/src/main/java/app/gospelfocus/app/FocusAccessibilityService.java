@@ -105,18 +105,27 @@ public class FocusAccessibilityService extends AccessibilityService {
     };
 
     /**
-     * The screen coming back on, or the reader unlocking.
+     * The screen coming back on, the reader unlocking, or the screen going off.
      *
-     * Only a nudge: the work is wakeCheck's, run a moment later so the window
-     * changes of waking up have all been seen first. Acting on this broadcast
-     * directly would draw the gate for the app the reader was in and then take it
-     * down again for whatever actually came up, which is a flash of the very
-     * thing this is here to prevent.
+     * Waking is only a nudge: the work is wakeCheck's, run a moment later so the
+     * window changes of waking up have all been seen first. Acting on this
+     * broadcast directly would draw the gate for the app the reader was in and
+     * then take it down again for whatever actually came up, which is a flash of
+     * the very thing this is here to prevent.
+     *
+     * The screen going off is the other half of a counted stretch of Gospel
+     * Library reading: time with the screen dark is not reading, so the clock is
+     * banked there and then rather than left running until the next window
+     * change (GospelStudy).
      */
     private final BroadcastReceiver wakeReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent == null) return;
+            if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                GospelStudy.bank(FocusAccessibilityService.this);
+                return;
+            }
             boolean unlocked = Intent.ACTION_USER_PRESENT.equals(intent.getAction());
             handler.removeCallbacks(wakeCheck);
             handler.postDelayed(wakeCheck, unlocked ? 500L : 900L);
@@ -156,6 +165,7 @@ public class FocusAccessibilityService extends AccessibilityService {
         if (!listening) {
             IntentFilter filter = new IntentFilter();
             filter.addAction(Intent.ACTION_SCREEN_ON);
+            filter.addAction(Intent.ACTION_SCREEN_OFF);
             filter.addAction(Intent.ACTION_USER_PRESENT);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(wakeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -173,6 +183,18 @@ public class FocusAccessibilityService extends AccessibilityService {
         if (name == null) return;
         String pkg = name.toString();
 
+        boolean launchable = isLaunchableApp(pkg);
+
+        // The Gospel Library's minutes are counted from the same event, and before
+        // the gate has its say: leaving it is leaving it whether the reader is
+        // going to the home screen, to this app, or to the gate over the app they
+        // just opened (GospelStudy).
+        //
+        // Keyed to the app rather than the window, like appPackage below: the
+        // keyboard coming up over a chapter is a window but not somewhere the
+        // reader has gone, and the reading carries on underneath it.
+        GospelStudy.see(this, launchable ? pkg : appPackage);
+
         // The gate is a window this app owns, so the system reports it going up
         // and coming down as a window change for this package. This package is
         // never held, so the plain answer would be to take the gate straight
@@ -184,7 +206,7 @@ public class FocusAccessibilityService extends AccessibilityService {
         if (pkg.equals(getPackageName()) && isGateEcho(event)) return;
 
         lastPackage = pkg;
-        if (isLaunchableApp(pkg)) appPackage = pkg;
+        if (launchable) appPackage = pkg;
         evaluate(pkg);
     }
 
@@ -240,12 +262,16 @@ public class FocusAccessibilityService extends AccessibilityService {
         // must not be left behind on a screen nobody is watching.
         handler.removeCallbacksAndMessages(null);
         hideGate();
+        // A stretch of Gospel Library reading in progress is banked rather than
+        // lost with the service.
+        GospelStudy.bank(this);
     }
 
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         hideGate();
+        GospelStudy.bank(this);
         if (listening) {
             try {
                 unregisterReceiver(wakeReceiver);
@@ -273,6 +299,46 @@ public class FocusAccessibilityService extends AccessibilityService {
             @Override
             public void run() {
                 service.evaluate(service.lastPackage);
+            }
+        });
+    }
+
+    /**
+     * The device's own night mode turned over under a gate that follows it.
+     *
+     * An accessibility service is not recreated for a configuration change, so
+     * without this the gate would keep the light it was built in until the next
+     * window change — which, over a held app, may not come until the reader leaves.
+     */
+    @Override
+    public void onConfigurationChanged(Configuration config) {
+        super.onConfigurationChanged(config);
+        if (gate == null || gatePackage == null) return;
+        if (!GateAppearance.followsDevice(this)) return;
+        String pkg = gatePackage;
+        hideGate();
+        showGate(pkg);
+    }
+
+    /**
+     * Redraw a gate that is already up, in a new look.
+     *
+     * Called by FocusLockPlugin after the reader changes their theme or skin. The
+     * gate is built from the appearance, not restyled in place, so the honest way
+     * to change it is to take it down and build it again over the same held app —
+     * which is what `showGate` would do for a window change, and what nothing else
+     * would do while the reader is sitting in the held app.
+     */
+    static void restyleIfRunning() {
+        FocusAccessibilityService service = instance;
+        if (service == null) return;
+        service.handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (service.gate == null || service.gatePackage == null) return;
+                String pkg = service.gatePackage;
+                service.hideGate();
+                service.showGate(pkg);
             }
         });
     }
@@ -370,9 +436,9 @@ public class FocusAccessibilityService extends AccessibilityService {
      * Built in code rather than inflated from a layout so all of it lives in one
      * readable place and the two entrances (the gate and the pages) can share the
      * same palette without a second set of resource names. The colours are the
-     * focused skin's paper and ink, with the playful skin's charcoal for night —
-     * the same two backgrounds the app itself uses, so the gate does not look
-     * like a piece of a different product.
+     * reader's own — whichever skin and light or dark the page last wrote (see
+     * `palette` and GateAppearance) — so the gate does not look like a piece of a
+     * different product than the app it is standing in front of.
      *
      * The primary action is deliberately "Open Gospel Focus" rather than
      * "Dismiss": a gate that only closes would be a bump in the road, and the
@@ -406,13 +472,13 @@ public class FocusAccessibilityService extends AccessibilityService {
         tile.setBackground(rounded(palette.surface2, 18, 0, 0));
         card.addView(tile, new LinearLayout.LayoutParams(dp(56), dp(56)));
 
-        TextView eyebrow = label("FOCUS LOCK", 11, palette.accent,
+        TextView eyebrow = label("FOCUS LOCK", 11, palette.accentStrong,
             Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
         eyebrow.setLetterSpacing(0.14f);
         add(card, eyebrow, 20);
 
         TextView heading = label(appName + " is locked", 24, palette.foreground,
-            Typeface.create("serif", Typeface.BOLD));
+            face(palette, Typeface.BOLD));
         add(card, heading, 8);
 
         // The verse the lock is for, set the way a quote is set in print: a rule
@@ -422,7 +488,7 @@ public class FocusAccessibilityService extends AccessibilityService {
         TextView quote = label(
             "Seek ye first the kingdom of God, and his righteousness; and all these things shall be "
                 + "added unto you.",
-            17, palette.foreground, Typeface.create("serif", Typeface.ITALIC));
+            17, palette.foreground, face(palette, Typeface.ITALIC));
         quote.setLineSpacing(dp(5), 1f);
         verse.addView(quote, new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -437,7 +503,7 @@ public class FocusAccessibilityService extends AccessibilityService {
         body.setLineSpacing(dp(3), 1f);
         add(card, body, 18);
 
-        Button open = gateButton("Open Gospel Focus", palette.accent, palette.accentContrast, 0);
+        Button open = gateButton("Open Gospel Focus", palette.action, palette.actionContrast, 0);
         open.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -542,7 +608,22 @@ public class FocusAccessibilityService extends AccessibilityService {
         return shape;
     }
 
+    /**
+     * The gate's colours, read off one skin of globals.css.
+     *
+     * `accent` is the gold the verse's rule is drawn in; `accentStrong` is the same
+     * voice as type, which is what the stylesheet calls the reading tone (`FOCUS
+     * LOCK` and links) and what clears contrast where the gold does not. `action`
+     * is the primary button's face, and it is the one place the two skins differ in
+     * kind rather than degree: the focused skin's main action is its gold, while the
+     * playful skin puts its gold on the supporting calls and its blue on the button
+     * that matters.
+     *
+     * `playful` rides along because it is also a choice of face, not just of colour
+     * (see `face`).
+     */
     private static final class Palette {
+        final boolean playful;
         final int background;
         final int surface;
         final int surface2;
@@ -550,10 +631,13 @@ public class FocusAccessibilityService extends AccessibilityService {
         final int muted;
         final int border;
         final int accent;
-        final int accentContrast;
+        final int accentStrong;
+        final int action;
+        final int actionContrast;
 
-        Palette(int background, int surface, int surface2, int foreground, int muted, int border,
-                int accent, int accentContrast) {
+        Palette(boolean playful, int background, int surface, int surface2, int foreground, int muted,
+                int border, int accent, int accentStrong, int action, int actionContrast) {
+            this.playful = playful;
             this.background = background;
             this.surface = surface;
             this.surface2 = surface2;
@@ -561,24 +645,74 @@ public class FocusAccessibilityService extends AccessibilityService {
             this.muted = muted;
             this.border = border;
             this.accent = accent;
-            this.accentContrast = accentContrast;
+            this.accentStrong = accentStrong;
+            this.action = action;
+            this.actionContrast = actionContrast;
         }
     }
 
-    /** app/globals.css's focused palette; the playful skin's night ink for dark. */
+    /**
+     * The palette of the skin the reader actually wears.
+     *
+     * Written by the page (GateAppearance), because neither choice is knowable from
+     * here: light or dark is next-themes', and the skin is a preference of the
+     * app's own. Until the page has said, the gate keeps the behaviour it had before
+     * the styles were wired up — the device's night mode, in the focused skin — since
+     * a guess in the wrong skin is worse than a gate that matches the system.
+     */
     private Palette palette() {
-        boolean night = (getResources().getConfiguration().uiMode
-            & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        if (night) {
-            return new Palette(
+        boolean known = GateAppearance.known(this);
+        // A reader on "follow the device" is read from the device here, not from
+        // the last value written: the screens can turn over while the app is
+        // closed, which is the whole point of following them.
+        boolean night = !known || GateAppearance.followsDevice(this)
+            ? (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES
+            : GateAppearance.dark(this);
+        boolean playful = known && GateAppearance.playful(this);
+
+        if (playful && night) {
+            // .playful.dark: the lamp-lit charcoal, gold for the verse, blue action.
+            return new Palette(true,
                 Color.parseColor("#111111"), Color.parseColor("#1B1B1B"), Color.parseColor("#333333"),
                 Color.parseColor("#F2F2F2"), Color.parseColor("#B0B0B0"), Color.parseColor("#424242"),
+                Color.parseColor("#F8AE35"), Color.parseColor("#FFC861"),
+                Color.parseColor("#1DADF1"), Color.parseColor("#FFFFFF"));
+        }
+        if (playful) {
+            // .playful: the toy-like cream, orange for the verse, blue action.
+            return new Palette(true,
+                Color.parseColor("#FBF0DA"), Color.parseColor("#FFFDF7"), Color.parseColor("#F6E7CA"),
+                Color.parseColor("#3B2A16"), Color.parseColor("#7A6244"), Color.parseColor("#E8D2A8"),
+                Color.parseColor("#F8AE35"), Color.parseColor("#9A4A06"),
+                Color.parseColor("#1DADF1"), Color.parseColor("#FFFFFF"));
+        }
+        if (night) {
+            // .dark: paper and ink at night, the gold as the one warm thing.
+            return new Palette(false,
+                Color.parseColor("#111111"), Color.parseColor("#1B1B1B"), Color.parseColor("#333333"),
+                Color.parseColor("#F2F2F2"), Color.parseColor("#B0B0B0"), Color.parseColor("#424242"),
+                Color.parseColor("#E0B45C"), Color.parseColor("#F0C877"),
                 Color.parseColor("#E0B45C"), Color.parseColor("#1A1A1A"));
         }
-        return new Palette(
+        // :root: the parchment, with the gold on the button as well as the verse.
+        return new Palette(false,
             Color.parseColor("#F7F2E7"), Color.parseColor("#FFFDF7"), Color.parseColor("#F1E9D7"),
             Color.parseColor("#2A2118"), Color.parseColor("#7A6B53"), Color.parseColor("#E2D6BD"),
+            Color.parseColor("#9A6B1F"), Color.parseColor("#7C5514"),
             Color.parseColor("#9A6B1F"), Color.parseColor("#FFFDF7"));
+    }
+
+    /**
+     * The skin's display face: the voice its headings and verse are set in.
+     *
+     * The focused skin is paper and ink, so it sets them in the serif the app uses
+     * for its passages. The playful skin speaks in Nunito, which is not on the
+     * device — the platform's own sans is the honest stand-in, and it is closer to
+     * that rounded voice than a serif would be.
+     */
+    private static Typeface face(Palette palette, int style) {
+        return Typeface.create(palette.playful ? "sans-serif" : "serif", style);
     }
 
     /** What the reader calls the held app, or a neutral name if it has gone. */

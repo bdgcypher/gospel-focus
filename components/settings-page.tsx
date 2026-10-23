@@ -10,6 +10,12 @@ import { GoalPicker } from "./goal-picker";
 import { Switch } from "./switch";
 import { isNative } from "@/lib/external";
 import { featureById } from "@/lib/features";
+import {
+  focusLockSupported,
+  openFocusAccessibilitySettings,
+  readFocusAccessibility,
+  type FocusAccessibility,
+} from "@/lib/native-focus";
 import { loadManifest } from "@/lib/picker";
 import {
   cancelDailyReminders,
@@ -81,6 +87,8 @@ export function SettingsPage() {
   const [reminderBusy, setReminderBusy] = useState(false);
   /** Where the OS permission stands, so a revoked one can be pointed out. */
   const [permission, setPermission] = useState<ReminderPermission | null>(null);
+  /** Whether the accessibility service is on, for the Gospel Library's card. */
+  const [access, setAccess] = useState<FocusAccessibility | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const native = isNative();
   const study = useStudy();
@@ -99,6 +107,33 @@ export function SettingsPage() {
       live = false;
     };
   }, [prefs.dailyReminder]);
+
+  // The Gospel Library's minutes are counted by the accessibility service, so
+  // whether that grant is on is the system's answer rather than a stored fact —
+  // and it is re-read on coming back from Android's settings, which is the only
+  // way to know the reader changed it. Nothing is asked for here: the row is a
+  // report and a door, and the permission itself is granted in Android's own
+  // screen (see `turnOnGospelLibrarySync`).
+  useEffect(() => {
+    if (!focusLockSupported()) return;
+    let live = true;
+
+    const read = () => {
+      void readFocusAccessibility().then((next) => {
+        if (live) setAccess(next);
+      });
+    };
+
+    read();
+    const onVisible = () => {
+      if (!document.hidden) read();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   /** What to tell the reader when reading their file went wrong. */
   const reasonOf = (error: unknown, fallback: string) =>
@@ -278,6 +313,8 @@ export function SettingsPage() {
     () => false
   );
   const current = mounted ? (theme as ThemeChoice | undefined) : undefined;
+  /** The app's own half, where a permission can actually be granted. */
+  const android = mounted && focusLockSupported();
   // While the playful style is on, the theme choices wear the skin's own emoji
   // face — a row of stroke drawings in an app made of emoji would look like the
   // odd ones out.
@@ -287,6 +324,22 @@ export function SettingsPage() {
   // has nothing to disagree with — the app shell is the same page in both
   // cases, only the sentence differs.
   const reminderUsable = mounted && remindersSupported();
+
+  /**
+   * Land on the Gospel Library's card when a link names it.
+   *
+   * The hub's goal line links here by fragment, and the card is Android-only —
+   * not in the prerendered page, and gone until the client knows the platform —
+   * so the browser cannot find the target on its own. This scrolls once the card
+   * is there, the same arrangement the favorites page uses for links that land on
+   * a note.
+   */
+  useEffect(() => {
+    if (!android) return;
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [android]);
 
   return (
     <AppShell>
@@ -409,6 +462,44 @@ export function SettingsPage() {
                   />
                 </div>
               </div>
+
+              {/* The Gospel Library's own setting, here rather than on /focus
+                  because it is about where study is counted, not about blocking:
+                  it works with Focus Lock switched off. Android only, since the
+                  count comes from the accessibility service — the same grant
+                  Focus Lock asks for — and nowhere else can see another app. The
+                  id is the hub's link target, so the card says where to go and
+                  this is where the reader lands. */}
+              {android && (
+                <div
+                  id="gospel-library-sync"
+                  className="scroll-mt-24 rounded-3xl border border-border bg-surface p-5"
+                >
+                  <p className="text-sm font-medium text-foreground">Gospel Library Sync</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {access === null
+                      ? "Reading in the Gospel Library app can count towards your daily study goal."
+                      : access.enabled
+                        ? "On — reading in the Gospel Library app counts towards your daily study goal."
+                        : "Off — reading in the Gospel Library app is not counted towards your goal yet."}
+                  </p>
+
+                  <p className="mt-3 text-xs leading-relaxed text-muted">
+                    Counting it needs accessibility access, so Gospel Focus can tell which app is open.
+                    It is the same access Focus Lock asks for, and it has to be switched on in
+                    Android&apos;s own settings. Nothing on the screen is read.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => void openFocusAccessibilitySettings()}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+                  >
+                    <Glyph name="book" className="h-3.5 w-3.5" />
+                    {access?.enabled ? "Android's accessibility settings" : "Turn on Gospel Library Sync"}
+                  </button>
+                </div>
+              )}
 
               {/* Offered on a phone and in the installed app, not on a desktop
                   page: a reminder is something a phone delivers, and a browser

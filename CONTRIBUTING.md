@@ -172,6 +172,18 @@ publishes on every change — and the day keys let the gate re-arm itself at
 midnight while the app is closed. Android's Settings app is never gated, since it
 is where the permission is turned off again.
 
+The gate wears the reader's own theme and skin rather than a fixed palette of its
+own: `setAppearance` writes light/dark, focused/playful and whether the theme
+follows the device into `gate_appearance` (`GateAppearance.java`), and
+`components/gate-appearance-sync.tsx` keeps it current. A gate already on screen is
+redrawn rather than waiting for the next window change.
+
+The same service counts the minutes the reader spends in the Gospel Library
+(`GospelStudy.java`, package `org.lds.ldssa`) and keeps today's total per local
+day. `GospelStudyPlugin` hands that total to `components/gospel-library-sync.tsx`,
+which credits it to the day's study goal as far as the goal still has room — so
+reading in the Church's app counts, and no further than the bar.
+
 Without the permission nothing is blocked, and `/focus` says so on its face. The
 gate has been compiled and packaged; it still wants a pass on a real device. On
 Android 13+, a sideloaded build may first need **Allow restricted settings** in

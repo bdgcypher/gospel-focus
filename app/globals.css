@@ -396,6 +396,26 @@ body {
   overflow-x: clip;
 }
 
+/* A popup holds the page still.
+
+   Every popup in the app is portalled to the body and marked aria-modal — the
+   dialogs, the note and link sheets, the menu, the games' result cards, the
+   reader's passage panel — so the document can be told once here rather than
+   each of them remembering to lock it. The document is what scrolls, so hiding
+   its overflow is what keeps the page behind the popup from moving under a
+   thumb.
+
+   Stacked popups need no counting: the selector is true for as long as any of
+   them is mounted, and the last one to leave is the one that turns it off. A
+   popup's own scrolling is untouched — it is a box inside the document, not the
+   document.
+
+   It overrides the `clip` above on both axes while a popup is up, which is what
+   is wanted: nothing behind a popup is sliding in from the side. */
+html:has([aria-modal="true"]) {
+  overflow: hidden;
+}
+
 /* Sections can be turned by a horizontal drag (see components/nav-swipe.tsx).
    Let the browser keep the vertical pan — the finger is usually scrolling — and
    the pinch, but leave the sideways movement to the gesture. */

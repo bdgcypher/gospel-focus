@@ -15,11 +15,12 @@ import { dayKey } from "./daily";
  * bar on the hub is the whole of the feedback.
  *
  * What counts is a rule, not a guess: any minute spent with a page that studies
- * open and in front of the reader counts, and a minute spent anywhere else does
- * not. That is honest about what the app can see today. Counting the time spent in the Gospel
- * Library app is a later job — it needs the native layer (see PROJECT_OVERVIEW.md) — and
- * it is why the minute is stored rather than derived: when a second source
- * arrives it adds to the same number rather than replacing it.
+ * open and in front of the reader counts, and a minute spent in the Gospel
+ * Library counts as well — that one is counted on the device by the accessibility
+ * service and banked here as it comes back (components/gospel-library-sync.tsx),
+ * since no page can watch another app. Both sources add to the same number, which
+ * is why the minute is stored rather than derived: the goal, the streak, the gems
+ * and the gate all read one total, whichever app the reading happened in.
  *
  * The day is the reader's own local day, shared with the streak, the daily
  * passage, and the focus gate (lib/daily.ts) — one midnight for the whole app.

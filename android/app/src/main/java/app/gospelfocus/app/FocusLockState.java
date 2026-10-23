@@ -133,8 +133,14 @@ final class FocusLockState {
         return packages(context).contains(pkg);
     }
 
-    /** Today's local day as "yyyy-MM-dd", the shape the web store writes. */
-    private static String dayKey() {
+    /**
+     * Today's local day as "yyyy-MM-dd", the shape the web store writes.
+     *
+     * Package-private because the Gospel Library's minutes are kept per day too
+     * (GospelStudy), and two spellings of the same day key would be one place for
+     * them to disagree at midnight.
+     */
+    static String dayKey() {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
     }
 }

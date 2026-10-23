@@ -43,6 +43,8 @@ import java.util.Set;
  * - **Write the lock where the service reads it.** The service may run when the
  *   app does not (a held app opened from the launcher after a reboot), so the
  *   state has to live in SharedPreferences rather than the WebView's storage.
+ *   The same is true of how the gate is drawn: the reader's theme and skin are
+ *   the page's to know and the gate's to wear (`setAppearance`).
  *
  * Everything is a plain read or a plain write: the plugin never decides whether
  * an app may be blocked. That rule is FocusLockState's, so the gate and the page
@@ -207,6 +209,29 @@ public class FocusLockPlugin extends Plugin {
 
         FocusLockState.write(getContext(), set, lockOn, earnedDay, relockedDay, bypassUntil);
         FocusAccessibilityService.refreshIfRunning();
+        call.resolve();
+    }
+
+    /**
+     * How the gate should be drawn, so it looks like the app the reader is in.
+     *
+     * The two choices are the page's, not the gate's: light or dark is
+     * next-themes', and focused or playful is a preference of the app's own. The
+     * service cannot read either — it draws while the app is not in front — so
+     * they are written to GateAppearance here, and a gate already on the screen
+     * is redrawn at once rather than only from the next window change.
+     *
+     * Nothing here decides the colours: missing or unknown values fall back to the
+     * device's night mode in the focused skin (FocusAccessibilityService.palette).
+     */
+    @PluginMethod
+    public void setAppearance(PluginCall call) {
+        boolean dark = Boolean.TRUE.equals(call.getBoolean("dark", false));
+        boolean playful = Boolean.TRUE.equals(call.getBoolean("playful", false));
+        boolean follow = Boolean.TRUE.equals(call.getBoolean("follow", false));
+
+        GateAppearance.write(getContext(), dark, playful, follow);
+        FocusAccessibilityService.restyleIfRunning();
         call.resolve();
     }
 

@@ -67,15 +67,13 @@ export function PassagePanel({
     window.addEventListener("keydown", onKey);
     panel.current?.focus();
 
-    // The page behind stays where it is: the panel is the only thing that
-    // scrolls while it is up, so closing it returns the reader to the board
-    // rather than to wherever a touch on the backdrop happened to drag it.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
+    // The page behind stays where it is, so closing the panel returns the reader
+    // to the board rather than to wherever a touch on the backdrop happened to
+    // drag it. That is the stylesheet's doing, not this effect's: the panel is a
+    // popup like any other and carries aria-modal, which is what holds the
+    // document still while it is up (see "A popup holds the page still" in
+    // globals.css).
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   /**
