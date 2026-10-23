@@ -255,6 +255,14 @@ but cannot block.
   `ImageClipboardPlugin`, `FileDownloadPlugin`, `FocusLockPlugin`, plus the native
   file picker for reading a backup back in. `FocusAccessibilityService`, declared
   beside them, draws the Focus Lock's lock screen.
+- **Updates without a store**: `UpdateCheckWorker` (WorkManager) asks GitHub for
+  the newest release at launch and every eight hours, and `UpdateCheck` announces
+  one whose tag-derived version code is above the installed app's. The tap runs
+  `UpdateActivity`, which downloads the APK into the app's files, then hands it
+  to Android's installer through the existing FileProvider — no store, no
+  account, and nothing downloaded until the reader taps. Settings → **Version**
+  reports the installed and newest version from those same notes, checks on
+  demand (`UpdateCheckPlugin`), and can take the update from there.
 - **Icons & system chrome**: night-qualified launcher icons, the Android 13+
   themed monochrome layer, and safe-area padding in both themes.
 - **Local persistence**: one versioned key per concern, each read through a

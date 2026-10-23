@@ -16,6 +16,12 @@ import {
   readFocusAccessibility,
   type FocusAccessibility,
 } from "@/lib/native-focus";
+import {
+  checkForUpdate,
+  installUpdate,
+  readUpdateStatus,
+  type UpdateStatus,
+} from "@/lib/native-updates";
 import { loadManifest } from "@/lib/picker";
 import {
   cancelDailyReminders,
@@ -89,6 +95,17 @@ export function SettingsPage() {
   const [permission, setPermission] = useState<ReminderPermission | null>(null);
   /** Whether the accessibility service is on, for the Gospel Library's card. */
   const [access, setAccess] = useState<FocusAccessibility | null>(null);
+  /**
+   * The version row: what the update checker last found, and what a check the
+   * reader asked for has just said. The status is read from the device and never
+   * from the network, so the row has an answer the moment it is drawn.
+   */
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  /** Whether the first read has settled — it tells "not yet" from "couldn't". */
+  const [updateRead, setUpdateRead] = useState(false);
+  const [updateNote, setUpdateNote] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const native = isNative();
   const study = useStudy();
@@ -222,6 +239,49 @@ export function SettingsPage() {
     );
   };
 
+  /**
+   * Ask GitHub for a new release, at the reader's request.
+   *
+   * A failure only adds a sentence: what the last check found is still on the
+   * device, so the row keeps saying which build this is rather than going blank.
+   * The eight-hourly job and the launch check write the same notes, which is why
+   * the row can report a version without this page having asked for anything.
+   */
+  const onCheckUpdate = async () => {
+    setChecking(true);
+    setUpdateNote(null);
+    try {
+      const next = await checkForUpdate();
+      setUpdate(next);
+      setUpdateNote(
+        next.updateAvailable ? `${next.latestVersion} is ready to install.` : "This is the newest release."
+      );
+    } catch {
+      setUpdateNote("Couldn't reach GitHub. Try again in a moment.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  /**
+   * Take the update the row is offering.
+   *
+   * It opens the same transparent download a notification tap does
+   * (UpdateActivity), so there is no progress bar here: the progress is a system
+   * notification, and the screen after it is Android's own installer.
+   */
+  const onInstallUpdate = async () => {
+    setInstalling(true);
+    setUpdateNote(null);
+    try {
+      await installUpdate();
+    } catch {
+      setUpdateNote("The update couldn't be started.");
+    } finally {
+      setInstalling(false);
+    }
+  };
+
   /** The reminder is on, but the system says notifications aren't allowed. */
   const reminderBlocked =
     prefs.dailyReminder && permission !== null && permission !== "granted" && permission !== "unsupported";
@@ -324,6 +384,47 @@ export function SettingsPage() {
   // has nothing to disagree with — the app shell is the same page in both
   // cases, only the sentence differs.
   const reminderUsable = mounted && remindersSupported();
+
+  /**
+   * The version row's one line: the build, and whatever the last check found
+   * beside it. "Not checked yet" is honest for a fresh install — the row is a
+   * report, and its button is how the report is filled in.
+   */
+  const versionLine = update
+    ? `${update.installedVersion || "This build"} installed${
+        update.latestVersion
+          ? update.updateAvailable
+            ? ` · ${update.latestVersion} available`
+            : " · newest release"
+          : " · not checked yet"
+      }`
+    : updateRead
+      ? "This build wouldn't say which version it is."
+      : "Reading the installed version…";
+
+  // The row's status is the checker's own notes, re-read whenever the page is
+  // returned to: a check run by the eight-hourly job, or by the app's launch,
+  // moves the answer without this page doing anything.
+  useEffect(() => {
+    if (!android) return;
+    let live = true;
+    const read = () => {
+      void readUpdateStatus().then((next) => {
+        if (!live) return;
+        setUpdate(next);
+        setUpdateRead(true);
+      });
+    };
+    read();
+    const onVisible = () => {
+      if (!document.hidden) read();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      live = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [android]);
 
   /**
    * Land on the Gospel Library's card when a link names it.
@@ -663,6 +764,54 @@ export function SettingsPage() {
               {report && <ImportSummary report={report} />}
             </div>
           </section>
+
+          {/* Android only: the APK is the only product that can be updated this
+              way. The row is a report first — what the last check found, kept
+              by the eight-hourly job and the launch check — with one button to
+              ask again, and the update itself when there is one to take. The
+              mark on the button is the checker's own glyph, so it reads the
+              same in both styles. */}
+          {android && (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
+                About
+              </h2>
+              <div className="rounded-3xl border border-border bg-surface p-5">
+                <p className="text-sm font-medium text-foreground">Version</p>
+                <p className="mt-0.5 text-xs text-muted">{versionLine}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => void onCheckUpdate()}
+                    disabled={checking || installing}
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Glyph name="flip" plain className="h-4 w-4" />
+                    {checking ? "Checking…" : "Check now"}
+                  </button>
+
+                  {update?.updateAvailable && (
+                    <button
+                      type="button"
+                      onClick={() => void onInstallUpdate()}
+                      disabled={checking || installing}
+                      className="inline-flex items-center gap-2 rounded-full bg-cta px-4 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <DownloadIcon />
+                      {installing ? "Starting…" : `Update to ${update.latestVersion}`}
+                    </button>
+                  )}
+                </div>
+
+                {updateNote && (
+                  <p className="mt-3 text-xs text-muted" aria-live="polite">
+                    {updateNote}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </AppShell>

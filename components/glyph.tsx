@@ -44,6 +44,10 @@ interface Props {
    * decoration and pulls the eye off the label. The emoji stays the playful
    * styles' face everywhere the glyph is a signpost (a tab, a card, a chip);
    * this is for the handful of places that need the same crisp mark in both.
+   *
+   * It covers a search field's lens too: the mark inside an input is labelling
+   * what the reader is typing, and the emoji belongs to the signposts — the
+   * page's own icon and the card — rather than to the box they type in.
    */
   plain?: boolean;
   /**

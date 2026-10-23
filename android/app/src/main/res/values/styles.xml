@@ -19,6 +19,19 @@
     </style>
 
 
+    <!-- The update download (UpdateActivity): a window with nothing in it. The
+         activity exists to do work and then open Android's installer, so the
+         reader never sees a second app flashing past — the notification is the
+         progress, and the installer is what comes next. Translucent rather than
+         opaque so whatever was on screen stays visible underneath, and no dim,
+         so nothing seems to have dimmed for a dialog that never appears. -->
+    <style name="AppTheme.Update" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <!-- Launch theme. Uses a flat @color/splashBackground rather than the
          generated splash bitmap: Android stretches a bitmap window background
          to fill whichever window paints it, which showed the book artwork

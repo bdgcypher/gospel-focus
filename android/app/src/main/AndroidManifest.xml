@@ -44,6 +44,20 @@
                 android:resource="@xml/focus_lock_service" />
         </service>
 
+        <!-- The update's download step (UpdateActivity). Transparent, because
+             it has no screen of its own — the progress lives in the notification
+             and the installer opens over it. Not in recents, and in a task of
+             its own, so a tap on the update notification never leaves a blank
+             activity behind in the app's history. It is not exported: the only
+             way in is the PendingIntent the notification carries. -->
+        <activity
+            android:name=".UpdateActivity"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/AppTheme.Update" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -56,6 +70,21 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- The update checker's three notifications (UpdateCheck): "Update
+         available", the download's progress, and "ready to install". Android 13+
+         treats a notification as a permission the reader grants; the app asks
+         once, on first launch. The daily reminder's plugin declares this too —
+         one permission, both features. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- "Install unknown apps": the update notification downloads an APK and
+         hands it to Android's installer, which refuses to run for an app that
+         has not been allowed to install packages. The app never grants this
+         itself; it opens the system screen for it (UpdateActivity), and the
+         reader decides. Without the permission the feature stops at a
+         downloaded file and a "ready to install" notification. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Saving a favorites backup into Downloads needs shared storage on
          Android 9 and older; from API 29 on MediaStore writes it without any
          permission, so this is capped to where it is actually needed. -->

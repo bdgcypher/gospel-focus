@@ -9,6 +9,21 @@
          shows it. The description is the reader's only explanation of a
          permission that sounds far broader than this use, so it says what the
          service watches, what it draws, and what it does not read. -->
+    <!-- The update checker (UpdateCheck). The notification's title is the app's
+         own name, so there is nothing to translate for it; the body is the one
+         sentence the reader gets, and it says exactly what the notification is
+         for. The channel is named after what it carries rather than after the
+         feature, because the reader sees it in Android's own notification
+         settings. -->
+    <string name="update_channel">App updates</string>
+    <string name="update_channel_description">Tells you when a newer version of Gospel Focus is available.</string>
+    <string name="update_available">Update available</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_downloading_percent">Downloading update… %1$d%%</string>
+    <string name="update_ready">Update ready to install</string>
+    <string name="update_download_failed">The update couldn\'t be downloaded.</string>
+    <string name="update_install_unavailable">This device can\'t open the installer.</string>
+
     <string name="focus_lock_service_label">Focus Lock</string>
     <string name="focus_lock_service_description">Holds the apps you chose until the day\'s gospel study is done. Focus Lock sees which app comes to the front so it can draw its lock screen over the ones on your list. It does not read anything on your screen.</string>
 </resources>

@@ -223,8 +223,12 @@ export function JournalLinkDialog({ open, selection, currentEntryId, onInsert, o
                 {source === "passages" ? "Search the library" : `Search your ${source}`}
               </label>
               <div className="relative">
+                {/* Drawn in both styles, like the /search box: a mark inside
+                    the field labels what is being typed, and the playful
+                    emoji is for the signposts (tabs, cards) rather than for
+                    the inside of an input. */}
                 <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
-                  <Glyph name="search" className="h-4 w-4" />
+                  <Glyph name="search" className="h-4 w-4" plain />
                 </span>
                 <input
                   id="journal-link-search"

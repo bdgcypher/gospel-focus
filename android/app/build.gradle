@@ -68,6 +68,12 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation "androidx.activity:activity:$androidxActivityVersion"
+    // WorkManager, for the eight-hourly update check: the one thing the update
+    // checker needs that the platform alone does not do well. An alarm or a
+    // service of our own would each have to be re-armed after a reboot and
+    // would fire into a phone with no connection; WorkManager already handles
+    // both, and batches the wake-up with the rest of the system's work.
+    implementation "androidx.work:work-runtime:$androidxWorkVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

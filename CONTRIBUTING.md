@@ -262,6 +262,13 @@ so the password-manager copy is the real one.
 one as long as `versionCode` does not go backwards (tagged builds stamp it from
 the tag). Losing the keystore means uninstalling before any update.
 
+The installed app tells the reader about new releases itself: `UpdateCheckWorker`
+asks GitHub for the latest release at launch and every eight hours, and compares
+its tag-derived version code with the installed APK's. Two consequences for
+releases: keep tags in `vX.Y.Z` form (a tag the checker cannot read is ignored,
+so `v3.0.6-rc1` would never be offered), and the APK must keep its name
+`app-release.apk` — that is the asset it looks for on the release.
+
 ### CI and releases
 
 `.github/workflows/android-apk.yml` builds the signed APK on every push to

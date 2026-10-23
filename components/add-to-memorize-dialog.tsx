@@ -405,8 +405,11 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                     </p>
 
                     <div className="relative mt-2">
+                      {/* Drawn in both styles, like the /search box: the
+                          playful emoji is for signposts, not for the inside
+                          of a field. */}
                       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
-                        <Glyph name="search" className="h-4 w-4" />
+                        <Glyph name="search" className="h-4 w-4" plain />
                       </span>
                       <input
                         type="search"

@@ -180,8 +180,12 @@ export function SearchPage() {
         <label htmlFor="library-search" className="sr-only">
           Search the scriptures and general conference
         </label>
+        {/* Drawn, not the playful styles' emoji: this mark sits inside the
+            field it labels, where the page's own emoji already appears at the
+            top — a picture in the box reads as decoration inside the reader's
+            typing, and the drawn lens is quieter beside it. */}
         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">
-          <Glyph name="search" className="h-5 w-5" />
+          <Glyph name="search" className="h-5 w-5" plain />
         </span>
         <input
           id="library-search"

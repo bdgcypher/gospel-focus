@@ -89,7 +89,10 @@ Everything in the app is free today, and nothing is gated. Nothing is for sale.
 **Android** — download the signed APK from the
 [Releases](https://github.com/bdgcypher/gospel-focus/releases) page and open it on
 your phone. Android will ask you to allow installs from that source once. Every
-tagged release installs over the previous one.
+tagged release installs over the previous one. Once installed, the app checks for
+a newer release when it starts and every eight hours after that, and offers it
+with a notification; tapping the notification downloads the APK and opens
+Android's installer.
 
 **Web** — `npm run build` exports the same app into `out/`; serve it with
 `npm run preview`. There is no hosted instance yet.
