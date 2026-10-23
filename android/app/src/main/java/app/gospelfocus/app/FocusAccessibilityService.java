@@ -1,8 +1,11 @@
 package app.gospelfocus.app;
 
 import android.accessibilityservice.AccessibilityService;
+import android.app.KeyguardManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -70,6 +73,22 @@ public class FocusAccessibilityService extends AccessibilityService {
     private long gateShownAt;
 
     /**
+     * The last *app* in front, as opposed to the last window.
+     *
+     * The difference is the whole of the wake case. The lock screen and the
+     * notification shade are windows but not apps, and they are what the gate is
+     * taken down for when the screen goes off. Remembering the app underneath —
+     * rather than the window — is what lets the gate come back when the reader
+     * wakes the phone without ever having left the held app: Android resumes an
+     * activity that was already resumed without a window change of its own, so
+     * no event would otherwise arrive to put the gate back.
+     */
+    private String appPackage;
+
+    /** Whether the wake receiver is registered (onServiceConnected can run again). */
+    private boolean listening;
+
+    /**
      * Re-check the foreground package when a bypass runs out.
      *
      * The reader can take a bypass, go into the held app, and stay there. No
@@ -83,11 +102,66 @@ public class FocusAccessibilityService extends AccessibilityService {
         }
     };
 
+    /**
+     * The screen coming back on, or the reader unlocking.
+     *
+     * Only a nudge: the work is wakeCheck's, run a moment later so the window
+     * changes of waking up have all been seen first. Acting on this broadcast
+     * directly would draw the gate for the app the reader was in and then take it
+     * down again for whatever actually came up, which is a flash of the very
+     * thing this is here to prevent.
+     */
+    private final BroadcastReceiver wakeReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null) return;
+            boolean unlocked = Intent.ACTION_USER_PRESENT.equals(intent.getAction());
+            handler.removeCallbacks(wakeCheck);
+            handler.postDelayed(wakeCheck, unlocked ? 500L : 900L);
+        }
+    };
+
+    /**
+     * Put the gate back after the screen has been away, if it belongs there.
+     *
+     * The reader has unlocked by now (or there is no lock screen to unlock), and
+     * appPackage is the app that was in front before the screen went off — unless
+     * something has taken its place since, in which case that app's own window
+     * change has already been applied and this only repeats it. Whether the gate
+     * actually goes up is still the stored state's decision: an earned day, a
+     * running bypass, or a lock that is switched off leave the gate down.
+     */
+    private final Runnable wakeCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (windowManager == null) return;
+
+            // Still on the lock screen: the gate must not cover the way in.
+            KeyguardManager keyguard =
+                (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (keyguard != null && keyguard.isKeyguardLocked()) return;
+
+            evaluate(appPackage);
+        }
+    };
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+
+        if (!listening) {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(Intent.ACTION_SCREEN_ON);
+            filter.addAction(Intent.ACTION_USER_PRESENT);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(wakeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(wakeReceiver, filter);
+            }
+            listening = true;
+        }
     }
 
     @Override
@@ -108,7 +182,26 @@ public class FocusAccessibilityService extends AccessibilityService {
         if (pkg.equals(getPackageName()) && isGateEcho(event)) return;
 
         lastPackage = pkg;
+        if (isLaunchableApp(pkg)) appPackage = pkg;
         evaluate(pkg);
+    }
+
+    /**
+     * Whether the package in front is an app the reader opens, rather than a
+     * window the system put up over one.
+     *
+     * The launcher's own view of the device is the test: an app with something to
+     * open from the home screen is one the reader can be inside, while the lock
+     * screen, the notification shade, the keyboard and system dialogs have no
+     * launcher entry. The gate comes down for both kinds, but only the first is
+     * remembered as where the reader is — which is what the wake check needs.
+     */
+    private boolean isLaunchableApp(String pkg) {
+        try {
+            return getPackageManager().getLaunchIntentForPackage(pkg) != null;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -151,6 +244,14 @@ public class FocusAccessibilityService extends AccessibilityService {
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         hideGate();
+        if (listening) {
+            try {
+                unregisterReceiver(wakeReceiver);
+            } catch (Exception ignored) {
+                // Already gone with the context; nothing is listening either way.
+            }
+            listening = false;
+        }
         windowManager = null;
         if (instance == this) instance = null;
         super.onDestroy();
@@ -456,8 +557,10 @@ public class FocusAccessibilityService extends AccessibilityService {
     private void openApp() {
         // Taken down here rather than left to the app's own window change: the
         // service ignores this package's window changes while the gate is up
-        // (isGateEcho), so nothing else would close it.
+        // (isGateEcho), so nothing else would close it. This app is where the
+        // reader now is, so a wake must not bring the gate back over it either.
         lastPackage = getPackageName();
+        appPackage = getPackageName();
         hideGate();
 
         Intent intent = new Intent(this, MainActivity.class);
