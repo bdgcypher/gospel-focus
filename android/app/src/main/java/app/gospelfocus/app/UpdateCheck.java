@@ -121,7 +121,7 @@ final class UpdateCheck {
      *
      * Read from the package manager and the last check's notes rather than from
      * the network, so opening Settings never waits on GitHub and works in a
-     * tunnel — the row says what was last found, and "Check now" is what asks
+     * tunnel — the row says what was last found, and "Check for updates" is what asks
      * again.
      */
     static final class Status {

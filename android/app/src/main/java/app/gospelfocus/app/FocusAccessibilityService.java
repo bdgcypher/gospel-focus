@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -18,6 +19,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -61,6 +63,8 @@ import android.widget.TextView;
  */
 public class FocusAccessibilityService extends AccessibilityService {
 
+    private static final String TAG = "FocusLock";
+
     /** The running service, so a state change can be applied without an event. */
     private static FocusAccessibilityService instance;
 
@@ -73,6 +77,68 @@ public class FocusAccessibilityService extends AccessibilityService {
 
     /** When the gate last went up, on the clock that ignores wall-clock changes. */
     private long gateShownAt;
+
+    /**
+     * The app the reader closed the gate on, and when.
+     *
+     * Taking the gate down gives the held app its window back, and the system
+     * reports that as a window change of its own. Read plainly, that event says
+     * the held app has arrived — so the gate goes straight back up, now over the
+     * home screen the reader asked for, and nothing is left in front to bring it
+     * down again. That is why "Close <app>" looked like it did nothing but move
+     * the gate somewhere the reader could not leave from.
+     *
+     * The package is remembered for the moment the home screen takes to come up,
+     * so the echo is not mistaken for the app being opened again. Another app in
+     * front ends it, the home screen tightens it to a frame or two, and a real
+     * launch afterwards is gated as usual (isCloseEcho).
+     */
+    private String closedPackage;
+    private long closedAt;
+
+    /** When the home screen a close asked for came to the front, or 0. */
+    private long closedHomeAt;
+
+    /**
+     * How long the echo is ignored before the home screen has arrived.
+     *
+     * It is generous because nothing can be reopened while it lasts — the home
+     * screen is the only thing in front — and it is also the backstop for a
+     * launcher that never reports itself: past it, the app is gated as usual
+     * rather than staying open for good.
+     */
+    private static final long CLOSE_ECHO_MS = 2500L;
+
+    /**
+     * How long after the home screen an echo is still ignored.
+     *
+     * A frame or two, not a window anyone can reopen an app in: an echo queued
+     * behind the home screen's own event is still the gate coming down, and
+     * anything slower than this is the reader tapping the app again.
+     */
+    private static final long ECHO_AFTER_HOME_MS = 400L;
+
+    /**
+     * How many times a refused overlay is tried again before it is left alone.
+     *
+     * A window can be refused while the display is changing under it — which is
+     * what unfolding a foldable is — and giving up on the first refusal meant no
+     * gate at all until the next window change, which for the app already in
+     * front may never come.
+     */
+    private static final int GATE_ATTEMPTS = 4;
+
+    private int gateAttempts;
+
+    /** The cached home package; null until asked for, "" when there is none. */
+    private String homePackage;
+
+    private final Runnable gateRetry = new Runnable() {
+        @Override
+        public void run() {
+            evaluate(lastPackage);
+        }
+    };
 
     /**
      * The last *app* in front, as opposed to the last window.
@@ -205,9 +271,74 @@ public class FocusAccessibilityService extends AccessibilityService {
         // arriving, so it is ignored (see isGateEcho).
         if (pkg.equals(getPackageName()) && isGateEcho(event)) return;
 
+        if (isCloseEcho(pkg)) return;
+
+        gateAttempts = 0;
         lastPackage = pkg;
-        if (launchable) appPackage = pkg;
+        if (launchable) {
+            appPackage = pkg;
+        } else if (isHome(pkg)) {
+            // The home screen is not an app the reader is inside, even though it
+            // is where they are. Left as the app in front, it would let the wake
+            // check — or a fold — draw the gate over the home screen.
+            appPackage = null;
+        }
         evaluate(pkg);
+    }
+
+    /**
+     * Whether a window change for `pkg` is the echo of the gate coming down.
+     *
+     * Taking the gate down hands the held app its window back, and the system
+     * reports that as a window change of that app — which, read plainly, says
+     * the app has arrived and puts the gate back up over the home screen the
+     * reader just asked for. It is recognised by where it sits: an event for the
+     * closed app before the home screen has come to the front, or in the frame
+     * or two after it. A launch from the home screen afterwards is the reader
+     * opening the app again, and is gated as usual.
+     */
+    private boolean isCloseEcho(String pkg) {
+        if (closedPackage == null) return false;
+        long now = SystemClock.uptimeMillis();
+
+        if (pkg.equals(closedPackage)) {
+            boolean home = closedHomeAt != 0;
+            long since = now - (home ? closedHomeAt : closedAt);
+            if (since < (home ? ECHO_AFTER_HOME_MS : CLOSE_ECHO_MS)) return true;
+            closedPackage = null;
+            return false;
+        }
+
+        if (isHome(pkg)) {
+            // The reader is where the close sent them. Remembered so an echo
+            // still queued behind this event is recognised as one.
+            closedHomeAt = now;
+            return false;
+        }
+
+        // Another app in front: the close is over, and the held app is gated
+        // again the next time it is opened.
+        if (isLaunchableApp(pkg)) closedPackage = null;
+        return false;
+    }
+
+    /**
+     * Whether a package is the device's home screen rather than an app in it.
+     *
+     * Asked of the launcher's own entry for the home button, the same test
+     * `isLaunchableApp` uses in the other direction: an app that opens from the
+     * home screen is one the reader can be inside, and the home screen itself is
+     * not.
+     */
+    private boolean isHome(String pkg) {
+        if (homePackage == null) {
+            Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+            ResolveInfo resolved = getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
+            homePackage = resolved == null || resolved.activityInfo == null
+                ? ""
+                : resolved.activityInfo.packageName;
+        }
+        return pkg.equals(homePackage);
     }
 
     /**
@@ -313,11 +444,23 @@ public class FocusAccessibilityService extends AccessibilityService {
     @Override
     public void onConfigurationChanged(Configuration config) {
         super.onConfigurationChanged(config);
-        if (gate == null || gatePackage == null) return;
-        if (!GateAppearance.followsDevice(this)) return;
-        String pkg = gatePackage;
+        if (windowManager == null) return;
+
+        // The screen the gate was built for is not the screen it is over any
+        // more: a foldable opened, the phone turned, or the device's night mode
+        // turned over. An accessibility service is not recreated for any of it,
+        // so the size and the palette the gate was built in would otherwise be
+        // kept until the next window change — which, over a held app, may not
+        // come until the reader leaves.
+        //
+        // A fold is also where the gate went missing altogether: the app comes
+        // forward onto the new screen without a window change of its own to ask
+        // for it again, and the window that was drawn for the old screen can be
+        // gone. So both cases are answered here — the gate is taken down and
+        // built again at the new size if it is up, and drawn if it is not.
+        String pkg = gate != null ? gatePackage : appPackage;
         hideGate();
-        showGate(pkg);
+        evaluate(pkg);
     }
 
     /**
@@ -370,6 +513,16 @@ public class FocusAccessibilityService extends AccessibilityService {
     }
 
     private void showGate(String pkg) {
+        // A window the system has taken away (a display change under it, or a
+        // service restart it did not report) is not a gate that is up. Left
+        // standing, the field below would say the gate is drawn for ever, and
+        // every later evaluate() for the same app would return here without
+        // drawing anything — which is what a fold left behind.
+        if (gate != null && !gate.isAttachedToWindow()) {
+            gate = null;
+            gatePackage = null;
+        }
+
         if (gate != null) {
             if (pkg.equals(gatePackage)) return;
             hideGate();
@@ -405,11 +558,20 @@ public class FocusAccessibilityService extends AccessibilityService {
             gate = view;
             gatePackage = pkg;
             gateShownAt = SystemClock.uptimeMillis();
+            gateAttempts = 0;
         } catch (Exception e) {
-            // Some devices refuse the overlay while another one is being drawn.
-            // The next window change tries again; nothing else breaks.
+            // Some devices refuse the overlay while another one is being drawn,
+            // or while the display is changing under it. Tried again shortly
+            // rather than given up on — but only so many times, so a phone that
+            // will never allow it is not asked in a loop.
+            Log.w(TAG, "Could not draw the gate over " + pkg, e);
             gate = null;
             gatePackage = null;
+            if (gateAttempts < GATE_ATTEMPTS) {
+                gateAttempts++;
+                handler.removeCallbacks(gateRetry);
+                handler.postDelayed(gateRetry, 400L);
+            }
         }
     }
 
@@ -744,14 +906,36 @@ public class FocusAccessibilityService extends AccessibilityService {
         }
     }
 
+    /**
+     * Leave the held app for the home screen, gate and all.
+     *
+     * The gate is taken down here rather than left to the home screen's own
+     * window change: the reader asked to leave, the home screen is where they
+     * are going, and the gate that comes down hands the held app its window back
+     * for a moment — which the system reports as that app's window change (see
+     * closedPackage). Without both halves, the gate goes back up over the home
+     * screen with nothing left in front to take it down.
+     */
     private void goHome() {
+        String held = gatePackage;
+        closedPackage = held;
+        closedAt = SystemClock.uptimeMillis();
+        closedHomeAt = 0;
+        lastPackage = null;
+        appPackage = null;
+        handler.removeCallbacks(bypassCheck);
+        hideGate();
+
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_HOME);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(intent);
         } catch (Exception ignored) {
-            // Same as above: the gate stays, which is the safe half of failing.
+            // Nowhere to send the reader, so the close did not happen: the gate
+            // goes back rather than leaving the app open behind it.
+            closedPackage = null;
+            evaluate(held);
         }
     }
 

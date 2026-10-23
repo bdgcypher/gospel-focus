@@ -788,7 +788,7 @@ export function SettingsPage() {
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Glyph name="flip" plain className="h-4 w-4" />
-                    {checking ? "Checking…" : "Check now"}
+                    {checking ? "Checking…" : "Check for updates"}
                   </button>
 
                   {update?.updateAvailable && (
