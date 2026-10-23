@@ -17,6 +17,8 @@
          settings. -->
     <string name="update_channel">App updates</string>
     <string name="update_channel_description">Tells you when a newer version of Gospel Focus is available.</string>
+    <string name="update_progress_channel">Update downloads</string>
+    <string name="update_progress_channel_description">Shows the download while an update is being fetched.</string>
     <string name="update_available">Update available</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="update_downloading_percent">Downloading update… %1$d%%</string>

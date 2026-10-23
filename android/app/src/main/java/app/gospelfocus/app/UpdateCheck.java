@@ -50,8 +50,24 @@ import java.io.IOException;
  */
 final class UpdateCheck {
 
-    /** One channel for the announcement, the progress and the ready-to-install note. */
-    private static final String CHANNEL_ID = "updates";
+    /**
+     * Two channels, because they are two different noises.
+     *
+     * The announcement is high importance so it is a heads-up the reader sees
+     * rather than a line they find in the shade later — an update nobody notices
+     * until they open Settings is an update nobody installs. The download's
+     * progress is low importance: the reader has just tapped the notification,
+     * so it belongs in the shade rather than in front of them again.
+     *
+     * The ids are new rather than reused because Android fixes a channel's
+     * importance when it is created and will not raise it afterwards, and
+     * "updates" was made at default importance by the build before this one
+     * (see ensureChannels, which removes it).
+     */
+    private static final String CHANNEL_ID = "updates-notices";
+    private static final String CHANNEL_ID_PROGRESS = "updates-progress";
+    /** The single channel older builds made, at default importance. */
+    private static final String LEGACY_CHANNEL_ID = "updates";
     private static final int NOTIFICATION_UPDATE = 7300;
     private static final int NOTIFICATION_PROGRESS = 7301;
     private static final int NOTIFICATION_READY = 7302;
@@ -241,7 +257,7 @@ final class UpdateCheck {
 
     /** "Gospel Focus / Update available", opening the download. */
     private static void announce(Context context, UpdateClient.Release release) {
-        NotificationManager manager = ensureChannel(context);
+        NotificationManager manager = ensureChannels(context);
         if (manager == null) return;
 
         PendingIntent tap = PendingIntent.getActivity(
@@ -257,7 +273,7 @@ final class UpdateCheck {
             .setContentText(context.getString(R.string.update_available))
             .setContentIntent(tap)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build();
 
         manager.notify(NOTIFICATION_UPDATE, notification);
@@ -266,10 +282,10 @@ final class UpdateCheck {
     /** The download in progress, so a backgrounded app still shows what it is doing. */
     static void showProgress(Context context, int percent) {
         if (!notificationsAllowed(context)) return;
-        NotificationManager manager = ensureChannel(context);
+        NotificationManager manager = ensureChannels(context);
         if (manager == null) return;
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID_PROGRESS)
             .setSmallIcon(SMALL_ICON)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(percent > 0
@@ -296,7 +312,7 @@ final class UpdateCheck {
      */
     static void readyToInstall(Context context, File apk) {
         if (!notificationsAllowed(context)) return;
-        NotificationManager manager = ensureChannel(context);
+        NotificationManager manager = ensureChannels(context);
         if (manager == null) return;
 
         PendingIntent tap = PendingIntent.getActivity(
@@ -312,7 +328,7 @@ final class UpdateCheck {
             .setContentText(context.getString(R.string.update_ready))
             .setContentIntent(tap)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build();
 
         manager.notify(NOTIFICATION_READY, notification);
@@ -348,25 +364,38 @@ final class UpdateCheck {
     }
 
     /**
-     * The "updates" channel, made once.
+     * The two channels, made once.
      *
-     * Default importance rather than high: an update is worth a line in the shade
-     * and a quiet sound, not something that interrupts the passage someone is
-     * reading. The progress notification joins the same channel so the reader has
-     * one switch for both, and Android shows the progress without noise because
-     * that notification is marked as alert-once.
+     * High importance for the announcement is the whole of the heads-up: the
+     * channel's importance, not the notification's priority, is what decides
+     * whether Android shows it in front of the reader. Progress rides a low
+     * channel so a download announces itself once, not once per percent.
+     *
+     * The channel the first builds made is removed: it exists on the reader's
+     * phone at default importance, which is why an update only ever appeared in
+     * the shade, and Android would not let it be raised.
      */
-    private static NotificationManager ensureChannel(Context context) {
+    private static NotificationManager ensureChannels(Context context) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
+            NotificationChannel notices = new NotificationChannel(
                 CHANNEL_ID,
                 context.getString(R.string.update_channel),
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription(context.getString(R.string.update_channel_description));
-            manager.createNotificationChannel(channel);
+            notices.setDescription(context.getString(R.string.update_channel_description));
+            manager.createNotificationChannel(notices);
+
+            NotificationChannel progress = new NotificationChannel(
+                CHANNEL_ID_PROGRESS,
+                context.getString(R.string.update_progress_channel),
+                NotificationManager.IMPORTANCE_LOW
+            );
+            progress.setDescription(context.getString(R.string.update_progress_channel_description));
+            manager.createNotificationChannel(progress);
+
+            manager.deleteNotificationChannel(LEGACY_CHANNEL_ID);
         }
         return manager;
     }

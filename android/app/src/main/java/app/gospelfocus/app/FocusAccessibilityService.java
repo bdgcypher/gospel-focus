@@ -81,42 +81,34 @@ public class FocusAccessibilityService extends AccessibilityService {
     /**
      * The app the reader closed the gate on, and when.
      *
-     * Taking the gate down gives the held app its window back, and the system
-     * reports that as a window change of its own. Read plainly, that event says
-     * the held app has arrived — so the gate goes straight back up, now over the
-     * home screen the reader asked for, and nothing is left in front to bring it
-     * down again. That is why "Close <app>" looked like it did nothing but move
-     * the gate somewhere the reader could not leave from.
+     * A close is a moment, not a state, and the tail of it is reported as the
+     * held app arriving: the gate coming down hands the app its window back and
+     * the home screen takes its place, so the app's own window goes away behind
+     * it — which the framework reports as a window change of the app, once the
+     * home screen is already up. Read plainly, that event says the reader has
+     * opened the app, so the gate goes straight back up, now over the home
+     * screen they asked for, with nothing left in front to take it down again.
      *
-     * The package is remembered for the moment the home screen takes to come up,
-     * so the echo is not mistaken for the app being opened again. Another app in
-     * front ends it, the home screen tightens it to a frame or two, and a real
-     * launch afterwards is gated as usual (isCloseEcho).
+     * So an app that was just closed is not gated again until the close has
+     * settled (isCloseEcho). Waiting for the home screen's own event is not
+     * enough: on a Samsung launcher the app's event arrives after it.
      */
     private String closedPackage;
     private long closedAt;
-
-    /** When the home screen a close asked for came to the front, or 0. */
-    private long closedHomeAt;
-
-    /**
-     * How long the echo is ignored before the home screen has arrived.
-     *
-     * It is generous because nothing can be reopened while it lasts — the home
-     * screen is the only thing in front — and it is also the backstop for a
-     * launcher that never reports itself: past it, the app is gated as usual
-     * rather than staying open for good.
-     */
-    private static final long CLOSE_ECHO_MS = 2500L;
+    /** When a close last ran, kept past the settle for the log line in showGate. */
+    private long lastCloseAt;
 
     /**
-     * How long after the home screen an echo is still ignored.
+     * How long a close takes to settle.
      *
-     * A frame or two, not a window anyone can reopen an app in: an echo queued
-     * behind the home screen's own event is still the gate coming down, and
-     * anything slower than this is the reader tapping the app again.
+     * Long enough to cover the home screen arriving and the closed app's window
+     * being put away behind it, which is the last of the three events and comes
+     * after the home screen's; short enough that it is not a way back into the
+     * app, since the home screen is still animating under the reader for most of
+     * it and nothing has been tapped yet. Past it, opening the app is opening the
+     * app, and is gated as usual.
      */
-    private static final long ECHO_AFTER_HOME_MS = 400L;
+    private static final long CLOSE_SETTLE_MS = 2500L;
 
     /**
      * How many times a refused overlay is tried again before it is left alone.
@@ -287,39 +279,27 @@ public class FocusAccessibilityService extends AccessibilityService {
     }
 
     /**
-     * Whether a window change for `pkg` is the echo of the gate coming down.
+     * Whether a window change for `pkg` is the tail of a close, not a launch.
      *
-     * Taking the gate down hands the held app its window back, and the system
-     * reports that as a window change of that app — which, read plainly, says
-     * the app has arrived and puts the gate back up over the home screen the
-     * reader just asked for. It is recognised by where it sits: an event for the
-     * closed app before the home screen has come to the front, or in the frame
-     * or two after it. A launch from the home screen afterwards is the reader
-     * opening the app again, and is gated as usual.
+     * The closed app is the only thing whose events can arrive either side of
+     * the home screen's during a close, so that is what is ignored, and only for
+     * the moment a close takes to settle. Everything else — the home screen, a
+     * different app, the reader opening the app again later — is answered as
+     * usual. The elapsed time is logged: if a close ever takes longer than the
+     * settle on some launcher, the log says so rather than the gate quietly
+     * reappearing.
      */
     private boolean isCloseEcho(String pkg) {
         if (closedPackage == null) return false;
-        long now = SystemClock.uptimeMillis();
-
-        if (pkg.equals(closedPackage)) {
-            boolean home = closedHomeAt != 0;
-            long since = now - (home ? closedHomeAt : closedAt);
-            if (since < (home ? ECHO_AFTER_HOME_MS : CLOSE_ECHO_MS)) return true;
+        long since = SystemClock.uptimeMillis() - closedAt;
+        if (since >= CLOSE_SETTLE_MS) {
             closedPackage = null;
             return false;
         }
+        if (!pkg.equals(closedPackage)) return false;
 
-        if (isHome(pkg)) {
-            // The reader is where the close sent them. Remembered so an echo
-            // still queued behind this event is recognised as one.
-            closedHomeAt = now;
-            return false;
-        }
-
-        // Another app in front: the close is over, and the held app is gated
-        // again the next time it is opened.
-        if (isLaunchableApp(pkg)) closedPackage = null;
-        return false;
+        Log.d(TAG, "ignoring " + pkg + " " + since + "ms after closing the gate");
+        return true;
     }
 
     /**
@@ -559,6 +539,10 @@ public class FocusAccessibilityService extends AccessibilityService {
             gatePackage = pkg;
             gateShownAt = SystemClock.uptimeMillis();
             gateAttempts = 0;
+            if (lastCloseAt != 0) {
+                Log.d(TAG, "gate over " + pkg + " "
+                    + (SystemClock.uptimeMillis() - lastCloseAt) + "ms after a close");
+            }
         } catch (Exception e) {
             // Some devices refuse the overlay while another one is being drawn,
             // or while the display is changing under it. Tried again shortly
@@ -920,7 +904,7 @@ public class FocusAccessibilityService extends AccessibilityService {
         String held = gatePackage;
         closedPackage = held;
         closedAt = SystemClock.uptimeMillis();
-        closedHomeAt = 0;
+        lastCloseAt = closedAt;
         lastPackage = null;
         appPackage = null;
         handler.removeCallbacks(bypassCheck);
