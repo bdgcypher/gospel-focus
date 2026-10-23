@@ -12,6 +12,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -65,6 +66,9 @@ public class FocusAccessibilityService extends AccessibilityService {
     private String gatePackage;
     private String lastPackage;
 
+    /** When the gate last went up, on the clock that ignores wall-clock changes. */
+    private long gateShownAt;
+
     /**
      * Re-check the foreground package when a bypass runs out.
      *
@@ -91,8 +95,47 @@ public class FocusAccessibilityService extends AccessibilityService {
         if (event == null || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence name = event.getPackageName();
         if (name == null) return;
-        lastPackage = name.toString();
-        evaluate(lastPackage);
+        String pkg = name.toString();
+
+        // The gate is a window this app owns, so the system reports it going up
+        // and coming down as a window change for this package. This package is
+        // never held, so the plain answer would be to take the gate straight
+        // back down — which puts the held app in front again, which brings the
+        // gate back, which is another window change for this package. The two
+        // take turns as fast as the system can report them: the gate strobes,
+        // caught a frame at a time, instead of holding. Nothing there is an app
+        // arriving, so it is ignored (see isGateEcho).
+        if (pkg.equals(getPackageName()) && isGateEcho(event)) return;
+
+        lastPackage = pkg;
+        evaluate(pkg);
+    }
+
+    /**
+     * Whether a window change from this app is the gate itself, not the app.
+     *
+     * The gate's windows are built by the service (buildGate), so their class is
+     * one of its own views; the app's screen is MainActivity. A change with no
+     * class at all is treated as the gate's, because the gate is the only one of
+     * the two that would loop.
+     *
+     * The app's own screen is the exception, and it is let through unless it
+     * arrives in the moment the gate is going up — which is the echo, a frame or
+     * two old, not a reader who has found their way into the app. The gate's
+     * button closes the gate before it starts the activity (openApp), so the
+     * ordinary way in never depends on this at all; the exception is for the
+     * unordinary ones, like the app being opened from a notification while the
+     * gate is up, where leaving the gate over the screen that unlocks it would
+     * trap the reader behind their own lock.
+     */
+    private boolean isGateEcho(AccessibilityEvent event) {
+        if (gate == null) return false;
+
+        CharSequence className = event.getClassName();
+        if (className != null && className.toString().contains("MainActivity")) {
+            return SystemClock.uptimeMillis() - gateShownAt < 700L;
+        }
+        return true;
     }
 
     @Override
@@ -192,6 +235,7 @@ public class FocusAccessibilityService extends AccessibilityService {
             view.requestFocus();
             gate = view;
             gatePackage = pkg;
+            gateShownAt = SystemClock.uptimeMillis();
         } catch (Exception e) {
             // Some devices refuse the overlay while another one is being drawn.
             // The next window change tries again; nothing else breaks.
@@ -410,6 +454,12 @@ public class FocusAccessibilityService extends AccessibilityService {
     }
 
     private void openApp() {
+        // Taken down here rather than left to the app's own window change: the
+        // service ignores this package's window changes while the gate is up
+        // (isGateEcho), so nothing else would close it.
+        lastPackage = getPackageName();
+        hideGate();
+
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         try {
