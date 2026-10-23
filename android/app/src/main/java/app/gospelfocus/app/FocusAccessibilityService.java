@@ -8,7 +8,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -362,8 +364,8 @@ public class FocusAccessibilityService extends AccessibilityService {
     // ---------------------------------------------------------------------
 
     /**
-     * The gate: the reader's own app name, what the lock is waiting on, the way
-     * into the app, and the way out of the held app.
+     * The gate: the reader's own app name, the verse the lock is there for, what
+     * it is waiting on, the way into the app, and the way out of the held app.
      *
      * Built in code rather than inflated from a layout so all of it lives in one
      * readable place and the two entrances (the gate and the pages) can share the
@@ -374,13 +376,15 @@ public class FocusAccessibilityService extends AccessibilityService {
      *
      * The primary action is deliberately "Open Gospel Focus" rather than
      * "Dismiss": a gate that only closes would be a bump in the road, and the
-     * one thing that opens it for good is the day's study. The bypass is
-     * mentioned in small type, because it exists and hiding it would make the
-     * lock dishonest; it is taken in the app, not here, because that is where
-     * the reader can see what they are trading.
+     * one thing that opens it for good is the day's study. The second button
+     * leaves the held app for the home screen instead of dissolving the lock.
+     * Nothing else is asked for in small type: the reader is looking at the one
+     * screen they did not choose to open, so it says the one thing that opens it
+     * and the one thing that leaves, and stops.
      */
     private View buildGate(String pkg) {
         Palette palette = palette();
+        String appName = labelFor(pkg);
         int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(48), dp(420));
 
         GateRoot root = new GateRoot(this);
@@ -407,16 +411,31 @@ public class FocusAccessibilityService extends AccessibilityService {
         eyebrow.setLetterSpacing(0.14f);
         add(card, eyebrow, 20);
 
-        TextView heading = label(labelFor(pkg) + " is held", 24, palette.foreground,
+        TextView heading = label(appName + " is locked", 24, palette.foreground,
             Typeface.create("serif", Typeface.BOLD));
         add(card, heading, 8);
 
+        // The verse the lock is for, set the way a quote is set in print: a rule
+        // down the side, the words in italic serif, the reference below them.
+        VerseBlock verse = new VerseBlock(palette.accent, dp(3), dp(16));
+
+        TextView quote = label(
+            "Seek ye first the kingdom of God, and his righteousness; and all these things shall be "
+                + "added unto you.",
+            17, palette.foreground, Typeface.create("serif", Typeface.ITALIC));
+        quote.setLineSpacing(dp(5), 1f);
+        verse.addView(quote, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView reference = label("Matthew 6:33", 13, palette.muted, null);
+        add(verse, reference, 8);
+        add(card, verse, 18);
+
         TextView body = label(
-            "Today's study isn't done yet. Open Gospel Focus and read or study until your goal is met — "
-                + "the app opens again when it is.",
+            "Today's gospel study isn't finished. Complete your daily goal to unlock blocked apps.",
             15, palette.muted, null);
         body.setLineSpacing(dp(3), 1f);
-        add(card, body, 12);
+        add(card, body, 18);
 
         Button open = gateButton("Open Gospel Focus", palette.accent, palette.accentContrast, 0);
         open.setOnClickListener(new View.OnClickListener() {
@@ -427,25 +446,14 @@ public class FocusAccessibilityService extends AccessibilityService {
         });
         add(card, open, 22);
 
-        Button home = gateButton("Back to home", palette.surface2, palette.foreground, palette.border);
-        home.setOnClickListener(new View.OnClickListener() {
+        Button close = gateButton("Close " + appName, palette.surface2, palette.foreground, palette.border);
+        close.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 goHome();
             }
         });
-        add(card, home, 10);
-
-        TextView bypass = label(
-            "Need it just this once? Open Gospel Focus and switch the lock off — you can choose how long for.",
-            12, palette.muted, null);
-        bypass.setLineSpacing(dp(2), 1f);
-        add(card, bypass, 18);
-
-        TextView privacy = label(
-            "Focus Lock sees which app is in front; it does not read your screen.",
-            11, palette.muted, null);
-        add(card, privacy, 10);
+        add(card, close, 10);
 
         root.addView(card, new FrameLayout.LayoutParams(
             width, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
@@ -494,6 +502,35 @@ public class FocusAccessibilityService extends AccessibilityService {
         button.setLayoutParams(new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         return button;
+    }
+
+    /**
+     * The verse the lock is for: a rule down the side, the words beside it, the
+     * reference below.
+     *
+     * The block draws the rule itself rather than holding a bar view beside the
+     * quote, because how many lines the quote takes depends on the font scale and
+     * a sibling bar would have to know that height before the text had been
+     * measured. The left padding is the rule plus the gap after it, so the words
+     * never sit on it.
+     */
+    private final class VerseBlock extends LinearLayout {
+        private final Paint rule = new Paint();
+        private final int ruleWidth;
+
+        VerseBlock(int color, int ruleWidth, int gap) {
+            super(FocusAccessibilityService.this);
+            setOrientation(VERTICAL);
+            setPadding(ruleWidth + gap, 0, 0, 0);
+            setWillNotDraw(false);
+            rule.setColor(color);
+            this.ruleWidth = ruleWidth;
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            canvas.drawRect(0, 0, ruleWidth, getHeight(), rule);
+        }
     }
 
     private GradientDrawable rounded(int fill, int radiusDp, int strokeColor, int strokeWidthDp) {
