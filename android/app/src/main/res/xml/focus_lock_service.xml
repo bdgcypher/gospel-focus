@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the Focus Lock's accessibility service is allowed to see, and what it says
+  it does on Android's own settings screen.
+
+  The narrowest declaration that still works: window state changes are the only
+  events needed (the package in front is the whole of the signal), and no window
+  content is retrieved — `canRetrieveWindowContent="false"` means the platform
+  does not hand the service the screen even if it asked, which is what the
+  description tells the reader.
+
+  `notificationTimeout` is short because the gate has to land as the app does; a
+  long delay would show the held app for a beat before covering it.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canRetrieveWindowContent="false"
+    android:description="@string/focus_lock_service_description"
+    android:notificationTimeout="50" />

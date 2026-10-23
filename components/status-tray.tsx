@@ -171,7 +171,11 @@ export function StatusTray() {
         tone={status === "locked" ? "accent" : "dim"}
         ink={status === "locked" ? "lock" : undefined}
         dot={status === "locked"}
-        title={FOCUS_TITLES[status]}
+        title={
+          status === "locked" && !hasGoal
+            ? "Focus lock is on, but no daily goal is set — nothing is held until there is one."
+            : FOCUS_TITLES[status]
+        }
         label="Focus lock"
       />
     </div>

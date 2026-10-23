@@ -19,10 +19,10 @@ const search = featureById("search");
 /**
  * The wall's order, by id. The catalog keeps the study section in the order it
  * grew; the page has its own, which is the order a reader works in: the two
- * things you do with a passage (keep it, write it down), then the two that are
- * still to come. A missing entry drops out rather than leaving a gap.
+ * things you do with a passage — keep it, then write it down. A missing entry
+ * drops out rather than leaving a gap.
  */
-const ORDER = ["memorize", "journal", "plans", "liken"];
+const ORDER = ["memorize", "journal"];
 const rest = ORDER.map((id) => featuresInGroup("study").find((feature) => feature.id === id)).filter(
   (feature): feature is Feature => Boolean(feature),
 );

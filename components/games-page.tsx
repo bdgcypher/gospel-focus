@@ -8,10 +8,10 @@ const group = groupById("games");
 
 /**
  * The wall's order, by id: the two games played with today's passage first,
- * then the quiz and the colouring book. The catalog keeps its own order — this
- * page leads with the daily habit rather than with the list it grew up in.
+ * then the quiz. The catalog keeps its own order — this page leads with the
+ * daily habit rather than with the list it grew up in.
  */
-const ORDER = ["wordle", "word-search", "reference-quiz", "coloring"];
+const ORDER = ["wordle", "word-search", "reference-quiz"];
 const games = ORDER.map((id) => featuresInGroup("games").find((feature) => feature.id === id)).filter(
   (feature): feature is Feature => Boolean(feature),
 );

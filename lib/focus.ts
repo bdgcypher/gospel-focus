@@ -5,15 +5,14 @@ import { dayKey } from "./daily";
 import { goalReached, readStudy } from "./study";
 
 /**
- * The Focus lock's local state: whether the reader has set it up, and whether a
- * hand bypass is open.
+ * The Focus lock's state: whether the reader has set it up, which apps it holds,
+ * and whether a hand bypass is open.
  *
- * What is real here is the state, not the enforcement. Holding other apps back
- * needs a native Android layer (UsageStatsManager plus an accessibility service
- * — see ROADMAP.md), and that does not exist yet, so /focus says so plainly.
- * Building the state model first is deliberate: the home hub's lock status, the
- * bypass, and the moment it runs out are the parts a reader sees, and they can
- * be right before anything is blocked.
+ * The state lives here and nowhere else — the page, the hub's chip, and the
+ * native accessibility service all read what this module decides. The service
+ * (android/app/.../FocusAccessibilityService.java) is told the answer on every
+ * change by components/focus-sync.tsx; it never works out for itself whether the
+ * lock is on, because two places deciding would eventually disagree.
  *
  * A bypass is a deadline, not a day. The reader asks for one in the units they
  * think in — fifteen minutes, half an hour, the rest of today — and the gate
@@ -31,6 +30,24 @@ import { goalReached, readStudy } from "./study";
  * outlast the state that opened it (`relockedDay`).
  */
 
+/**
+ * One app on the reader's list: what Android calls it, and what the reader calls
+ * it.
+ *
+ * Both halves are needed. The package is the only name the accessibility service
+ * can match a foreground app against, and the label is the only name the reader
+ * recognises — so the picker records both when the app is chosen rather than
+ * looking the label up again on every render. An entry with no package is a name
+ * typed by hand, which can be kept as a note but cannot be blocked (see
+ * `linkHeldApps` for how one gets its package once the device's list is known).
+ */
+export interface HeldApp {
+  /** The Android application id, or "" for a name with no app behind it yet. */
+  package: string;
+  /** The name shown on the chip and in the picker. */
+  label: string;
+}
+
 export interface FocusState {
   /**
    * The reader has set the lock up.
@@ -45,15 +62,15 @@ export interface FocusState {
    */
   setUp: boolean;
   /**
-   * The apps the reader wants held back, by name, as they chose them.
+   * The apps the reader wants held back, as chosen from the device's own list.
    *
-   * Names rather than package ids on purpose: the list a reader can see and
-   * edit today is what they would pick from in their own launcher, and only the
-   * native layer (which is not built — see ROADMAP.md) can turn a name into an
-   * app to hold. Keeping the list real now means the part that works is the
-   * part the reader does by hand, and nothing has to be pretended.
+   * Package and label together: the package is what the accessibility service
+   * matches the foreground app against, and the label is what the reader reads on
+   * the chip. A name typed on the web, or before the picker existed, is kept with
+   * an empty package — a note rather than a block, since there is no app for it
+   * to name (see `linkHeldApps`).
    */
-  apps: string[];
+  apps: HeldApp[];
   /**
    * When the hand bypass runs out, in epoch milliseconds, or null for none.
    *
@@ -95,7 +112,7 @@ export type BypassLength = 15 | 30 | "today";
 const KEY = "gospel-focus:focus:v1";
 
 /** How many held apps the list will keep, so a bad import can't run away. */
-const MAX_APPS = 40;
+const MAX_APPS = 200;
 
 /** One shared default snapshot, so the server render and first client render agree. */
 const EMPTY: FocusState = {
@@ -128,22 +145,52 @@ export function bypassEnd(length: BypassLength, now: Date = new Date()): number 
   return now.getTime() + length * 60_000;
 }
 
-/** The held apps, checked enough to trust: names, trimmed and deduplicated. */
-function readApps(value: unknown): string[] {
+/**
+ * What makes two entries the same app: its package, or its name when it has none.
+ *
+ * Used for deduplication and for removing a chip, so a list written by any version
+ * of the app — plain names, entries with packages, or both — behaves the same.
+ */
+export function heldAppKey(app: HeldApp): string {
+  return app.package ? `pkg:${app.package.toLowerCase()}` : `name:${app.label.toLowerCase()}`;
+}
+
+/**
+ * One stored entry, whichever shape it arrived in.
+ *
+ * The first version of this feature kept only names (`["Instagram"]`); those
+ * become entries with no package rather than being dropped, because the reader
+ * wrote them and `linkHeldApps` can still match them to an app once it knows
+ * what is installed.
+ */
+function readHeldApp(value: unknown): HeldApp | null {
+  if (typeof value === "string") {
+    const label = value.trim();
+    return label ? { package: "", label } : null;
+  }
+  if (!value || typeof value !== "object") return null;
+  const entry = value as Record<string, unknown>;
+  const pkg = typeof entry.package === "string" ? entry.package.trim() : "";
+  const label = typeof entry.label === "string" ? entry.label.trim() : "";
+  if (!pkg && !label) return null;
+  return { package: pkg, label: label || pkg };
+}
+
+/** The held apps, checked enough to trust: trimmed, deduplicated, and capped. */
+function readApps(value: unknown): HeldApp[] {
   if (!Array.isArray(value)) return [];
-  const names: string[] = [];
+  const apps: HeldApp[] = [];
   const seen = new Set<string>();
   for (const entry of value) {
-    if (typeof entry !== "string") continue;
-    const name = entry.trim();
-    if (!name) continue;
-    const key = name.toLowerCase();
+    const app = readHeldApp(entry);
+    if (!app) continue;
+    const key = heldAppKey(app);
     if (seen.has(key)) continue;
     seen.add(key);
-    names.push(name);
-    if (names.length >= MAX_APPS) break;
+    apps.push(app);
+    if (apps.length >= MAX_APPS) break;
   }
-  return names;
+  return apps;
 }
 
 /**
@@ -267,10 +314,10 @@ function ensureListeners(): void {
 /**
  * Take the lock up: set it up and arm it in one act.
  *
- * One act because there is nothing yet to set up: no app can be held back until
- * the native layer exists, so the reader's half of the feature is the state
- * itself and the promise to come back to it. From here the page has a status
- * and a switch, and the home screen's chip starts reading it.
+ * One act because setting up is arming: an armed lock with no apps on its list
+ * holds nothing, so there is no second decision to put in the reader's way. From
+ * here the page has a status, the app picker, and the permission row, and the
+ * home screen's chip starts reading it.
  */
 export function setFocusUp(): void {
   const previous = read();
@@ -281,9 +328,10 @@ export function setFocusUp(): void {
 /**
  * Open the gate by hand for a while, without having studied.
  *
- * The honest middle ground while the blocking itself doesn't exist: the reader
- * can see, and undo, the state the gate is in — and taking it is recorded as a
- * bypass rather than being mistaken for having done the day's study.
+ * The honest middle ground the lock offers: the reader can see, and undo, the
+ * state the gate is in — and taking it is recorded as a bypass rather than being
+ * mistaken for having done the day's study, so the goal still has to be met for
+ * the day to count.
  */
 export function startBypass(length: BypassLength, now: Date = new Date()): void {
   const previous = read();
@@ -347,24 +395,69 @@ function subscribe(onChange: () => void): () => void {
 }
 
 /** Add an app to the list the gate would hold back. */
-export function addHeldApp(name: string): void {
-  const trimmed = name.trim();
-  if (!trimmed) return;
+export function addHeldApp(app: HeldApp): void {
+  const pkg = app.package.trim();
+  const label = app.label.trim() || pkg;
+  if (!pkg && !label) return;
+
+  const next: HeldApp = { package: pkg, label };
   const previous = read();
-  if (
-    previous.apps.length >= MAX_APPS ||
-    previous.apps.some((app) => app.toLowerCase() === trimmed.toLowerCase())
-  ) {
-    return;
-  }
-  write({ ...previous, apps: [...previous.apps, trimmed] });
+  if (previous.apps.length >= MAX_APPS) return;
+
+  const key = heldAppKey(next);
+  if (previous.apps.some((entry) => heldAppKey(entry) === key)) return;
+  write({ ...previous, apps: [...previous.apps, next] });
 }
 
-/** Take an app back off the list. */
-export function removeHeldApp(name: string): void {
+/** Take an app back off the list, by `heldAppKey`. */
+export function removeHeldApp(key: string): void {
   const previous = read();
-  const apps = previous.apps.filter((app) => app !== name);
+  const apps = previous.apps.filter((app) => heldAppKey(app) !== key);
   if (apps.length !== previous.apps.length) write({ ...previous, apps });
+}
+
+/**
+ * Match names typed before the picker existed to the apps actually installed.
+ *
+ * The list a reader wrote by hand was the best the app could ask for when it could
+ * not see the device; now that the picker can, a name that matches an installed
+ * app's label is given that app's package in place, so the reader's earlier choice
+ * starts working instead of needing to be made twice. A name that matches nothing
+ * is left alone, and duplicates that the match creates are dropped (keeping the
+ * first, which is the one the reader put there).
+ */
+export function linkHeldApps(installed: HeldApp[]): void {
+  const previous = read();
+  if (!previous.apps.some((app) => !app.package)) return;
+
+  const byLabel = new Map<string, HeldApp>();
+  for (const app of installed) {
+    const label = app.label.trim().toLowerCase();
+    if (label && !byLabel.has(label)) byLabel.set(label, app);
+  }
+
+  const apps: HeldApp[] = [];
+  const seen = new Set<string>();
+  let changed = false;
+  for (const app of previous.apps) {
+    let next = app;
+    if (!app.package) {
+      const match = byLabel.get(app.label.toLowerCase());
+      if (match) {
+        next = { package: match.package, label: match.label };
+        changed = true;
+      }
+    }
+    const key = heldAppKey(next);
+    if (seen.has(key)) {
+      changed = true;
+      continue;
+    }
+    seen.add(key);
+    apps.push(next);
+  }
+
+  if (changed) write({ ...previous, apps });
 }
 
 /** The stored focus state. Default (off) during server rendering. */

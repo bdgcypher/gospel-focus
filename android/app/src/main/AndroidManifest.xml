@@ -21,6 +21,29 @@
             </intent-filter>
         </activity>
 
+        <!-- The Focus Lock's gate (FocusAccessibilityService).
+
+             The service is exported because the system, not the app, binds it;
+             BIND_ACCESSIBILITY_SERVICE is what keeps anything else out. It is
+             declared with an intent filter so it appears in Android's
+             accessibility settings — where the reader turns it on — and the
+             metadata file beside it is the narrow set of events it may see
+             (res/xml/focus_lock_service.xml). Nothing here blocks anything
+             until both the reader has enabled the service and the lock is
+             armed in the app. -->
+        <service
+            android:name=".FocusAccessibilityService"
+            android:exported="true"
+            android:label="@string/focus_lock_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/focus_lock_service" />
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -50,6 +73,14 @@
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <!-- The Focus page's app picker (FocusLockPlugin.listApps) lists the apps
+             with a launcher icon. From Android 11 on, a package can only see the
+             intents it declares here, so without this the picker would come back
+             empty. Reading the list needs no permission of its own. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
         </intent>
     </queries>
 

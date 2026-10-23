@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(OpenUrlPlugin.class);
         registerPlugin(ImageClipboardPlugin.class);
         registerPlugin(FileDownloadPlugin.class);
+        registerPlugin(FocusLockPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { AppHeader } from "./app-header";
+import { FocusSync } from "./focus-sync";
 import { BottomNav } from "./nav-bar";
 import { MenuPanel } from "./menu-panel";
 import { NavSwipe } from "./nav-swipe";
@@ -81,6 +82,12 @@ export function AppChrome({ children }: { children: ReactNode }) {
           goal. Also invisible: the number in the app bar is the only place it
           shows. */}
       <StreakTracker />
+
+      {/* Hands the Focus Lock to Android's accessibility service whenever it
+          changes, so the gate holds the apps the reader chose on whichever
+          screen they are. Silent on the web and on iOS, where nothing can be
+          held back anyway. */}
+      <FocusSync />
 
       {/* A finger across the page, or across the bar, steps to the section
           beside this one. Silent everywhere except the four section pages

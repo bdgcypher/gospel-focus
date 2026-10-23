@@ -17,7 +17,7 @@ import { dayKey } from "./daily";
  * What counts is a rule, not a guess: any minute spent with a page that studies
  * open and in front of the reader counts, and a minute spent anywhere else does
  * not. That is honest about what the app can see today. Counting the time spent in the Gospel
- * Library app is a later job — it needs the native layer (see ROADMAP.md) — and
+ * Library app is a later job — it needs the native layer (see PROJECT_OVERVIEW.md) — and
  * it is why the minute is stored rather than derived: when a second source
  * arrives it adds to the same number rather than replacing it.
  *

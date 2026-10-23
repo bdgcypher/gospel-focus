@@ -4,4 +4,11 @@
     <string name="title_activity_main">Gospel Focus</string>
     <string name="package_name">app.gospelfocus.app</string>
     <string name="custom_url_scheme">app.gospelfocus.app</string>
+
+    <!-- The Focus Lock's accessibility service, as Android's own settings screen
+         shows it. The description is the reader's only explanation of a
+         permission that sounds far broader than this use, so it says what the
+         service watches, what it draws, and what it does not read. -->
+    <string name="focus_lock_service_label">Focus Lock</string>
+    <string name="focus_lock_service_description">Holds the apps you chose until the day\'s gospel study is done. Focus Lock sees which app comes to the front so it can draw its lock screen over the ones on your list. It does not read anything on your screen.</string>
 </resources>

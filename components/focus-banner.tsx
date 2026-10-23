@@ -29,11 +29,11 @@ import { setPreference, usePreferences } from "@/lib/preferences";
  * What the card says is short on purpose: the name, one line on what the gate
  * is for, and then the verse the reader is being asked to make room for, which
  * is the argument for the gate and a better one than the card could make
- * itself. The line under the title promises blocking, and the app is not there
- * yet — holding another app back needs the native layer, which is not built
- * (see ROADMAP.md) — so it is /focus, one tap away, that says the honest half
- * out loud: the gate, the bypass and the list of apps are real today, and
- * that is exactly what the button opens onto.
+ * itself. The line under the title promises blocking, and on Android the app now
+ * keeps that promise: the gate is real, and /focus — one tap away — is where the
+ * apps are chosen and Android's access is granted. On the web the card leads to
+ * the honest half instead: the lock, the bypass and the apps are real, and
+ * nothing is held, which is what that page says.
  */
 export function FocusLockBanner() {
   const focus = useFocus();
