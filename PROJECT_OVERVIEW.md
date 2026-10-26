@@ -225,7 +225,12 @@ call outside the passage library and the Gospel Library link.
 changes and, over a chosen app, draws a `TYPE_ACCESSIBILITY_OVERLAY` until the
 day's study is done. The window fits the system-bar insets instead of covering
 them, so the home button and the home gesture always reach Android — the gate can
-be a nuisance over an app, never over the way out of the phone. It enforces the
+be a nuisance over an app, never over the way out of the phone. Leaving it is one
+thing whichever way the reader leaves: the Close button, Back, the home gesture
+and another app taking the screen all record the app they left, because the gate
+coming down hands that app its window back and the framework reports it as the
+app arriving — the one signal that would otherwise draw the gate again over the
+screen the reader went to. It enforces the
 same bypass and the same earned day the page shows, because both halves read one
 state. One permission is enough: an accessibility overlay needs no *display over
 other apps* grant, and the service declares that it cannot retrieve window

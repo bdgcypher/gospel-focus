@@ -66,9 +66,9 @@ import android.widget.TextView;
  * is in: Home. The gate is laid out inside the system bars rather than over them,
  * so the home button and the home gesture always reach the system; the screen
  * they open is never gated, and a gate left over it is taken down within a second
- * (gateGuard). A phone whose only way out is a hard reboot is worse than an app
- * that is not blocked at all, so every path here is written to fail towards the
- * home screen.
+ * (gateGuard) and stays down, whichever of the two the reader used (leftPackage).
+ * A phone whose only way out is a hard reboot is worse than an app that is not
+ * blocked at all, so every path here is written to fail towards the home screen.
  */
 public class FocusAccessibilityService extends AccessibilityService {
 
@@ -95,9 +95,16 @@ public class FocusAccessibilityService extends AccessibilityService {
      * the gate goes straight back up, over whatever they asked for, with nothing
      * left in front to take it down again.
      *
-     * That is why *both* of the gate's exits record the app they left — the
-     * Close button, the Back key, and Open Gospel Focus alike. It is only ever
-     * the half that matters: the gate is already gone by the time this is read.
+     * That is why *every* way out of the gate records the app it left, and not
+     * only the gate's own buttons: the Close button, the Back key, Open Gospel
+     * Focus, and the system's exits — the home button, the home gesture,
+     * Recents, another app taking the screen, the guard finding the reader
+     * elsewhere — all put the held app back behind something else in the same
+     * way. Miss one and the home gesture becomes a gate that drops and then
+     * reappears over the home screen: the reader is home, the echo arrives, and
+     * the gate is drawn again with nothing in front to take it down (see
+     * recordLeave). It is only ever the half that matters: the gate is already
+     * gone by the time this is read.
      */
     private String leftPackage;
     private long leftAt;
@@ -160,6 +167,12 @@ public class FocusAccessibilityService extends AccessibilityService {
             if (gate == null) return;
             if (lastPackage == null || isHome(lastPackage) || getPackageName().equals(lastPackage)) {
                 Log.d(TAG, "taking the gate down: " + gatePackage + " is no longer in front");
+                // Recorded as a leave like every other exit. The held app is
+                // about to be handed its window back behind whatever the reader
+                // did go to, and its window change would otherwise be mistaken
+                // for the app arriving — which is the gate coming back up over
+                // the screen it was just taken down from.
+                recordLeave(gatePackage);
                 hideGate();
                 return;
             }
@@ -299,6 +312,30 @@ public class FocusAccessibilityService extends AccessibilityService {
         if (pkg.equals(getPackageName()) && isGateEcho(event)) return;
 
         if (isLeaveEcho(pkg)) return;
+
+        // A gate that was standing when the reader went somewhere else has been
+        // left, and not necessarily by one of its own buttons: the home button,
+        // the home gesture, Recents and another app taking the screen are all
+        // one leave. Whichever it was, the gate coming down hands the held app
+        // its window back for a moment, and the framework reports that as the
+        // app arriving — so the leave is recorded before the gate goes, exactly
+        // as the buttons record theirs. Without it, the home gesture took the
+        // reader home, the gate came down on the home screen's own window change
+        // and then straight back up on the echo, where nothing was left in front
+        // to take it down again.
+        //
+        // Keyed to the app the reader was in, not to the gate still being up: a
+        // window can take the gate down on the way past (the shade, a system
+        // dialog), and the screen the reader actually went to arrives after it.
+        //
+        // Only for a screen the reader can stay on, though: the shade, the
+        // volume panel and the lock screen are windows over the held app, not
+        // places the reader has gone, and the gate is meant to come back over
+        // the app once they are gone.
+        if ((launchable || isHome(pkg)) && appPackage != null && !pkg.equals(appPackage)
+            && FocusLockState.packages(this).contains(appPackage)) {
+            recordLeave(appPackage);
+        }
 
         gateAttempts = 0;
         lastPackage = pkg;
@@ -947,6 +984,37 @@ public class FocusAccessibilityService extends AccessibilityService {
         }
     }
 
+    /**
+     * Mark the gate as left, from whatever took the reader away from it.
+     *
+     * One place because all of the exits are the same moment: the held app is
+     * put back behind something else, and the window change that follows is the
+     * tail of the leave rather than a launch (isLeaveEcho). The Close button and
+     * Back (goHome), Open Gospel Focus (openApp), any other window arriving
+     * while the gate is up (onAccessibilityEvent), and the guard finding the
+     * reader somewhere else (gateGuard) all record it here, so that no one of
+     * them can remember half of it and leave the gate able to put itself back up
+     * over the screen the reader asked for.
+     *
+     * Not a dismissal: nothing here opens the lock. The leave only covers the
+     * moment it takes the app to go away, and opening the app after that is
+     * opening the app, gated as usual.
+     *
+     * A leave already being settled is not moved on by the screen the reader is
+     * on chattering — a launcher that reports every swipe of its own — because
+     * the window is measured from leaving, not from the last thing the reader
+     * did once they had gone. Left unguarded, a busy home screen could hold the
+     * gate off the app the reader opens next for as long as it kept talking.
+     */
+    private void recordLeave(String held) {
+        if (held == null) return;
+        long now = SystemClock.uptimeMillis();
+        if (held.equals(leftPackage) && now - leftAt < LEAVE_SETTLE_MS) return;
+        leftPackage = held;
+        leftAt = now;
+        lastLeaveAt = now;
+    }
+
     private void openApp() {
         // Taken down here rather than left to the app's own window change: the
         // service ignores this package's window changes while the gate is up
@@ -958,9 +1026,7 @@ public class FocusAccessibilityService extends AccessibilityService {
         // the framework reports that as the app arriving. Without this, the gate
         // went straight back up — over the Gospel Focus screen the button had
         // just opened, which is a button that looks like it does nothing.
-        leftPackage = gatePackage;
-        leftAt = SystemClock.uptimeMillis();
-        lastLeaveAt = leftAt;
+        recordLeave(gatePackage);
         lastPackage = getPackageName();
         appPackage = getPackageName();
         hideGate();
@@ -987,9 +1053,7 @@ public class FocusAccessibilityService extends AccessibilityService {
      */
     private void goHome() {
         String held = gatePackage;
-        leftPackage = held;
-        leftAt = SystemClock.uptimeMillis();
-        lastLeaveAt = leftAt;
+        recordLeave(held);
         lastPackage = null;
         appPackage = null;
         handler.removeCallbacks(bypassCheck);
