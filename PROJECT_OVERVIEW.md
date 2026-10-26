@@ -222,13 +222,16 @@ call outside the passage library and the Gospel Library link.
 - the lock's state on the hub and in the status tray.
 
 **The blocking is real on Android.** `FocusAccessibilityService` watches window
-changes and, over a chosen app, draws a full-screen `TYPE_ACCESSIBILITY_OVERLAY`
-until the day's study is done. It enforces the same bypass and the same earned day
-the page shows, because both halves read one state. One permission is enough: an
-accessibility overlay needs no *display over other apps* grant, and the service
-declares that it cannot retrieve window content, so it learns which app is in
-front and nothing else. The system starts and keeps the service, so the lock is
-armed again after a reboot with no foreground service and no notification.
+changes and, over a chosen app, draws a `TYPE_ACCESSIBILITY_OVERLAY` until the
+day's study is done. The window fits the system-bar insets instead of covering
+them, so the home button and the home gesture always reach Android — the gate can
+be a nuisance over an app, never over the way out of the phone. It enforces the
+same bypass and the same earned day the page shows, because both halves read one
+state. One permission is enough: an accessibility overlay needs no *display over
+other apps* grant, and the service declares that it cannot retrieve window
+content, so it learns which app is in front and nothing else. The system starts
+and keeps the service, so the lock is armed again after a reboot with no
+foreground service and no notification.
 
 `FocusLockPlugin` lists the launcher apps, reports whether access is on, opens
 Android's accessibility settings, and writes the lock's state — set up, the day

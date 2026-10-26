@@ -72,8 +72,9 @@ it, so a day's study becomes a streak.
 - Take a hand bypass for 15 minutes, 30 minutes, or the rest of the day.
 - On Android, a lock screen covers those apps until the day's study is done. It
   needs Android's accessibility access, sees only which app is in front, and
-  reads nothing on your screen. iOS and the web keep the lock's state but do not
-  block.
+  reads nothing on your screen. It is drawn inside the system bars, so the home
+  button and the home gesture always work and are always a way out. iOS and the
+  web keep the lock's state but do not block.
 
 **Make it yours**
 
