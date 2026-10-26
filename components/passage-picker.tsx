@@ -104,7 +104,7 @@ function CalendarIcon() {
   );
 }
 
-export function InspirationApp() {
+export function PassagePicker() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // The filters are remembered between visits, not just for the session: the

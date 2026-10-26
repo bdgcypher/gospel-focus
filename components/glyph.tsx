@@ -22,6 +22,8 @@ export type GlyphName =
   | "pencil"
   | "menu"
   | "close"
+  | "link"
+  | "copy"
   | "return"
   | "backspace"
   | "gem"
@@ -204,6 +206,10 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   clock: "⏰",
   close: null,
   trash: "🗑️",
+  // The annotation bar's two controls: a cross-reference and a copy, both
+  // actions rather than pictures, so they stay drawn in every style.
+  link: null,
+  copy: null,
   gem: "💎",
   // A streak freeze: the ice cube the shop, the status chip, and the buy badge
   // all use for it. The drawn face is the same cube, so the focused skin says
@@ -505,6 +511,19 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
   // menu sheet and the share dialog draw their own copy (see
   // components/menu-panel.tsx), and the hub's focus banner uses this one.
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  // Two links of a chain: the mark for a personal cross-reference.
+  link: (
+    <>
+      <path d="M10.2 13.8a4.4 4.4 0 0 0 6.6.4l2-2a4.4 4.4 0 0 0-6.2-6.2l-1.1 1.1" />
+      <path d="M13.8 10.2a4.4 4.4 0 0 0-6.6-.4l-2 2a4.4 4.4 0 0 0 6.2 6.2l1.1-1.1" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2.2" />
+      <path d="M5.5 15H4.6A1.6 1.6 0 0 1 3 13.4V4.6A1.6 1.6 0 0 1 4.6 3h8.8A1.6 1.6 0 0 1 15 4.6v.9" />
+    </>
+  ),
   trash: (
     <>
       <path d="M4.5 7h15M9.5 7V5.6A1.6 1.6 0 0 1 11.1 4h1.8a1.6 1.6 0 0 1 1.6 1.6V7" />

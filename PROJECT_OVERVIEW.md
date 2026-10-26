@@ -159,7 +159,11 @@ call outside the passage library and the Gospel Library link.
 
 | Surface | What it does |
 | --- | --- |
-| **Random passage picker** (`/read`) | A weighted draw across every selected source, so a long book or a heavy conference year turns up in proportion to how much text it holds. Loads the manifest, filters, and picks — all client-side. |
+| **Random passage picker** (`/passage`) | A weighted draw across every selected source, so a long book or a heavy conference year turns up in proportion to how much text it holds. Loads the manifest, filters, and picks — all client-side. |
+| **Chapter reader** (`/read`) | A whole chapter or talk on its own page, and the page is the text: no title block, no card around the words. A slim bar names the chapter and holds one menu — the library, the chapter grid, this chapter's marks — verse numbers sit inline, and the chapter before and after wait quietly at the foot. `/read?book=jer&chapter=3&verse=15` opens a place; `?action=cite` (the search results and the straplines) and `?action=daily` still land where they always did, and a bare `/read` continues where the reader left off. Every passage link in the app now points here. |
+| **Browse the library** | *Browse* in the reader's menu: volume, then book, then chapter, all from the manifest so it costs no fetch and works offline. The way in for a reader who knows what they want to read — every citation-linked path in the app leads to the same reader. |
+| **Marks & notes, per word** | Select any run of words — across verses, if it runs that far — and highlight or underline it in the nine colours Gospel Library knows. The marking panel is that app's highlighter: two "A" tabs for the two things a mark can be (filled or underlined), the colour strip drawn in the chosen style with the reader's last two choices leading it — colour *and* mode, so each recent swatch is drawn the way it will paint — and one row of actions (Note, Link, Copy, Share, Remove), drawn rather than emoji in both skins. A run across verses is *one* mark: tapping any verse of it opens the same panel on the whole mark, and changing its colour or style changes every verse. A mark paints one unbroken band from its first word to its last, the spaces between included, slightly rounded at the band's two ends and square between its words, and a tap anywhere in it opens the panel again; where two marks lie on the same words, a "Choose Item" sheet shows them as they sit on the page — filled or underlined — and picking one opens the same panel. The note sheet is opened by the panel's Note, never by a tap on the words. Anchors are *word ranges* inside a verse, the shape Gospel Library stores, so a mark survives a rebuild of the library. Storage is IndexedDB, with a localStorage mirror where it is unavailable. |
+| **Gospel Library marks in and out** | Settings → *Marks & notes* writes and reads `annotations.json` in the Church's export shape: `metadata.version` 3, one record per mark with `docId`, `uri`, `startOffset`/`endOffset`, `color`, `subtype`, `note` and `links`. The chapter is looked up in the bundled library on both sides, because a character offset means nothing without the words it counts through. Re-importing updates marks by id instead of duplicating them. |
 | **Filters & presets** | Per-volume toggles with per-book switches inside them, a toggle per general conference, and one-tap presets (*All* / *Bible* / *LDS Standard Works* / *LDS General Conference*). Sidebar on wide screens, slide-in pane on phones. |
 | **Page-riffle animation** | One continuous deceleration into the draw. Reduce-motion skips straight to the passage. |
 | **Chapter & talk expansion** | The whole chapter (or full talk) with the drawn verse highlighted and scrolled into view. |
@@ -171,7 +175,7 @@ call outside the passage library and the Gospel Library link.
 
 | Surface | What it does |
 | --- | --- |
-| **Verse of the day** | `lib/daily.ts` seeds the pick from the local date, so the hub, the reminder, and the passage the app opens on agree — and the reminder is computable offline. |
+| **Verse of the day** | Drawn from this week's Come, Follow Me chapters, with `lib/daily.ts` seeding the pick from the local date, so the hub, the reminder, and the passage the app opens on agree — and the reminder is computable offline. A week with no reading (the manual's introduction, Easter, Christmas) draws from the whole library as before. |
 | **Daily study goal & timer** | A goal of 5–30 minutes, started and stopped automatically while a studying page is open and in front. No visible stopwatch. Minutes are *stored*, not derived. |
 | **Streak** (`/streak`) | Consecutive local days whose goal was *met*. The run as one large number, grey until today is done, then a paged strip of the days that counted, then the freezes. |
 | **Streak freezes** | Up to two, one to start. A missed day spends one automatically; a frozen day is painted the buttons' blue. Refilled at 200 gems each, or 375 for the pair, from the streak page or the shop. |
@@ -192,19 +196,20 @@ call outside the passage library and the Gospel Library link.
 | Surface | What it does |
 | --- | --- |
 | **Favorites** (`/favorites`) | Every starred passage, newest first, each verse on its own numbered line with past a few folded behind *Show all*. CSV export/import round-trips exactly. On device the backup saves straight into **Downloads** and is read back through the native file picker. |
+| **Marks & Notes** (`/notes`) | Every mark that carries words of the reader's own, grouped by chapter and in verse order inside one. The search box matches the note's words, the reference (`jeremiah 5`, `3:15`), and the tags; numbers are matched as numbers, so chapter 5 doesn't pull in chapter 3 verse 15. A row opens the reader at its verse. |
 | **Journal & notes** (`/journal`) | Entries written by typing or dictation, with bold, italic, underline, lists, and links. An entry can point at a passage, a note on a starred passage, or another entry; the link picker searches all three. Notes are written from the reader (which stars the passage as it takes one) or from a favorite, with the same toolbar. |
 | **Streak** (`/streak`) | The run, the paged day strip, and the freeze card with its refill sheet. Prices and shortfall link to the shop; nothing is charged until *Refill* is pressed. |
 | **Shop** (`/shop`) | Gospel Focus Plus and its *Learn More* sheet (subscriptions are not on sale yet), freezes, and inert gem packs. |
 | **Stats & progress** (`/stats`) | Current run, best run, every day counted, passages read, daily puzzles solved, flashcards recited, passages starred, minutes today against the goal, and days met. |
-| **Settings** (`/settings`) | Study goal (its one home), streak readout, daily reminder and time, widget row, theme, style, reduce motion, and the favorites backup. |
+| **Settings** (`/settings`) | Study goal (its one home), streak readout, daily reminder and time, widget row, theme, style, reduce motion, the favorites backup, and the marks backup — the Gospel Library `annotations.json` exported and imported, with the Church-account link that explains why that file is the way notes travel. |
 
 ### Games
 
 | Surface | What it does |
 | --- | --- |
 | **What's That Verse?** (`/games/reference-quiz`) | A verse is printed and its reference entered through four searchable dropdowns. Three guesses; a wrong one marks the parts that are off and the third ends the round. Four hints — volume, book, chapter, verse — are bought with gems, from one for the volume to fifteen for the verse. Scripture only, under the reader's filters. |
-| **Daily puzzle** (`/games/puzzle`) | Six guesses at a four-to-six-letter word hidden in the day's chapter. The same day-seeded draw as the hub and reminder; a day with no usable word draws one seed further along. Standard marking, on-screen and physical keyboard, pinned per local day. A result card ends the board with the verse and a practice **Play again**. |
-| **Word-search** (`/games/word-search`) | The passage's own significant words hidden in a ten-by-ten grid in eight directions, fresh per passage. Drag, or focus a cell and press Enter to choose first and last letters. Finishing prints the verse and links into the chapter; the passage line opens the chapter in a side panel. |
+| **Daily puzzle** (`/games/puzzle`) | Six guesses at a four-to-six-letter word hidden in this week's reading. The same day-seeded draw as the hub and reminder, so the word comes from the week's chapters; a day with no usable word draws one seed further along. Standard marking, on-screen and physical keyboard, pinned per local day. A result card ends the board with the verse and a practice **Play again**. |
+| **Word-search** (`/games/word-search`) | The week's own significant words hidden in a ten-by-ten grid in eight directions, fresh per passage drawn from this week's chapters. Drag, or focus a cell and press Enter to choose first and last letters. Finishing prints the verse and links into the chapter; the passage line opens the chapter in a side panel. |
 
 ### Focus — the lock and its app list
 
@@ -292,6 +297,9 @@ but cannot block.
   11.9 MB JSON, 2.86 MB gzipped, built by `scripts/search-index.mjs`.
 - **The daily puzzle's vocabulary**: 8,316 words of four to six letters, 5,638 of
   them usable as answers, built from the library itself (113 KB).
+- **The Come, Follow Me schedule**: a year of week dates and chapter ranges per
+  file (~24 KB each), read from the Church's public content API and checked
+  against this library, so a week can only name chapters the app ships.
 - **Lazy and cached**: the 14 KB manifest drives filtering and draws; each
   volume's text is fetched only when a draw lands there.
 - **Generated and committed**: `npm run build:data` downloads and normalizes the
@@ -354,8 +362,9 @@ The widget cannot render the web app, so it is native: a small Kotlin
 `AppWidgetProvider` plus a data bridge. The day's verse is computable from the
 date, but the widget must not disagree with the app, so the app writes the day's
 passage, minutes, and streak to `SharedPreferences` on change; the widget also
-refreshes at local midnight. Tapping opens `/read`, `/streak`, or `/read?draw=1`
-(a deep link the reader must support). iOS widgets wait for the iOS milestone.
+refreshes at local midnight. Tapping opens `/read` (continue reading),
+`/streak`, or `/passage?action=autoriffle` (a deep link the picker already
+supports). iOS widgets wait for the iOS milestone.
 
 ---
 

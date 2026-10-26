@@ -30,11 +30,18 @@ export interface DataSources {
   conference: { name: string; url: string; note?: string };
 }
 
+/** The years of Come, Follow Me whose weeks this build ships. */
+export interface CfmInfo {
+  years: number[];
+  source: { name: string; url: string; note?: string };
+}
+
 export interface Manifest {
   generatedAt: string;
   sources: DataSources;
   volumes: VolumeInfo[];
   conferences: ConferenceInfo[];
+  cfm?: CfmInfo;
 }
 
 /** Which sources/books/conferences are eligible for a random draw. */

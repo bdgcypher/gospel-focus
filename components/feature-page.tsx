@@ -120,7 +120,7 @@ export function FeaturePage({
 
             <div className="mt-6 flex flex-wrap gap-2.5">
               <Link
-                href="/read"
+                href="/passage"
                 className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-contrast transition-opacity hover:opacity-90"
               >
                 Open a passage

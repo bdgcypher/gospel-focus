@@ -40,13 +40,23 @@ it, so a day's study becomes a streak.
 - Filter by volume and book, by conference, or with one-tap presets.
 - Riffle through pages as the passage is chosen; *Reduce motion* skips it.
 - Expand to the whole chapter or talk, with the drawn verse marked.
+- Browse the standard works by volume, book, and chapter, or pick up where you
+  left off.
+- Select any words — a phrase, a sentence, a run across verses — and mark them
+  in the same highlighter panel Gospel Library uses: two "A" tabs for a
+  highlight or an underline, the palette drawn in that style, the last two
+  colours you used leading it in the mode you used them, and Note, Link, Copy,
+  Share and Remove under them. A run across verses is one mark, and
+  tapping any of it reopens the panel on the whole thing. Where two marks
+  overlap, a chooser shows them as they sit on the page first. Marks are kept
+  per word, the way Gospel Library keeps them.
 - Tap verses to share them as images, favorite them, memorize them, or take a
   note.
 - Open any passage in the Gospel Library app on Android.
 
 **Build a habit**
 
-- A verse of the day, seeded from the date so the app and the reminder agree.
+- A verse of the day from this week's Come, Follow Me reading, seeded from the date so the app and the reminder agree.
 - A daily goal of 5–30 minutes, timed automatically while you study.
 - A streak of days the goal was met, with up to two freezes to protect it.
 - A daily reminder as a native notification, scheduled ahead and offline.
@@ -57,13 +67,15 @@ it, so a day's study becomes a streak.
 - Search every verse and conference paragraph at once, offline.
 - Build memory decks, hide words, and run two-sided flashcards.
 - Write journal entries and notes linked to passages, or to each other.
+- Collect every note you've written on the words, and search them by what you
+  wrote, the reference, or a tag.
 - See your streak, minutes, passages, puzzles, and recitations on the stats page.
 
 **Play**
 
 - *What's That Verse?* — name the reference, with hints you buy with gems.
-- A daily word puzzle hidden in the day's chapter.
-- A ten-by-ten word search built from the passage's own words.
+- A daily word puzzle hidden in this week's reading.
+- A ten-by-ten word search built from the week's own words.
 
 **Focus**
 
@@ -135,6 +147,8 @@ npm run dev        # http://localhost:3000
 npm run typecheck  # generate route types, then tsc --noEmit
 npm run lint       # eslint
 npm run build      # static export into ./out
+npm test           # unit tests (annotation engine, search, file format)
+npm run test:browser  # the reader and marks, in Chromium, against ./out
 ```
 
 `npm run bootstrap` provisions Node-side prerequisites, the JDK, and the Android

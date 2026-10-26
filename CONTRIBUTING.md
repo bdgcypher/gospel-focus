@@ -35,6 +35,8 @@ npm run build        # static export into ./out (Capacitor webDir)
 npm run preview      # serve the exported ./out folder
 npm run typecheck    # next typegen + tsc --noEmit
 npm run lint         # eslint
+npm test             # unit tests (Vitest + jsdom)
+npm run test:browser # the reader, marking and the annotations file, in Chromium
 npm run build:data   # re-download + rebuild public/data from the sources
 npm run build:search # rebuild just the search index from public/data on disk
 npm run build:words  # rebuild just the daily puzzle's word list from public/data
@@ -56,9 +58,16 @@ Every non-trivial change is checked at four levels:
    and assert behavior through the DOM, including the Capacitor bridge where the
    feature depends on it. Do not rely on the build succeeding as proof the
    feature works.
-3. **Committed tests.** There is no test suite yet. The first change that touches
-   logic should add Vitest + React Testing Library, with tests beside the module
-   or in `__tests__`, and `npm test` in `package.json`. Keep it green.
+3. **Committed tests.** `npm test` runs the unit tests beside the modules they
+   cover (`lib/__tests__/`): the word-level annotation engine, the selection
+   mapper, the search, and the Gospel Library file format. `npm run test:browser`
+   drives the exported build in Chromium over the DevTools protocol — no browser
+   automation package, so the browser under test is the one on the machine — and
+   covers the reader, the marking panel, tapping a mark, the chooser where
+   marks overlap, a mark across verses, the marks list, the notes view, the
+   browse index, and the export/import round trip (`tests/browser/`). It needs `npm run build`
+   first and a Chromium (`CHROME_BIN` if it is somewhere unusual). Keep both green,
+   and add a scenario when a behaviour is worth protecting.
 4. **Visual review.** For a visual change, capture the before and after at phone
    and desktop width, in focused and playful, light and dark, and check
    `prefers-reduced-motion`.
@@ -69,13 +78,18 @@ pass. If a check cannot run, say so.
 ## Project structure
 
 ```
-app/                      routes — the hub, /read, /study, /search, /memorize,
-                          /journal, /games, /focus, /widgets, /stats, /streak,
-                          /shop, /favorites, /settings, layout + theme provider
-components/               UI — hub, picker and riffling animation, passage card
-                          and share dialog, memorization, games, stats, settings,
-                          nav, header, status tray
+app/                      routes — the hub, /read (the reader), /passage (the
+                          picker), /study, /search, /memorize, /journal, /games,
+                          /focus, /widgets, /stats, /streak, /shop, /favorites,
+                          /settings, layout + theme provider
+components/               UI — hub, reader and its marking toolbar, picker and
+                          riffling animation, passage card and share dialog,
+                          memorization, games, stats, settings, nav, header,
+                          status tray
 lib/picker.ts             manifest + weighted draws, citation lookups
+lib/reader.ts             a chapter as a document: verses, neighbours, links
+lib/annotations.ts        per-word marks and notes, in IndexedDB
+lib/annotations-io.ts     Gospel Library's annotations.json, read and written
 lib/search.ts             the search index: load, inflate, query, rank
 lib/daily.ts              the local day shared by streak, goal, verse, reminder
 lib/features.ts           the catalog every page, card, and nav is built from
@@ -99,9 +113,13 @@ scripts/toolchain.mjs     find JAVA_HOME / ANDROID_HOME, or the .toolchain copy
 scripts/gradle.mjs        cross-platform gradlew runner
 scripts/ios-build.mjs     unsigned simulator build via xcodebuild (macOS only)
 scripts/build-data.mjs    the dataset generator (and the search index with it)
+scripts/build-cfm.mjs     the Come, Follow Me weekly schedule
 scripts/search-index.mjs  the MiniSearch index, stopwords, and its self-check
 scripts/build-search.mjs  rebuild just the index
 scripts/build-words.mjs   the daily puzzle's word list
+lib/__tests__/            unit tests for the annotation engine and file format
+tests/browser/            the exported app driven in Chromium (server, CDP, scenarios)
+vitest.config.ts          unit test configuration (jsdom, the app's alias)
 public/data/              the generated passage library, indexes, word list
 android/                  the Capacitor Android project
 ios/                      the Capacitor iOS project (Swift Package Manager)
@@ -313,6 +331,7 @@ works offline:
 | --- | --- | --- |
 | [`bcbooks/scriptures-json`](https://github.com/bcbooks/scriptures-json) | Book of Mormon, Doctrine & Covenants, Pearl of Great Price, Old & New Testament (verse-level) | Public domain, 2013 edition |
 | [`johnmwood/LDS-Conference-Scraper`](https://github.com/johnmwood/LDS-Conference-Scraper) | General conference talks (split into paragraphs) | Scraped project with no declared license — **verify redistribution rights before publishing** |
+| [Come, Follow Me](https://www.churchofjesuschrist.org/study/manual) | Each week's dates and chapter ranges, from the Church's public content API | Only dates and references are stored; no lesson text is reproduced |
 
 **51,083 passages**: 41,995 scripture verses (Old Testament 23,145; New
 Testament 7,957; Book of Mormon 6,604; Doctrine & Covenants 3,654; Pearl of Great
@@ -327,13 +346,15 @@ About **10 MB**, most of it fetched lazily.
 - `public/data/search.snapshot` — the MiniSearch index `/search` queries (gzipped;
   the name avoids `.gz` because Android's asset packer gunzips those)
 - `public/data/words.json` — the vocabulary the daily puzzle builds from
+- `public/data/cfm/<year>.json` — the Come, Follow Me weeks: dates, reading
+  label, and the chapters each one names (~24 KB a year)
 
 All of it is **committed**: CI builds with `npm ci` and `cap:sync` and never
 regenerates the data, so the repo is what ships. Re-run `npm run build:search`
 after changing the index's shape and commit the file it writes.
 
 Nothing depends on the network at runtime: the picker, filters, verse of the day,
-reminder, and search all work offline.
+the weekly Come, Follow Me schedule, the reminder, and search all work offline.
 
 ### The search index
 

@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
-import { InspirationApp } from "@/components/inspiration-app";
+import { Suspense } from "react";
+import { ChapterReader } from "@/components/chapter-reader";
 
 export const metadata: Metadata = {
-  title: "Random Scripture · Gospel Focus",
+  title: "Read · Gospel Focus",
   description:
-    "Draw a random passage from the standard works or general conference, read the whole chapter, and open it in the Gospel Library.",
+    "Read a whole chapter of the standard works or a general conference talk, mark any words, and keep your notes with you.",
 };
 
 export default function Page() {
-  return <InspirationApp />;
+  return (
+    <Suspense fallback={null}>
+      <ChapterReader />
+    </Suspense>
+  );
 }

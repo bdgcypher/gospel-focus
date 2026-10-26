@@ -8,7 +8,8 @@ import { Glyph } from "./glyph";
 import { GoalHero } from "./goal-hero";
 import { QuickActivities } from "./quick-activities";
 import { dayKey } from "@/lib/daily";
-import { loadManifest, pickDailyPassage } from "@/lib/picker";
+import { weekFor, type CfmWeek } from "@/lib/cfm";
+import { citationHref, loadManifest, pickDailyPassage } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
 import type { Passage } from "@/lib/types";
 
@@ -120,16 +121,22 @@ function DailyVerseCard() {
   const prefs = usePreferences();
   const filters = prefs.filters;
   const [passage, setPassage] = useState<Passage | null>(null);
+  const [week, setWeek] = useState<CfmWeek | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
+    const day = dayKey();
     loadManifest()
-      .then((manifest) => pickDailyPassage(manifest, filters, dayKey()))
-      .then((drawn) => {
+      .then(async (manifest) => {
+        const [drawn, currentWeek] = await Promise.all([
+          pickDailyPassage(manifest, filters, day),
+          weekFor(day).catch(() => null),
+        ]);
         if (!live) return;
         setError(null);
         setPassage(drawn);
+        setWeek(currentWeek);
       })
       .catch((e: unknown) => {
         if (live) setError(e instanceof Error ? e.message : String(e));
@@ -169,6 +176,26 @@ function DailyVerseCard() {
             </p>
           </blockquote>
           <p className="mt-2 text-xs text-muted">{passage.sourceLabel}</p>
+
+          {/* Why this verse, and what the week is asking for: the day's passage
+              is drawn from this week's reading, so naming it is the difference
+              between a random verse and a course of study. */}
+          {week && week.readings.length > 0 && (
+            <p className="mt-2 text-xs text-muted">
+              This week:{" "}
+              <Link
+                href={citationHref({
+                  kind: "scripture",
+                  book: week.readings[0].book,
+                  chapter: String(week.readings[0].chapters[0]),
+                  section: 1,
+                })}
+                className="text-accent-strong underline decoration-accent/30 underline-offset-2 hover:decoration-accent"
+              >
+                {week.label}
+              </Link>
+            </p>
+          )}
 
           <div className="mt-5 flex">
             <Link

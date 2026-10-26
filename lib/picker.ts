@@ -1,16 +1,18 @@
 import { dailyRandom, type Random } from "./daily";
+import { dataUrl } from "./data-url";
+import { weekFor } from "./cfm";
 import { buildTeasers, FALLBACK_TEASERS } from "./teasers";
 import type { ConferenceInfo, Filters, Manifest, Passage, Verse, VolumeInfo } from "./types";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-
-export const dataUrl = (p: string) => `${BASE}/${p.replace(/^\/+/, "")}`;
+// The reader, the puzzle and the search all read the data through this module,
+// so the URL builder stays reachable from here as well as from its own file.
+export { dataUrl };
 
 export const GOSPEL_LIBRARY = "https://www.churchofjesuschrist.org";
 
 /** ---------- Raw bundle shapes ---------- */
 
-interface VolumeData {
+export interface VolumeData {
   id: string;
   title: string;
   subtitle: string;
@@ -26,7 +28,7 @@ interface VolumeData {
   }[];
 }
 
-interface ConferenceData {
+export interface ConferenceData {
   id: string;
   label: string;
   year: number;
@@ -86,6 +88,16 @@ function loadConference(id: string): Promise<ConferenceData> {
   }
   return p;
 }
+
+/**
+ * The parsed bundle for a volume or a conference session.
+ *
+ * The reader needs whole chapters and talks, not one drawn passage, and it has
+ * to navigate between them — so it reads the same cached files the picker does
+ * rather than keeping a second copy of a ten-megabyte library.
+ */
+export const loadVolumeData = (id: string) => loadVolume(id);
+export const loadConferenceData = (id: string) => loadConference(id);
 
 /** ---------- Filtering ---------- */
 
@@ -176,6 +188,74 @@ export async function pickPassage(
 }
 
 /**
+ * The week's own chapters, resolved against the library and the reader's
+ * filters. Null when this day has no reading to follow — no schedule for the
+ * year, one of the weeks the manual gives no chapters (the introduction,
+ * Easter, Christmas), or every chapter switched off.
+ */
+async function weekScope(manifest: Manifest, filters: Filters, day: string) {
+  const week = await weekFor(day).catch(() => null);
+  if (!week) return null;
+
+  const groups: { volume: VolumeInfo; bookSlug: string; chapters: number[] }[] = [];
+  for (const reading of week.readings) {
+    const volume = manifest.volumes.find((v) => v.id === reading.volume);
+    if (!volume || !isEnabled(filters.volumes, volume.id)) continue;
+    const book = volume.books.find((b) => b.slug === reading.book);
+    if (!book || !isEnabled(filters.books, bookKey(volume.id, book.slug))) continue;
+
+    const chapters = reading.chapters.filter((n) => n >= 1 && n <= book.chapters);
+    if (chapters.length) groups.push({ volume, bookSlug: book.slug, chapters });
+  }
+
+  return groups.length ? groups : null;
+}
+
+/**
+ * A passage from this week's Come, Follow Me chapters, or null when there is
+ * no week to draw from.
+ *
+ * `random` is the caller's: the daily draw passes the day's own seed so the
+ * reminder and the app agree, while a fresh grid passes `Math.random`. Either
+ * way the draw stays inside the week — uniform across its verses, so a week of
+ * three short chapters is not drowned out by one long one.
+ */
+export async function pickWeekPassage(
+  manifest: Manifest,
+  filters: Filters,
+  day: string,
+  random: Random = unseeded
+): Promise<Passage | null> {
+  const groups = await weekScope(manifest, filters, day);
+  if (!groups) return null;
+
+  const flat: {
+    data: VolumeData;
+    book: ScriptureBook;
+    chapter: ScriptureChapter;
+    verse: number;
+  }[] = [];
+
+  for (const group of groups) {
+    const data = await loadVolume(group.volume.id);
+    const book = data.books.find((b) => b.slug === group.bookSlug);
+    if (!book) continue;
+
+    for (const n of group.chapters) {
+      const chapter = book.chapters.find((c) => c.n === n);
+      if (!chapter) continue;
+      for (let i = 0; i < chapter.verses.length; i += 1) {
+        flat.push({ data, book, chapter, verse: i + 1 });
+      }
+    }
+  }
+
+  if (!flat.length) return null;
+  const chosen = flat[Math.floor(random() * flat.length)];
+  return buildScripturePassage(chosen.data, chosen.book, chosen.chapter, chosen.verse);
+}
+
+/**
  * The passage for one local day — what the daily reminder quotes, and what the
  * app shows if it is opened before drawing anything else.
  *
@@ -183,12 +263,19 @@ export async function pickPassage(
  * ahead) and the app (opened whenever) land on the same verse without sharing
  * any state. It follows the reader's filters, so a day never quotes a source
  * they have switched off.
+ *
+ * Since the app follows Come, Follow Me, the day's verse comes from this week's
+ * reading — which is what makes the hub, the reader, the reminder and the daily
+ * puzzle all point at the same chapters. A week with no usable chapters (see
+ * `weekScope`) falls back to the library-wide draw this used to be.
  */
-export function pickDailyPassage(
+export async function pickDailyPassage(
   manifest: Manifest,
   filters: Filters,
   day: string
 ): Promise<Passage> {
+  const scoped = await pickWeekPassage(manifest, filters, day, dailyRandom(day));
+  if (scoped) return scoped;
   return pickPassage(manifest, filters, dailyRandom(day));
 }
 

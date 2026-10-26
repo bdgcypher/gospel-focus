@@ -33,6 +33,7 @@ import {
 } from "@/lib/reminders";
 import { setGoalMinutes, studyProgress, useStudy } from "@/lib/study";
 import { clearFavorites, useFavorites } from "@/lib/favorites";
+import { MarksPanel } from "./marks-panel";
 import { exportFavoritesFile, importFavoritesText, type ImportReport } from "@/lib/favorites-io";
 import {
   FAVORITES_FILE_TYPES,
@@ -762,6 +763,13 @@ export function SettingsPage() {
 
               {status && <p className="mt-3 text-xs text-muted">{status}</p>}
               {report && <ImportSummary report={report} />}
+            </div>
+
+            {/* Marks and notes live beside the favorites because they are the
+                same kind of thing — the reader's own work, kept on this device
+                — and because the two files are how that work leaves it. */}
+            <div className="mt-3">
+              <MarksPanel />
             </div>
           </section>
 

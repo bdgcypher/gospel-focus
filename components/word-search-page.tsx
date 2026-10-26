@@ -22,7 +22,8 @@ import {
   tapWordFound,
   useResultHaptics,
 } from "@/lib/haptics";
-import { NoSourcesError, loadManifest, pickPassage } from "@/lib/picker";
+import { dayKey } from "@/lib/daily";
+import { NoSourcesError, loadManifest, pickPassage, pickWeekPassage } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
 import { useRevealDelay } from "@/lib/reveal";
 import {
@@ -40,9 +41,11 @@ import {
  * The board is the page: a ten-by-ten letter grid with the passage's words
  * hidden in eight directions, and the words themselves listed above it so the
  * reader knows what they are looking for. Nothing about the puzzle is stored —
- * a passage is drawn with the reader's own filters, its words are read out of
- * that text, and the grid lives only while it is on screen, which is what
- * makes "a fresh grid for every passage you draw" literal.
+ * a passage is drawn from this week's Come, Follow Me chapters, under the
+ * reader's own filters, its words are read out of that text, and the grid lives
+ * only while it is on screen, which is what makes "a fresh grid for every
+ * passage you draw" literal. A week with no chapters to draw from (the manual's
+ * Easter and Christmas weeks) falls back to the whole library.
  *
  * Selection is a drag: press a cell and the cells under the pointer form a
  * straight line from there, in any of the eight directions (lib/word-search.ts
@@ -182,7 +185,9 @@ export function WordSearchPage() {
 
     try {
       const manifest = await loadManifest();
-      const passage = await pickPassage(manifest, preferences.filters);
+      const passage =
+        (await pickWeekPassage(manifest, preferences.filters, dayKey())) ??
+        (await pickPassage(manifest, preferences.filters));
       const next = buildPuzzle(passage);
       if (run.current !== current) return;
       setPuzzle(next);
@@ -455,7 +460,7 @@ export function WordSearchPage() {
                 Try again
               </button>
               <Link
-                href="/read"
+                href="/passage"
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
               >
                 Change sources

@@ -78,6 +78,34 @@
      palette. The squares in the streak strip carry no text, so the face needs
      no contrast ink of its own. */
   --frozen: #1dadf1;
+  /* The reader's highlighter. Nine faces and nine inks, one pair per colour
+     Gospel Library knows, so a mark made there and a mark made here are the
+     same mark — including the imported ones, which can be any of the nine.
+
+     The pair is split because a highlight and an underline need different
+     things from a colour. A highlight is a background the verse's own ink sits
+     on, so the face has to be pale enough to clear 4.5:1 against it — every
+     value below clears 10:1. An underline is a line of its own, so it wears the
+     darker, saturated version instead and still clears 4.5:1 against the
+     surface. Neither is ever used as type. */
+  --mark-yellow: #fbeaa0;
+  --mark-red: #f7c6c2;
+  --mark-green: #c8ecc8;
+  --mark-blue: #c7e0f7;
+  --mark-purple: #e0d4f7;
+  --mark-orange: #fad9b0;
+  --mark-pink: #f6d0e2;
+  --mark-brown: #e8d6c3;
+  --mark-gray: #e2e2e2;
+  --mark-ink-yellow: #6f5200;
+  --mark-ink-red: #a51f18;
+  --mark-ink-green: #10662f;
+  --mark-ink-blue: #12539a;
+  --mark-ink-purple: #5b3390;
+  --mark-ink-orange: #8a3d00;
+  --mark-ink-pink: #9c2757;
+  --mark-ink-brown: #5d3f22;
+  --mark-ink-gray: #4f4f4f;
   --page: #fffefb;
   --page-edge: #e8dcc3;
   --spine: #d9c9a6;
@@ -116,6 +144,30 @@
   --page: #1e1e1e;
   --page-edge: #3a3a3a;
   --spine: #4b4b4b;
+  /* The highlighter on the night page: the same nine colours, turned inside
+     out. A pale face would swallow the light ink the verse is set in, so each
+     one becomes a deep, saturated wash that the same ink clears 6:1 against,
+     and each underline ink becomes a light version of its colour for the same
+     reason. The hue is what carries the meaning; the depth is what keeps the
+     words readable. */
+  --mark-yellow: #5c4b04;
+  --mark-red: #6d1a14;
+  --mark-green: #163f1d;
+  --mark-blue: #112d4d;
+  --mark-purple: #33234f;
+  --mark-orange: #5f3409;
+  --mark-pink: #561d34;
+  --mark-brown: #402d1a;
+  --mark-gray: #303030;
+  --mark-ink-yellow: #f4d98a;
+  --mark-ink-red: #ff9a90;
+  --mark-ink-green: #6fd694;
+  --mark-ink-blue: #8ecbfa;
+  --mark-ink-purple: #cbb4f5;
+  --mark-ink-orange: #f5bd83;
+  --mark-ink-pink: #f6a8c8;
+  --mark-ink-brown: #dcc0a0;
+  --mark-ink-gray: #c2c2c2;
 }
 
 /* --- Playful style -------------------------------------------------------

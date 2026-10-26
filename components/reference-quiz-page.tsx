@@ -356,7 +356,7 @@ export function ReferenceQuizPage() {
                 Try again
               </button>
               <Link
-                href="/read"
+                href="/passage"
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
               >
                 Change sources

@@ -161,7 +161,7 @@ export function WordlePage() {
       .catch(() => {
         if (live) {
           setFailure(
-            "Today's chapter couldn't be drawn. Check that at least one book of scripture is switched on in the reader."
+            "This week's reading couldn't be drawn. Check that at least one book of scripture is switched on in the reader."
           );
         }
       });
@@ -356,7 +356,7 @@ export function WordlePage() {
           aria-live="polite"
           className="mt-3 min-h-5 text-center text-sm text-foreground/85"
         >
-          {notice ?? failure ?? (!game ? "Finding today's chapter…" : "")}
+          {notice ?? failure ?? (!game ? "Finding this week's reading…" : "")}
         </p>
 
         {/* The card greets a device once; this is the way back to it. */}

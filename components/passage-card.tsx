@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useEffect,
@@ -27,6 +28,7 @@ import {
   useFavorites,
 } from "@/lib/favorites";
 import { noteFor, removeNote, saveNote, useNotes } from "@/lib/notes";
+import { citationHref } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
 import type { ShareCard } from "@/lib/share-image";
 
@@ -34,6 +36,12 @@ interface Props {
   passage: Passage;
   /** Changes on every new draw so the card re-animates. */
   drawKey: number;
+}
+
+/** The conference a talk's URL belongs to, as `2015-04`. */
+function sessionOf(url: string): string | undefined {
+  const match = /\/general-conference\/(\d{4})\/(\d{1,2})\//.exec(url);
+  return match ? `${match[1]}-${match[2].padStart(2, "0")}` : undefined;
 }
 
 export function PassageCard({ passage, drawKey }: Props) {
@@ -352,6 +360,29 @@ export function PassageCard({ passage, drawKey }: Props) {
               {expanded ? <CollapseIcon /> : <BookIcon />}
               {expanded ? "Collapse" : "Read more"}
             </button>
+
+            {/* The drawn passage is also a place to read the chapter with a
+                pencil in hand, so the card offers the reader itself beside its
+                own inline chapter. `citationHref` is the same address the
+                search results and the straplines use, which lands the reader
+                on the verse (or paragraph) that was drawn. A talk's session
+                comes out of its own URL, because a title alone can be shared
+                by two conferences and only the session says which. */}
+            {passage.chapter && (passage.kind === "conference" || passage.book) ? (
+              <Link
+                href={citationHref({
+                  kind: passage.kind,
+                  book: passage.kind === "conference" ? "General Conference" : (passage.book as string),
+                  chapter: passage.chapter,
+                  section: passage.section ?? 1,
+                  conferenceId: sessionOf(passage.url),
+                })}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+              >
+                <Glyph name="pencil" className="h-4 w-4" />
+                Mark the words
+              </Link>
+            ) : null}
 
             <button
               type="button"

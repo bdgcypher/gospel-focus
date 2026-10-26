@@ -6,7 +6,7 @@ import { dataUrl, loadManifest, pickDailyPassage, pickPassage } from "./picker";
 import type { Filters, Passage } from "./types";
 
 /**
- * The daily word puzzle: one word, hidden somewhere in the day's chapter.
+ * The daily word puzzle: one word, hidden somewhere in this week's reading.
  *
  * Three things live here, and nothing draws a tile: the rule for marking a
  * guess, the derivation of today's puzzle, and the day's record of guesses.
@@ -286,10 +286,11 @@ const scripturesOnly = (filters: Filters): Filters => ({ ...filters, conferenceM
 /**
  * Build today's puzzle from the day and the reader's filters.
  *
- * The passage is the one the rest of the app is showing for the day; the word
- * is drawn from anywhere in its chapter. A day that draws a chapter with no
+ * The passage is the one the rest of the app is showing for the day, which now
+ * means one drawn from this week's Come, Follow Me chapters; the word is drawn
+ * from anywhere in that passage's chapter. A day that draws a chapter with no
  * four-to-six-letter word draws again — `#2`, `#3` — off the same date, which
- * stays deterministic on every device.
+ * stays deterministic on every device and stays inside the same week.
  */
 export async function createDailyPuzzle(
   filters: Filters,
@@ -311,7 +312,7 @@ export async function createDailyPuzzle(
     return puzzleFrom("daily", day, passage, pick);
   }
 
-  throw new Error("No four-to-six-letter word in today's chapter");
+  throw new Error("No four-to-six-letter word in this week's reading");
 }
 
 /**

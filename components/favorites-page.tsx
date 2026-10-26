@@ -57,7 +57,7 @@ export function FavoritesPage() {
               Tap the bookmark on any passage and it will show up here.
             </p>
             <Link
-              href="/read"
+              href="/passage"
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90"
             >
               Find a passage

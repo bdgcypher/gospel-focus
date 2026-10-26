@@ -21,6 +21,8 @@ export function MenuPanel({ open, onClose }: Props) {
   const stats = featureById("stats");
   const streak = featureById("streak");
   const journal = featureById("journal");
+  const marks = featureById("marks");
+  const reader = featureById("reader");
 
   // Escape closes the pane, like any other dialog.
   useEffect(() => {
@@ -74,6 +76,16 @@ export function MenuPanel({ open, onClose }: Props) {
                 the two places that spend and explain it, and settings last as
                 the least frequented door. */}
             <nav className="space-y-2 px-5 py-4">
+              {/* The reader leads, because it is where the last visit left
+                  off: the chapter is remembered (see lib/reader.ts's caller),
+                  so this is "keep reading" more than "go somewhere new". */}
+              <MenuLink
+                href={reader?.href ?? "/read"}
+                onClick={onClose}
+                icon={<Glyph name={reader?.icon ?? "book"} />}
+                label={reader?.title ?? "Reader"}
+                hint="Keep reading, and mark the words that matter"
+              />
               <MenuLink
                 href="/favorites"
                 onClick={onClose}
@@ -95,6 +107,16 @@ export function MenuPanel({ open, onClose }: Props) {
                 icon={<Glyph name={journal?.icon ?? "journal"} />}
                 label="Journal"
                 hint={journal?.blurb ?? "Your own words, kept beside the verses"}
+              />
+              {/* Beside the journal rather than under it: an entry is a page
+                  the reader writes, a note is a thought pinned to the words.
+                  The sheet is where both are found again. */}
+              <MenuLink
+                href={marks?.href ?? "/notes"}
+                onClick={onClose}
+                icon={<Glyph name={marks?.icon ?? "journal"} />}
+                label={marks?.title ?? "Marks & Notes"}
+                hint={marks?.blurb ?? "Every note you've written on the words"}
               />
               <MenuLink
                 href={streak?.href ?? "/streak"}

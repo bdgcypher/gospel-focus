@@ -19,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSearchIndex } from "./search-index.mjs";
 import { buildWordList } from "./build-words.mjs";
+import { buildCfm, cfmYears } from "./build-cfm.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -218,11 +219,20 @@ async function buildConference() {
 }
 
 async function main() {
-  await fs.rm(DATA_DIR, { recursive: true, force: true });
+  // Only the two directories this script regenerates are cleared. `cfm/` is
+  // fetched from a site rather than a dataset in this repo, and a fetch that
+  // fails should not take the committed weeks with it — the new schedule is
+  // written over the old one once it is in hand.
+  await fs.rm(path.join(DATA_DIR, "scriptures"), { recursive: true, force: true });
+  await fs.rm(path.join(DATA_DIR, "conference"), { recursive: true, force: true });
   console.log("Building scripture data...");
   const volumes = await buildScriptures();
   console.log("Building conference data...");
   const conferences = await buildConference();
+  // After the scriptures, because the schedule is checked against the library
+  // that just shipped: a week may only name chapters this build can open.
+  console.log("Building the Come, Follow Me schedule...");
+  const cfm = await buildCfm({ years: cfmYears(), volumes });
   const manifest = {
     generatedAt: new Date().toISOString(),
     sources: {
@@ -231,6 +241,14 @@ async function main() {
     },
     volumes,
     conferences,
+    cfm: {
+      years: cfm.map((year) => year.year),
+      source: {
+        name: "Come, Follow Me",
+        url: "https://www.churchofjesuschrist.org/study/manual",
+        note: "Week dates and chapter ranges, read from the Church's public content API. No lesson text is reproduced.",
+      },
+    },
   };
   await fs.writeFile(path.join(DATA_DIR, "manifest.json"), JSON.stringify(manifest, null, 2));
   // Last, and from what has just been written rather than from the structures
