@@ -28,12 +28,16 @@ const DATA_DIR = path.join(ROOT, "public", "data");
 // Conference years to bundle. The scraper dataset ends at October 2018.
 const CONFERENCE_MIN_YEAR = 2014;
 
+// In reading order, which is the order every list in the app presents:
+// Old Testament, New Testament, Book of Mormon, Doctrine and Covenants, Pearl
+// of Great Price. The manifest is built in this order so a consumer that does
+// not sort still shows the right one.
 const SCRIPTURE_VOLUMES = [
+  { id: "ot", file: "old-testament.json", title: "Old Testament", kind: "books" },
+  { id: "nt", file: "new-testament.json", title: "New Testament", kind: "books" },
   { id: "bom", file: "book-of-mormon.json", title: "Book of Mormon", kind: "books" },
   { id: "dc", file: "doctrine-and-covenants.json", title: "Doctrine and Covenants", kind: "sections" },
   { id: "pgp", file: "pearl-of-great-price.json", title: "Pearl of Great Price", kind: "books" },
-  { id: "nt", file: "new-testament.json", title: "New Testament", kind: "books" },
-  { id: "ot", file: "old-testament.json", title: "Old Testament", kind: "books" },
 ];
 
 const SCRIPTURE_BASE = "https://raw.githubusercontent.com/bcbooks/scriptures-json/master/";

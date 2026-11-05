@@ -48,8 +48,11 @@ export function NotesPage() {
   return (
     <AppShell>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+        {/* The arrow is drawn 10px left, the empty part of its own icon, so it
+            lines up with the heading under it the way every page header in the
+            app does (see components/feature-page.tsx). */}
         <div className="flex items-center justify-between gap-3">
-          <BackLink />
+          <BackLink className="-ml-2.5" />
           <Link
             href="/settings"
             className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
@@ -175,15 +178,20 @@ function NoteRow({ note }: { note: Annotation }) {
             <span className="shrink-0 text-[11px] text-muted">{note.tags.map((tag) => `#${tag}`).join(" ")}</span>
           )}
         </span>
+        {note.title && (
+          <span className="mt-1 block font-serif text-[0.98rem] font-semibold leading-snug text-foreground">
+            {note.title}
+          </span>
+        )}
         <span className="mt-1 block line-clamp-3 font-serif text-sm leading-relaxed text-foreground/85">
           {noteText(note.note)}
         </span>
-        {note.link && (
-          <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-muted">
-            <Glyph name="link" className="h-3 w-3" />
-            {note.link.label}
+        {note.links?.length ? (
+          <span className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-muted">
+            <Glyph name="link" className="h-3 w-3 shrink-0" />
+            <span className="truncate">{note.links.map((link) => link.label).join(" · ")}</span>
           </span>
-        )}
+        ) : null}
       </span>
       <Glyph name="arrow" className="mt-1 h-3.5 w-3.5 shrink-0 text-muted" />
     </Link>

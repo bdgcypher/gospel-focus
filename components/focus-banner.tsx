@@ -85,7 +85,7 @@ export function FocusLockBanner() {
         onClick={() => setPreference("focusBannerDismissed", true)}
         aria-label="Dismiss the Focus Lock setup"
         title="Dismiss"
-        className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-transparent text-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-strong focus-visible:border-accent/40 focus-visible:bg-accent/10 focus-visible:text-accent-strong"
+        className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
       >
         <Glyph name="close" className="h-4 w-4" />
       </button>

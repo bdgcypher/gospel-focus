@@ -35,26 +35,58 @@ export async function reset(page, base) {
   })()`);
 }
 
+/**
+ * Wait until the page says this is true, or give up.
+ *
+ * Some waits are not a fixed time: the library's search index is fetched and
+ * inflated on the first query, which takes longer on a slow machine than a
+ * `sleep` would like to admit. This asks the page instead, and returns false if
+ * the page never agrees.
+ */
+export async function waitFor(page, expression, timeout = 12000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await page.evaluate(expression)) return true;
+    await page.sleep(200);
+  }
+  return false;
+}
+
 /** Open the reader on a citation or a place, and wait for the chapter. */
 export async function openChapter(page, base, query, wait = 2400) {
   await page.goto(`${base}/read/?${query}`, wait);
 }
 
 /**
- * Open the reader's one menu.
+ * Open the menu under the chapter's name.
  *
- * The library, the chapter grid and this chapter's marks live behind a single
- * control so the page keeps its width for the words; everything they used to be
- * pressed from is reached through here.
+ * The name is the door to the rest of the library: the levels above this book
+ * and the chapters inside it. On a wide screen the rail carries the same
+ * choices, but the name is the one control both widths share.
  */
-export async function openChapterMenu(page) {
+export async function openPlaceMenu(page) {
   await page.evaluate(`(() => {
-    const button = document.querySelector('button[aria-label="Chapter menu"]');
+    const button = [...document.querySelectorAll("button")]
+      .find((entry) => (entry.getAttribute("aria-label") ?? "").startsWith("Where you are"));
     if (!button) throw new Error("the reader has no chapter menu");
     button.click();
     return true;
   })()`);
   await page.sleep(450);
+}
+
+/** Press a row or a chapter inside the open place menu. */
+export async function pressInPlaceMenu(page, text, wait = 500) {
+  await page.evaluate(`(() => {
+    const dialog = document.querySelector('[role="dialog"][aria-label="Choose a chapter"]');
+    if (!dialog) throw new Error("the place menu isn't open");
+    const button = [...dialog.querySelectorAll("button")]
+      .find((entry) => entry.textContent.includes(${JSON.stringify(text)}));
+    if (!button) throw new Error("no place menu entry: ${text}");
+    button.click();
+    return true;
+  })()`);
+  await page.sleep(wait);
 }
 
 /** Press the words of one verse, the way a thumb does. */
@@ -143,6 +175,19 @@ export async function press(page, text, wait = 400) {
   await page.sleep(wait);
 }
 
+/** Name the note in whichever note sheet is open. */
+export async function writeNoteTitle(page, title) {
+  await page.evaluate(`(() => {
+    const box = document.querySelector("#note-title, #annotation-title");
+    if (!box) throw new Error("the note sheet has no title field");
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    set.call(box, ${JSON.stringify(title)});
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  })()`);
+  await page.sleep(160);
+}
+
 /** Write a note in the open annotation sheet and save it. */
 export async function writeNote(page, html) {
   await page.evaluate(`(() => {
@@ -164,10 +209,21 @@ export async function writeNote(page, html) {
   await page.sleep(500);
 }
 
-/** The computed background of the nth word span of a verse. */
+/**
+ * The colour the nth word of a verse is painted.
+ *
+ * A highlight is one inline box per run of words, not a background per word,
+ * because that is what lets the browser round the ends of every line it wraps
+ * onto (`.mark-band` in app/globals.css). So the colour to read is the band's,
+ * found from the word the reader would point at.
+ */
 export function fillOf(page, verse, index = 0) {
   return page.evaluate(
-    `getComputedStyle([...document.querySelectorAll('[data-verse="${verse}"]')][${index}]).backgroundColor`
+    `(() => {
+      const span = [...document.querySelectorAll('[data-verse="${verse}"]')][${index}];
+      const band = span ? span.closest(".mark-band") : null;
+      return band ? getComputedStyle(band).backgroundColor : "rgba(0, 0, 0, 0)";
+    })()`
   );
 }
 
@@ -191,9 +247,11 @@ export function contrastOf(page, verse, index = 0) {
     const span = [...document.querySelectorAll('[data-verse="${verse}"]')][${index}];
     if (!span) return 0;
     const style = getComputedStyle(span);
+    const band = span.closest(".mark-band");
+    const fill = band ? getComputedStyle(band).backgroundColor : "rgba(0, 0, 0, 0)";
     const page = getComputedStyle(document.documentElement).backgroundColor || "#fffdf7";
     const backdrop = document.documentElement.classList.contains("dark") ? "#111111" : page;
-    const bg = lum(paint(style.backgroundColor, backdrop));
+    const bg = lum(paint(fill, backdrop));
     const fg = lum(paint(style.color, backdrop));
     const [hi, lo] = [bg, fg].sort((a, b) => b - a);
     return Number(((hi + 0.05) / (lo + 0.05)).toFixed(2));

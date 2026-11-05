@@ -1,4 +1,4 @@
-import { openChapter, pressToolbar, reset, selectWords, writeNote } from "./helpers.mjs";
+import { openChapter, pressToolbar, reset, selectWords, writeNote, writeNoteTitle } from "./helpers.mjs";
 
 export const name = "notes view";
 
@@ -37,6 +37,7 @@ export async function run({ page, check, base }) {
   await openChapter(page, base, "book=Jeremiah&chapter=3&verse=15");
   await selectWords(page, 15, 4, 9);
   await pressToolbar(page, "Note");
+  await writeNoteTitle(page, "A new heart");
   await writeNote(page, "<p>Pastors after mine own heart.</p>");
 
   await openChapter(page, base, "book=Jeremiah&chapter=5&verse=3");
@@ -61,12 +62,20 @@ export async function run({ page, check, base }) {
   const body = await page.evaluate(`document.querySelector("main").textContent`);
   check("the note's words are shown, not its markup", body.includes("Pastors after mine own heart.") && !body.includes("<p>"));
   check("the count names two notes", body.includes("2 notes"), body.match(/\d+ notes?[^.]*/)?.[0] ?? "");
+  const titled = await page.evaluate(`(() => {
+    const heading = [...document.querySelectorAll("main li span")]
+      .find((span) => span.textContent.trim() === "A new heart");
+    return heading ? heading.className : "";
+  })()`);
+  check("a named note shows its name as the heading", titled.includes("font-serif") && titled.includes("font-semibold"), titled);
 
   // --- search -------------------------------------------------------------
   await search(page, "pastors");
   check("a search narrows to the note that has the word", (await rowCount(page)) === 1, `${await rowCount(page)} row`);
   await search(page, "jeremiah 5");
   check("a reference search finds the chapter's notes", (await rowCount(page)) === 1, `${await rowCount(page)} row`);
+  await search(page, "new heart");
+  check("a title search finds the note it names", (await rowCount(page)) === 1, `${await rowCount(page)} row`);
   await search(page, "tithing");
   const none = await page.evaluate(`[...document.querySelectorAll("p")].map((p) => p.textContent).join(" ")`);
   check("a search with no answer says so", none.includes("No notes match"), none.slice(0, 60));
@@ -100,4 +109,8 @@ export async function run({ page, check, base }) {
   const links = await page.evaluate(`[...document.querySelectorAll('[role="dialog"] a')].map((a) => a.getAttribute("href"))`);
   const hasNotes = links.some((href) => href === "/notes/" || href === "/notes");
   check("the menu carries the notes view", opened && hasNotes, links.join(", "));
+  // Reading is not in here any more: it is a card on the Study wall, and a menu
+  // that also kept a copy of the way in would be a second door to the same room.
+  const hasReader = links.some((href) => (href ?? "").startsWith("/read"));
+  check("and leaves the library to the Study page", !hasReader, links.join(", "));
 }

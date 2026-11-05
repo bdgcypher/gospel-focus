@@ -317,7 +317,7 @@ function Chevron({
       onClick={onClick}
       aria-expanded={expanded}
       aria-label={label}
-      className="rounded-full p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+      className="grid h-8 w-8 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
     >
       <svg
         viewBox="0 0 24 24"

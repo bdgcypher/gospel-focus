@@ -58,7 +58,7 @@ export function StreakPage() {
 
   return (
     // The strapline is the verse the run is kept for, set the way the reference
-    // quiz and the memory list set theirs: the words in the serif italic they
+    // quiz and the memorizer set theirs: the words in the serif italic they
     // are read in, the citation after them and kept whole, and the citation a
     // way into the passage rather than a label beside it.
     <FeaturePage

@@ -9,8 +9,7 @@ import { Glyph } from "./glyph";
  *
  * It is deliberately small — a heading, a close control, and whatever the caller
  * puts inside — because every sheet in the app is a list of choices rather than
- * a form: the chapter grid, the browse index, a verse's actions, the marks in a
- * chapter. Escape closes it, the dimmed page behind it closes it, and the close
+ * a form: a verse's actions, a chapter's marks. Escape closes it, the dimmed page behind it closes it, and the close
  * control is the third way out, which is what a sheet that covers the page owes
  * a reader whose thumb is already moving.
  *

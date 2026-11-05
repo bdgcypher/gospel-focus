@@ -181,7 +181,7 @@ function StripStep({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong disabled:cursor-default disabled:opacity-35 disabled:hover:border-border disabled:hover:text-muted"
+      className="grid h-8 w-8 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong disabled:cursor-default disabled:opacity-35 disabled:hover:border-border disabled:hover:text-muted"
     >
       <Glyph name="arrow" className={`h-4 w-4 ${direction === "back" ? "rotate-180" : ""}`} />
     </button>

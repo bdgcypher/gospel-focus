@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { AppShell } from "./app-shell";
 import { BackLink, useGoBack } from "./back-link";
-import { Glyph, type GlyphName } from "./glyph";
+import { Glyph } from "./glyph";
 import { featureById, type FeatureStatus } from "@/lib/features";
 
 interface Props {
@@ -22,7 +22,6 @@ interface Props {
    * needs its own shape, such as the reference quiz's verse and citation.
    */
   subtitle?: ReactNode;
-  icon?: GlyphName;
   /**
    * "ready" pages show only their content; "planned" ones also get the
    * placeholder block. Defaults to whatever the catalog says — which is the
@@ -37,6 +36,25 @@ interface Props {
    * than nudging its first element up with a negative one.
    */
   contentClassName?: string;
+  /**
+   * Leave the page heading and strapline off.
+   *
+   * For a screen inside a page that has its own title — a deck opened from the
+   * memorize index, say. The subpage's own name is the heading then, and
+   * repeating the section title above it would make the reader read "Memorize"
+   * before the thing they came to memorize.
+   */
+  hideHeading?: boolean;
+  /**
+   * One icon control for the right of the header row, opposite the way back.
+   *
+   * For a page whose one tool is better in the corner than in the wall — the
+   * study hub's search is a door to the whole library rather than a shelf, and a
+   * card for it took a whole row of the grid it should not have owned. It is a
+   * bare control, the same size and colour as the arrow it answers, so the two
+   * read as the two ends of one bar.
+   */
+  action?: ReactNode;
   children?: ReactNode;
 }
 
@@ -50,15 +68,15 @@ export function FeaturePage({
   featureId,
   title,
   subtitle,
-  icon,
   status,
   contentClassName,
+  hideHeading = false,
+  action,
   children,
 }: Props) {
   const feature = featureId ? featureById(featureId) : undefined;
   const heading = title ?? feature?.title ?? "Gospel Focus";
   const blurb = subtitle ?? feature?.blurb ?? "";
-  const glyph = icon ?? feature?.icon ?? "book";
   const resolved = status ?? feature?.status ?? "planned";
   const capabilities = feature?.capabilities ?? [];
   // The placeholder's own way out goes back for the same reason the arrow does:
@@ -69,27 +87,47 @@ export function FeaturePage({
     <AppShell>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
         {/* No top margin of its own: the page's padding already holds the
-            heading clear of the app bar, and stacking another 24px on it read
-            as an empty band under the header on every page built from this
-            frame. The row starts where the padding ends.
+            header clear of the app bar, and stacking another 24px on it read as
+            an empty band under the header on every page built from this frame.
+            The header starts where the padding ends.
 
-            Centred rather than top-aligned: the icon tile, the title and the
-            back control sit on one midline. A page with no blurb has a title
-            shorter than the tile, and hanging it from the tile's top left it
-            looking adrift from the page's content. */}
-        <div className="flex items-center gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-surface text-accent-strong">
-            <Glyph name={glyph} className="h-6 w-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">{heading}</h2>
-          </div>
+            The way back is on a line of its own, with the title under it
+            starting at the page's left edge: the arrow is a step out of the page
+            rather than one of its controls, and beside the heading it read as
+            part of the title rather than as the way out. Just those two — the
+            drawn tile that used to sit between them was a second mark for the
+            page the tab bar and the catalog card already carry.
+
+            The arrow's box is drawn 10px to the left, which is the empty part
+            of its own 24px icon on that side, so the drawing — not the
+            invisible edge of a 36px target — lines up with the first letter
+            below it. It is lifted 8px for the same reason, so its drawing sits
+            where the page's padding ends instead of a thumbnail's width below it.
+            What is left of its box is then the gap to the heading — 24px under
+            the arrow's box, on the app's 8px scale, so the arrow reads as a
+            control of its own above the title rather than as the title's first
+            mark.
+
+            A page with one tool in its corner puts it at this row's other end:
+            the arrow answers on the left, the tool on the right, and the heading
+            with the whole width between them. Both boxes are drawn out by the
+            same 10px of their own icon's padding, so each mark — not each
+            target — sits on the page's edge. */}
+        <div className="-ml-2.5 -mr-2.5 -mt-2 flex items-center justify-between">
           <BackLink />
+          {action}
         </div>
+        {!hideHeading && (
+          <>
+            <h2 className="mt-6 text-left font-serif text-2xl font-semibold text-foreground sm:text-3xl">
+              {heading}
+            </h2>
 
-        {/* The subtitle on its own line under the heading row, as on the reader:
-            one place for a page's strapline across the whole app. */}
-        {blurb && <p className="mt-2 text-sm text-muted">{blurb}</p>}
+            {/* The subtitle on its own line under the heading row, as on the
+                reader: one place for a page's strapline across the whole app. */}
+            {blurb && <p className="mt-2 text-sm text-muted">{blurb}</p>}
+          </>
+        )}
 
         {children && <div className={contentClassName ?? "mt-8"}>{children}</div>}
 

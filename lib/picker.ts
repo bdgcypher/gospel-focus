@@ -469,9 +469,9 @@ async function resolveConferenceCitation(
  * The reader's address for a passage, as the search page writes it.
  *
  * A citation in a page's strapline is a way into the words, not a label: the
- * reader takes a passage from `?action=cite` (see components/inspiration-app.tsx)
- * rather than being made to find it again in the picker, so every such link
- * says exactly which passage it means.
+ * reader opens the passage it names from `?action=cite` (see
+ * components/chapter-reader.tsx) rather than drawing it again in the picker, so
+ * every such link says exactly which passage it means.
  */
 export function citationHref(citation: {
   kind: "scripture" | "conference";

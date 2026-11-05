@@ -47,9 +47,14 @@ it, so a day's study becomes a streak.
   highlight or an underline, the palette drawn in that style, the last two
   colours you used leading it in the mode you used them, and Note, Link, Copy,
   Share and Remove under them. A run across verses is one mark, and
-  tapping any of it reopens the panel on the whole thing. Where two marks
-  overlap, a chooser shows them as they sit on the page first. Marks are kept
-  per word, the way Gospel Library keeps them.
+  tapping any of it reopens the panel on the whole thing, with a handle on each
+  end to drag it wider or narrower a word at a time — each handle a thumb-sized
+  target with the drop drawn inside it. Words you have only just selected get the
+  same two handles, so a run can be trimmed or stretched before you pick a
+  colour. Where two marks overlap, a chooser shows them as they sit on the page
+  first. Marks are kept per word, the way Gospel Library keeps them.
+- Double-tap the words — double-click with a mouse — to read without the app's
+  bars; do it again to bring them back.
 - Tap verses to share them as images, favorite them, memorize them, or take a
   note.
 - Open any passage in the Gospel Library app on Android.
@@ -64,6 +69,8 @@ it, so a day's study becomes a streak.
 
 **Study**
 
+- Open the library from the top of the Study page — any book, any chapter — and
+  mark the words that matter.
 - Search every verse and conference paragraph at once, offline.
 - Build memory decks, hide words, and run two-sided flashcards.
 - Write journal entries and notes linked to passages, or to each other.

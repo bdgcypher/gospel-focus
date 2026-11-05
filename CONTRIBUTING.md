@@ -65,7 +65,7 @@ Every non-trivial change is checked at four levels:
    automation package, so the browser under test is the one on the machine — and
    covers the reader, the marking panel, tapping a mark, the chooser where
    marks overlap, a mark across verses, the marks list, the notes view, the
-   browse index, and the export/import round trip (`tests/browser/`). It needs `npm run build`
+   reader's menus, and the export/import round trip (`tests/browser/`). It needs `npm run build`
    first and a Chromium (`CHROME_BIN` if it is somewhere unusual). Keep both green,
    and add a scenario when a behaviour is worth protecting.
 4. **Visual review.** For a visual change, capture the before and after at phone

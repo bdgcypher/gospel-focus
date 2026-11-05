@@ -4,8 +4,11 @@ import { fileURLToPath } from "node:url";
 import { connect, checker, freePort, launch } from "./cdp.mjs";
 import { startServer } from "./server.mjs";
 import * as annotations from "./annotations.test.mjs";
+import * as handles from "./handles.test.mjs";
+import * as links from "./links.test.mjs";
 import * as notes from "./notes.test.mjs";
 import * as reader from "./reader.test.mjs";
+import * as saved from "./saved.test.mjs";
 
 /**
  * The browser suite: the reader, marking, and the annotations file, driven
@@ -36,7 +39,7 @@ const page = await connect(browser.base);
 const { check, failures } = checker();
 const base = `http://127.0.0.1:${server.port}`;
 
-const scenarios = [reader, annotations, notes];
+const scenarios = [reader, annotations, handles, notes, links, saved];
 
 console.log(`Testing ${base} in ${process.env.CHROME_BIN ?? "the found Chromium"}\n`);
 

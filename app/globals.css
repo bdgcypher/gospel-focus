@@ -33,15 +33,16 @@
   --goal-bar-contrast: var(--accent-contrast);
   /* The games' result cards. A win wears the completed day's green in the
      playful skin and a loss its own red; on paper both are the ordinary surface
-     card, with only the heading carrying the colour, which is how they were
-     drawn before the playful skin coloured their faces. `--win-card` is the
-     result card's face and `--win-panel` the well inside it holding the verse,
-     so the pair reads as one object. The buttons name their own face and edge
-     for the same reason the filled buttons above do. */
+     card in the page's own ink, so a result reads as a result and not as a
+     second theme's colour. The colour is the playful skin's voice, which is why
+     `--win-ink` and `--loss-ink` are set there and only there (see `.playful`).
+     `--win-card` is the result card's face and `--win-panel` the well inside it
+     holding the verse, so the pair reads as one object. The buttons name their
+     own face and edge for the same reason the filled buttons above do. */
   --win-card: var(--surface);
   --win-border: var(--border);
   --win-panel: var(--surface-2);
-  --win-ink: var(--correct-text);
+  --win-ink: var(--foreground);
   --win-strong: var(--foreground);
   --win-muted: var(--muted);
   --win-bar: var(--cta);
@@ -50,7 +51,7 @@
   --loss-card: var(--surface);
   --loss-border: var(--border);
   --loss-panel: var(--surface-2);
-  --loss-ink: var(--wrong);
+  --loss-ink: var(--foreground);
   --loss-strong: var(--foreground);
   --loss-muted: var(--muted);
   --loss-bar: var(--cta);
@@ -82,12 +83,16 @@
      Gospel Library knows, so a mark made there and a mark made here are the
      same mark — including the imported ones, which can be any of the nine.
 
-     The pair is split because a highlight and an underline need different
-     things from a colour. A highlight is a background the verse's own ink sits
-     on, so the face has to be pale enough to clear 4.5:1 against it — every
-     value below clears 10:1. An underline is a line of its own, so it wears the
-     darker, saturated version instead and still clears 4.5:1 against the
-     surface. Neither is ever used as type. */
+     A pair is one colour at two strengths, not two colours. The face is the
+     pastel a highlight washes behind the verse; the ink is the same hue stepped
+     down only as far as a 2px line needs to read against the page (3:1 or
+     better), so a highlighted run and an underlined one of the same colour look
+     like siblings rather than two different pens. Deliberately not the deep,
+     unrelated shade each ink used to be.
+
+     Neither is ever used as type. The marking panel's previews set the page's
+     own ink over the face, so the ink here is free to be tuned for the line
+     alone rather than for a letter sitting on the pastel. */
   --mark-yellow: #fbeaa0;
   --mark-red: #f7c6c2;
   --mark-green: #c8ecc8;
@@ -97,18 +102,32 @@
   --mark-pink: #f6d0e2;
   --mark-brown: #e8d6c3;
   --mark-gray: #e2e2e2;
-  --mark-ink-yellow: #6f5200;
-  --mark-ink-red: #a51f18;
-  --mark-ink-green: #10662f;
-  --mark-ink-blue: #12539a;
-  --mark-ink-purple: #5b3390;
-  --mark-ink-orange: #8a3d00;
-  --mark-ink-pink: #9c2757;
-  --mark-ink-brown: #5d3f22;
-  --mark-ink-gray: #4f4f4f;
+  --mark-ink-yellow: #a8861b;
+  --mark-ink-red: #cc5a50;
+  --mark-ink-green: #4b9161;
+  --mark-ink-blue: #4784c0;
+  --mark-ink-purple: #8568c0;
+  --mark-ink-orange: #c47a35;
+  --mark-ink-pink: #c65f92;
+  --mark-ink-brown: #96724f;
+  --mark-ink-gray: #747474;
+  /* The two ends of a run of words: the drop a thumb drags (see
+     components/mark-handles.tsx). Deliberately not a mark colour — a handle is
+     the app's control, not part of what it marks, so it keeps one blue however
+     the words are painted and reads as "this is a selection", the way a system
+     text selection's handles do. A deeper blue than the playful skin's button,
+     because on the paper page the drop has to hold its own edge against cream. */
+  --handle: #0f8ac9;
   --page: #fffefb;
   --page-edge: #e8dcc3;
   --spine: #d9c9a6;
+  /* The reader's own page. By day it is the card's lighter cream rather than
+     the tan the rest of the app sits on: the rail's title band paints the page
+     colour as it sticks, and over the glowing tan that band read as a paler
+     rectangle pasted onto the chapter. One flat sheet behind the rail and the
+     words puts the two on the same tone. At night the page is the page — the
+     rail already sat on it unseen. */
+  --reader-page: var(--surface);
   /* The bottom navigation's own height, without the safe-area inset, and with
      the three-quarter rem of air the bar keeps under its tabs (see
      `.app-nav-bottom`). One number for the navigation itself, the room reserved
@@ -116,6 +135,13 @@
      they cannot drift apart. Tall enough that a tab's mark and its word sit in
      the middle of the bar with air above and below them rather than filling it. */
   --bottom-nav-height: 4.75rem;
+  /* Where the reader's rail and its chapter bar park: under the app bar while it
+     is showing, and at the top of the screen once it has gone (see "The
+     reader's chrome" below). The height is measured from the bar itself; this
+     is only the value before the first measurement. */
+  --app-header-height: 3.5rem;
+  --reader-bar-top: var(--app-header-height);
+  --reader-rail-top: calc(var(--app-header-height) + 1.25rem);
 }
 
 /* The paper-and-ink night: the same neutral greys as the playful night, so the
@@ -126,6 +152,10 @@
   --background: #111111;
   --surface: #1b1b1b;
   --surface-2: #333333;
+  /* The night page is the page itself: the reader's lighter sheet is a daylight
+     idea (see `--reader-page`), and here the rail's band and the words already
+     share the one grey. */
+  --reader-page: var(--background);
   --foreground: #f2f2f2;
   --muted: #b0b0b0;
   --border: #424242;
@@ -146,10 +176,10 @@
   --spine: #4b4b4b;
   /* The highlighter on the night page: the same nine colours, turned inside
      out. A pale face would swallow the light ink the verse is set in, so each
-     one becomes a deep, saturated wash that the same ink clears 6:1 against,
-     and each underline ink becomes a light version of its colour for the same
-     reason. The hue is what carries the meaning; the depth is what keeps the
-     words readable. */
+     face becomes a deep wash that the verse's own light ink clears 6:1 against.
+     Each underline ink is the same hue at the strength a line needs on the near-
+     black page, kept close to its wash rather than thrown up to a pale tint of
+     its own: the pair reads as one colour at two intensities. */
   --mark-yellow: #5c4b04;
   --mark-red: #6d1a14;
   --mark-green: #163f1d;
@@ -159,15 +189,18 @@
   --mark-pink: #561d34;
   --mark-brown: #402d1a;
   --mark-gray: #303030;
-  --mark-ink-yellow: #f4d98a;
-  --mark-ink-red: #ff9a90;
-  --mark-ink-green: #6fd694;
-  --mark-ink-blue: #8ecbfa;
-  --mark-ink-purple: #cbb4f5;
-  --mark-ink-orange: #f5bd83;
-  --mark-ink-pink: #f6a8c8;
-  --mark-ink-brown: #dcc0a0;
-  --mark-ink-gray: #c2c2c2;
+  --mark-ink-yellow: #d3b45c;
+  --mark-ink-red: #d0827a;
+  --mark-ink-green: #6fb686;
+  --mark-ink-blue: #74a8d4;
+  --mark-ink-purple: #a08acb;
+  --mark-ink-orange: #cb925c;
+  --mark-ink-pink: #cb86a6;
+  --mark-ink-brown: #ae9377;
+  --mark-ink-gray: #9d9d9d;
+  /* The same drop on the night page: the bright blue, because a deep one would
+     sink into the near-black the words are set on. */
+  --handle: #35b3f5;
 }
 
 /* --- Playful style -------------------------------------------------------
@@ -423,6 +456,7 @@ html.playful .font-serif {
   --color-frozen: var(--frozen);
   --color-page: var(--page);
   --color-page-edge: var(--page-edge);
+  --color-reader-page: var(--reader-page);
   --color-spine: var(--spine);
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-source-serif);
@@ -473,6 +507,96 @@ html:has([aria-modal="true"]) {
    the pinch, but leave the sideways movement to the gesture. */
 html[data-nav-swipe="on"] {
   touch-action: pan-y pinch-zoom;
+}
+
+/* The reader's chrome.
+
+   A chapter is the one page where the bar is not furniture. Going down it the
+   app bar leaves — the reader is reading, not navigating — and coming back up
+   it returns at once, because that is when a reader reaches for it. The flag is
+   `data-chrome="away"` on the document, written by the bar itself (see
+   components/app-header.tsx); the bar stays sticky and slides, so the words
+   take the top of the screen rather than the page jumping.
+
+   The reader's own two sticky things follow the flag. Its rail and the chapter
+   bar park under the app bar while it is there, and move up to the top of the
+   screen when it is gone: the bar the reader wants while deep in a passage —
+   the chapter's name, its bookmark and its search — is the one that stays. */
+.app-header {
+  transition: transform 200ms ease;
+}
+
+html[data-reduce-motion="true"] .app-header {
+  transition: none;
+}
+
+html[data-chrome="away"] .app-header {
+  transform: translateY(-100%);
+}
+
+/* The two travel together. The app bar slides; the chapter bar's own `top` has
+   to arrive where the bar has arrived, or for a fifth of a second the words
+   show in the sliver between them. Given the same distance and the same 200ms,
+   the two move as one piece of chrome. */
+[data-reader-bar] {
+  transition: top 200ms ease;
+}
+
+html[data-reduce-motion="true"] [data-reader-bar] {
+  transition: none;
+}
+
+/* The strip between the app bar and the chapter bar is the chapter's paper.
+
+   The two bars are given the same distance and the same 200ms, but they are not
+   moved by the same hands: the app bar's slide is a `transform`, which the
+   compositor runs on its own, while the chapter bar's is `top`, laid out on the
+   main thread — the one already busy with the words a thumb is scrolling. Come
+   back up the page and the app bar can arrive while the chapter bar is still on
+   its way, and the passage shows in the band between them for a frame or two:
+   a line of text sliding past just under the app bar's edge, which reads as a
+   gap in the chrome rather than as a bar that is moving. The same sliver opens
+   at rest anywhere the measured height is a fraction short of the painted one.
+
+   So the bar stands on an apron of its own paper, as tall as the app bar, which
+   fills that band whatever the two are doing. It is painted inside this bar's
+   stacking level, and the app bar is above that and opaque on the reader, so at
+   rest it is invisible; where the two edges part it is the strip's colour
+   instead of the words. Its height is the header's own, since a whole bar's
+   worth of lag is the most the two can be apart. */
+[data-reader-bar]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--app-header-height);
+  background-color: var(--reader-page);
+  pointer-events: none;
+}
+
+/* On the reader the app bar is opaque: at 80% the chapter's own lines ghosted
+   through it as it passed over them, which at the bar's bottom edge read as a
+   line of text under the bar. */
+html:has([data-reader-bar]) .app-header {
+  background-color: var(--background);
+}
+
+html[data-chrome="away"] {
+  --reader-bar-top: 0px;
+  --reader-rail-top: 0.9rem;
+}
+
+/* On the Android shell the app bar is what absorbs the status bar's inset. With
+   it gone, the chapter bar is the top of the screen and has to take that room
+   itself — its own paper runs up under the clock, as the app bar's does — and
+   the rail parks below the inset rather than under it. */
+html[data-chrome="away"][data-capacitor="android"] {
+  --reader-rail-top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
+}
+
+html[data-chrome="away"][data-capacitor="android"] [data-reader-bar] {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
 }
 
 /* The page's own light, named rather than written straight onto the body: the
@@ -734,11 +858,15 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 }
 
 /* Reaching for a raised thing settles it into its base a little; pressing it
-   settles it further. The face moves down by as much as the base edge gives
-   up, so the foot of the object stays on the page instead of sliding off it,
-   and a thin wash of ink fades the face without touching its contents. Only
-   anchors and buttons take this: a card that goes nowhere is a surface, not a
-   control.
+   lays it flat. The face moves down by as much as the base edge gives up, so
+   the foot of the object stays on the page instead of sliding off it, and a
+   thin wash of ink fades the face without touching its contents. A press gives
+   up the whole edge, not most of it: a card that keeps a lip of its side under
+   the bottom looks pressed but never seated, and the border reads as thicker
+   along the foot than along the other three sides. Flat in its own box, the
+   rim is the same width all the way round and the block is simply sitting on
+   the page. Only anchors and buttons take this: a card that goes nowhere is a
+   surface, not a control.
 
    Hover is for pointers that can hover. A touch screen reports it for the last
    thing it tapped, and a control that stays settled once the finger has gone
@@ -768,13 +896,14 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 }
 
 .playful :is(a, button):is(.rounded-2xl, .rounded-3xl).bg-surface:not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
-  translate: 0 2px;
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    inset 0 -8px 11px -7px color-mix(in oklab, var(--card-edge) 84%, transparent),
-    inset 0 0 0 999px color-mix(in oklab, var(--foreground) 8%, transparent),
-    0 2px 0 var(--card-edge),
-    0 18px 28px -20px var(--card-shadow);
+  /* The whole 4px of base edge, given up at once, and the face stops being a
+     face: the gradient that lit the top and turned the foot under is taken off,
+     and with no rim of light or drop below it the card is a flat slab whose
+     border is the same width on every side. The ink wash is what is left to say
+     it is being held down. */
+  translate: 0 4px;
+  background-image: none;
+  box-shadow: inset 0 0 0 999px color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
 /* The one primary action on a card: a glossy, raised button that presses in
@@ -788,8 +917,9 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
    The face is a flat slab with a darker rim inside its edge and a solid
    darker foot along the bottom. That outline and foot are the whole depth:
    there is no specular bloom across the top, which read as a dome rather than
-   as a button. Pressing shortens the foot and settles the button by the same
-   amount, so it lands on the page instead of sliding off it.
+   as a button. Pressing takes the foot away altogether and settles the button,
+   so it comes to rest flat with one width of rim all the way round instead of
+   keeping a darker lip along the bottom.
 
    Three fills wear this face — the main action's blue, the supporting action's
    gold, and the completed day's green — so each only has to name its colour and
@@ -857,12 +987,11 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 }
 
 .playful :is(button, a):is(.bg-accent, .bg-cta, .bg-goal-bar, .bg-win-bar, .bg-loss-bar):not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
+  /* Flat: the lit gradient off, the foot gone, no drop below — just the face and
+     its rim, the same width all round. */
   translate: 0 2px;
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    inset 0 0 0 1px var(--btn-edge),
-    inset 0 -3px 0 color-mix(in oklab, var(--btn-edge) 72%, var(--btn-face)),
-    0 1px 3px -3px rgb(0 0 0 / 0.3);
+  background-image: none;
+  box-shadow: inset 0 0 0 1px var(--btn-edge);
 }
 
 /* Secondary controls: the quieter raised face, for the buttons beside a
@@ -907,11 +1036,8 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 
 .playful :is(button, a).bg-surface-2:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
   translate: 0 2px;
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    inset 0 0 0 1px var(--control-edge),
-    inset 0 -2px 0 color-mix(in oklab, var(--control-edge) 70%, var(--surface-2)),
-    0 1px 2px -2px rgb(0 0 0 / 0.26);
+  background-image: none;
+  box-shadow: inset 0 0 0 1px var(--control-edge);
 }
 
 /* --- The word puzzle's pieces --------------------------------------------
@@ -981,11 +1107,8 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 
 .playful :is(button, a).puzzle-key:not([role="switch"]):not(:disabled):not([aria-disabled="true"]):is(:active, [data-pressed="true"]) {
   translate: 0 2px;
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    inset 0 0 0 1px var(--piece-edge),
-    inset 0 -2px 0 var(--piece-edge),
-    0 1px 2px -2px rgb(0 0 0 / 0.3);
+  background-image: none;
+  box-shadow: inset 0 0 0 1px var(--piece-edge);
 }
 
 /* The icon bubble on a card stays a plain tint in both styles: it marks the
@@ -1504,23 +1627,22 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 
 .app-nav-bottom {
   display: flex;
-  /* A fixed size rather than a grown one, so the page's clearance below and the
-     floating action bar's offset above both know exactly what they are working
-     around. A fixed element sits outside the body's safe-area padding, so the
-     navigation clears the gesture bar itself.
+  /* A fixed size rather than a grown one, so the page's clearance below and any
+     control floating above it know exactly what they are working around. A
+     fixed element sits outside the body's safe-area padding, so the navigation
+     clears the gesture bar itself.
 
      The three-quarter rem at the foot is breathing room under the tabs: the row
      of targets sits a little above the edge of the screen instead of on it. It
      is part of `--bottom-nav-height`, so the page still reserves the bar's
-     whole height and the floating bars still clear it. */
+     whole height and a control riding above it still clears the tabs. */
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Room for the bar under the page. Relative to the body's own inset padding,
    the navigation covers exactly its own height — so that is what the page
-   reserves, and the footer rides above it. `data-floating-bar` adds whatever
-   the passage card's own bar needs on top (see below).
+   reserves, and the footer rides above it.
 
    This padding sits at the end of the page, so it can only do its job while
    the shell it is on is free to grow with the content inside it (see
@@ -1529,6 +1651,104 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
    somewhere up behind its own content. */
 .app-shell-content {
   padding-bottom: var(--bottom-nav-height);
+}
+
+/* --- Marks on the words --------------------------------------------------
+   A highlight, painted as one run rather than a colour per word.
+
+   The corners are the point. A run of marked words wraps like any other line of
+   type, and the reader should see the ink stop a beat short of the margin on
+   *every* line, the way a highlighter does — not only at the first word of the
+   run and the last. The reader measures which words share a line and draws the
+   run as one band per line (components/chapter-reader.tsx), so each line's two
+   ends are a box of their own to round. `clone` stays for the one case a band
+   cannot be split at: a word that breaks at a dash, whose two halves belong to
+   the same word and so to the same box.
+
+   The radius is small because the band is only as tall as a line of type — a
+   rounder corner would eat into the text it is meant to sit behind.
+
+   The padding is the other half of that: it is inside the band, so the ink
+   starts a shade before the first letter and runs a shade past the last, and
+   the round corner has room to turn without clipping the glyph. It is in em so
+   it grows with the reader's type size, and it is inline only — the band is as
+   tall as the line already, and vertical padding would spill it onto the line
+   above and below. Where two marks meet, that padding is the gap the underline
+   has to cross: see `.mark-underline-bleed` below. */
+.mark-band {
+  border-radius: 0.22rem;
+  padding-inline: 0.3em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Two marks that meet are one passage made in two colours. Their shared edge is
+   flat, so the colours butt together on a single line instead of meeting as two
+   rounded corners with a notch above and below. Only the ends of the lines keep
+   a corner: the reader draws a wrapped run as one box per line, and sets these
+   classes on the box that actually touches another mark
+   (components/chapter-reader.tsx). It does not matter which style is on either
+   side — a wash meeting an underline is the same join. */
+.mark-band-meets-left {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.mark-band-meets-right {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* An underline is drawn across the words and the spaces inside its own box,
+   but not across the band's padding. So a line that ran up to a seam stopped
+   0.3em short of it on each side, and two underlines meeting read as broken
+   rather than as one line changing ink. These bars carry the end word's ink
+   through the padding, at the underline's own place: 3px below the baseline,
+   2px thick, which is what the words' `text-underline-offset` and thickness
+   say. The negative margin takes back the width the bar adds, so no word
+   moves. */
+.mark-underline-bleed {
+  display: inline-block;
+  width: 0.3em;
+  height: 2px;
+  vertical-align: -5px;
+}
+
+.mark-underline-bleed-start {
+  margin-left: -0.3em;
+}
+
+.mark-underline-bleed-end {
+  margin-right: -0.3em;
+}
+
+/* --- Reading without the bars --------------------------------------------
+   A double tap on the words hands the screen to the chapter (see
+   components/chapter-reader.tsx and lib/immersive.ts): the app bar and the
+   bottom navigation leave the page for as long as the reader is in that
+   chapter, and the strip the page reserved for the navigation goes with them,
+   so the last line runs to the foot of the screen instead of stopping a bar's
+   worth short of it.
+
+   Both bars are hidden rather than unmounted. They come back exactly as they
+   were — the section indicator is still on its tab, mid-measurement or not —
+   and a tap that is meant to give the reader more room should not cost the bar
+   a remount.
+
+   The marking panel is the one thing that has to move rather than go: it floats
+   above the bottom bar, so once the bar is gone it drops to the safe area
+   instead of hanging a bar's height in the air. */
+.app-shell-content[data-immersive="true"] {
+  padding-bottom: 0;
+}
+
+.app-shell-content[data-immersive="true"] .app-header,
+.app-shell-content[data-immersive="true"] .app-nav-bottom {
+  display: none;
+}
+
+.app-shell-content[data-immersive="true"] [data-marking-panel] {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
@@ -1820,10 +2040,10 @@ html[data-reduce-motion="true"] [data-nav-preview] {
   display: none;
 }
 
-/* The floating button answers to the same geometry as the app's floating bar:
-   the bottom navigation's height, then the device's own inset, then a breath of
-   margin. The plain value comes first so a browser that can't resolve env()
-   still gets a position rather than none at all.
+/* The floating button answers to the geometry of the bottom bar itself: the
+   navigation's height, then the device's own inset, then a breath of margin.
+   The plain value comes first so a browser that can't resolve env() still gets
+   a position rather than none at all.
 
    The two gaps are the same number: the one above the button, to the top edge of
    the navigation, and the one beside it, to the edge of the screen. The bar's own
@@ -1854,68 +2074,6 @@ html[data-reduce-motion="true"] [data-nav-preview] {
   padding-bottom: 4.5rem;
 }
 
-/* --- Floating actions dock ---------------------------------------------- */
-/* Where a floating control sits at the foot of the screen: the passage card's
-   gold button, which opens into the card's own jobs.
-
-   The dock's own padding, widened by the device's safe-area insets. A fixed
-   element sits outside the body's safe-area padding, so the insets have to be
-   added here — which is what keeps the control clear of the gesture bar on
-   Android. The plain values come first on purpose: a declaration the browser
-   can't resolve is dropped whole, and if the env() ones were the only padding
-   a browser without them would fall back to the padding utilities instead of
-   none at all. */
-.passage-fab-dock {
-  padding-right: 1rem;
-  padding-bottom: 1rem;
-  padding-left: 1rem;
-  padding-right: calc(1rem + env(safe-area-inset-right, 0px));
-  padding-left: calc(1rem + env(safe-area-inset-left, 0px));
-  /* The control rides above the bottom navigation, and that is what keeps it
-     clear of the gesture bar — the navigation carries the bottom inset itself
-     (see app-nav-bottom above). Adding the inset here as well would lift it a
-     gesture bar's worth higher than it belongs. */
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-}
-
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
-  .passage-fab-dock {
-    /* Nothing underneath it, so it clears the gesture bar itself. */
-    bottom: 0;
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-/* The dock holds two shapes of the same six jobs, and the stylesheet picks
-   between them at the navigation's breakpoint — the same one, and for the same
-   reason: no viewport is read and nothing is decided after a render, so a
-   rotation doesn't flash the wrong one and the prerender can't disagree with
-   the browser.
-
-   A thumb in a corner gets the gold button and its fan. A pointer on a wide
-   screen gets the labelled bar along the foot, with its own words, because
-   hovering six marks to find out which is which is what the corner menu was
-   like for a mouse. */
-.passage-actions-fan {
-  /* The dock is a block, so an auto margin is what puts the button right. */
-  margin-left: auto;
-}
-
-.passage-actions-bar {
-  display: none;
-}
-
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
-  .passage-actions-fan {
-    display: none;
-  }
-
-  .passage-actions-bar {
-    display: flex;
-    justify-content: center;
-  }
-}
-
 /* The card is back, so the floating button goes and the page's own flow has
    nothing to reserve room for. */
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
@@ -1930,18 +2088,6 @@ html[data-reduce-motion="true"] [data-nav-preview] {
   .memorize-page {
     padding-bottom: 0;
   }
-}
-
-/* The button covers the foot of the page while it is up — and its fan reaches
-   further still — so the scrolling content is given a matching strip of room to
-   clear it. Set from the card while the button is shown (see
-   components/passage-card.tsx).
-
-   The footer takes the strip too: the button now stays up all the way down the
-   page, so without it the small print was the one line the bar sat over. */
-html[data-floating-bar="on"] main,
-html[data-floating-bar="on"] footer {
-  padding-bottom: 7.5rem;
 }
 
 /* --- Native safe areas -------------------------------------------------- */

@@ -85,7 +85,11 @@ export async function launch(port) {
           base,
           stop: () => {
             child.kill("SIGKILL");
-            fs.rmSync(profile, { recursive: true, force: true });
+            // The kill ends the browser, not its children at once: a renderer
+            // can still be writing into the profile while the directory is
+            // being taken away. Retrying is the difference between a suite that
+            // reports its checks and one that throws on the way out.
+            fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
           },
         };
       }

@@ -99,6 +99,92 @@ export interface SearchHit {
   citation: SearchCitation;
 }
 
+/**
+ * One place the search answered with: a chapter, or a conference talk.
+ *
+ * A reader looking for something to read is choosing a *place*. A page of single
+ * verses from one chapter is one place said forty times, and it hides the four
+ * other chapters that answered, so results are gathered into the chapter (or
+ * talk) they belong to, with the verses that matched listed inside it.
+ */
+export interface ChapterHit {
+  /** The chapter's identity across queries: a book and chapter, or a talk. */
+  key: string;
+  kind: "scripture" | "conference";
+  /** What the row calls it: "Alma 32", or “The Title”. */
+  reference: string;
+  /** Where it comes from: the volume, or the speaker and session. */
+  source: string;
+  /**
+   * The verse (or paragraph) that answered: the best-ranked one in the place,
+   * whose words preview it and where opening the place lands.
+   */
+  section: number;
+  /**
+   * The best answer in the place: where the row's lines are read from, and the
+   * id the others are derived from (see `sectionId`).
+   */
+  previewId: string;
+  /** Every verse (or paragraph) of it the search matched, in reading order. */
+  matches: number[];
+  citation: SearchCitation;
+}
+
+/**
+ * Gather the search's verses into the places they belong to.
+ *
+ * The ranking is kept: the first verse that reached a chapter keeps the
+ * chapter's position, so the places come out in the order their best verse was
+ * ranked — the order the reader would have met them in. `limit` counts places,
+ * not hits, because one well-answered query can put forty verses of the same
+ * chapter at the top, and it is the gathering that turns them into eight places
+ * rather than one place and seven of its neighbours.
+ */
+export function groupHitsByChapter(hits: SearchHit[], limit = 8): ChapterHit[] {
+  const groups = new Map<string, ChapterHit>();
+
+  for (const hit of hits) {
+    const key =
+      hit.citation.kind === "conference"
+        ? `c|${hit.citation.conferenceId}|${hit.citation.chapter}`
+        : `s|${hit.citation.book}|${hit.citation.chapter}`;
+    const found = groups.get(key);
+    if (found) {
+      if (!found.matches.includes(hit.citation.section)) found.matches.push(hit.citation.section);
+      continue;
+    }
+    groups.set(key, {
+      key,
+      kind: hit.citation.kind,
+      reference:
+        hit.citation.kind === "conference"
+          ? `“${hit.citation.chapter}”`
+          : `${hit.citation.book} ${hit.citation.chapter}`,
+      source: hit.source,
+      section: hit.citation.section,
+      previewId: hit.id,
+      matches: [hit.citation.section],
+      citation: hit.citation,
+    });
+  }
+
+  return [...groups.values()]
+    .map((group) => ({ ...group, matches: group.matches.sort((a, b) => a - b) }))
+    .slice(0, limit);
+}
+
+/**
+ * The search id of another verse (or paragraph) of the same place.
+ *
+ * Every result's id ends in its own section, so the section is the only part
+ * that changes — which is what lets a row name its other matches without the
+ * index having stored them: read them back out of the passage data
+ * (`loadPassageText`) by an id built from the hit that reached the place.
+ */
+export function sectionId(place: ChapterHit, section: number): string {
+  return place.previewId.replace(/\/[0-9]+$/, `/${section}`);
+}
+
 /** The loaded index, and the little the page needs to ask it things. */
 export interface SearchLibrary {
   documents: number;

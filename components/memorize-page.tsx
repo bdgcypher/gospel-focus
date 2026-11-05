@@ -8,12 +8,11 @@ import { FeaturePage } from "./feature-page";
 import { Glyph, type GlyphName } from "./glyph";
 import { dayKey, daysBetween } from "@/lib/daily";
 import {
-  clearMemory,
   itemText,
   itemWordCount,
   recordReview,
   removeDeck,
-  removeMemory,
+  removeFromDeck,
   setHiddenLevel,
   setHideOrder,
   useDecks,
@@ -30,6 +29,7 @@ import {
 } from "@/lib/memorize-text";
 import { citationHref } from "@/lib/picker";
 import { setPreference, usePreferences, type CardSide } from "@/lib/preferences";
+import { storedPassageHref } from "@/lib/reader";
 
 /**
  * The date only means anything once the clock is the reader's, not the build's.
@@ -57,10 +57,10 @@ const useMounted = () =>
  * Nothing yet decides *when* a passage should come back, so the page says that
  * plainly rather than implying a schedule it doesn't keep.
  *
- * A group can be the main list or a deck the reader has named. The page draws
- * them the same way because they are the same thing at different scopes, and
- * the way in is one control either way: the card in the flow on a screen with
- * width, the round button over the corner on a phone (see `AddCard`/`AddFab`).
+ * A group is a deck the reader named: there is no default shelf, because a card
+ * that belonged to nothing would be a card with nowhere to be found. The way in
+ * is one control either way: the card in the flow on a screen with width, the
+ * round button over the corner on a phone (see `AddCard`/`AddFab`).
  */
 
 const PRIMARY =
@@ -71,23 +71,15 @@ const LINK_BUTTON =
   "text-sm font-medium text-accent-strong hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:no-underline";
 
 /**
- * The main list's value in `?deck=`.
- *
- * Deck ids carry their own `d:` prefix (see lib/memorize.ts), so a plain word
- * cannot collide with one, and the unnamed group gets an address of its own.
- */
-const MAIN_LIST_PARAM = "main";
-
-/**
- * Which of the page's screens is on. `decks` is the index, `deck` is one group
- * open (the main list when it carries no id), `hide` is one card's words being
- * stepped out of sight, and `cards` is a flashcard run.
+ * Which of the page's screens is on. `decks` is the index, `deck` is one deck
+ * open, `hide` is one card's words being stepped out of sight, and `cards` is a
+ * flashcard run.
  */
 type View =
   | { kind: "decks" }
-  | { kind: "deck"; id?: string }
+  | { kind: "deck"; id: string }
   | { kind: "hide"; id: string }
-  | { kind: "cards"; deckId?: string };
+  | { kind: "cards"; deckId: string };
 
 export function MemorizePage() {
   const items = useMemory();
@@ -109,12 +101,7 @@ export function MemorizePage() {
   // than handed over so the cards are read at render time like everything else
   // on the page — a card removed while the sheet is open simply drops out.
   const runItems = useMemo(
-    () =>
-      view.kind !== "cards"
-        ? []
-        : view.deckId
-          ? items.filter((item) => item.deckId === view.deckId)
-          : items.filter((item) => !item.deckId),
+    () => (view.kind === "cards" ? items.filter((item) => item.deckIds.includes(view.deckId)) : []),
     [view, items]
   );
   // A card that has left the list — removed here, or in another tab — simply
@@ -123,13 +110,12 @@ export function MemorizePage() {
   // remembered: the view names a card, and the card decides whether it is open.
   const studying = view.kind === "hide" ? items.find((item) => item.id === view.id) : undefined;
 
-  // The deck the open screen is about, or null for the main list. A deck that
-  // has just been deleted is not found, and the page falls back to the index
-  // rather than sitting on a screen with no name.
-  const openDeck = view.kind === "deck" && view.id ? decks.find((deck) => deck.id === view.id) : null;
-  const deckGone = view.kind === "deck" && !!view.id && !openDeck;
+  // The deck the open screen is about. A deck that has just been deleted is not
+  // found, and the page falls back to the index rather than sitting on a screen
+  // with no name.
+  const openDeck = view.kind === "deck" ? decks.find((deck) => deck.id === view.id) : undefined;
   const openId = view.kind === "deck" ? view.id : undefined;
-  const openCards = items.filter((item) => (openId ? item.deckId === openId : !item.deckId));
+  const openCards = items.filter((item) => (openId ? item.deckIds.includes(openId) : false));
 
   const openSheet = (deck: { deck: Deck; items: MemoryItem[] } | null) => {
     setEditing(deck);
@@ -149,11 +135,7 @@ export function MemorizePage() {
   useEffect(() => {
     const fromUrl = () => {
       const param = new URLSearchParams(window.location.search).get("deck");
-      setView(
-        param === null
-          ? { kind: "decks" }
-          : { kind: "deck", id: param === MAIN_LIST_PARAM ? undefined : param }
-      );
+      setView(param === null ? { kind: "decks" } : { kind: "deck", id: param });
     };
     fromUrl();
     window.addEventListener("popstate", fromUrl);
@@ -161,13 +143,9 @@ export function MemorizePage() {
   }, []);
 
   /** Open a deck, and put it in the address bar behind the index. */
-  const goToDeck = (id?: string) => {
+  const goToDeck = (id: string) => {
     setView({ kind: "deck", id });
-    window.history.pushState(
-      window.history.state,
-      "",
-      `/memorize/?deck=${encodeURIComponent(id ?? MAIN_LIST_PARAM)}`
-    );
+    window.history.pushState(window.history.state, "", `/memorize/?deck=${encodeURIComponent(id)}`);
   };
 
   /** The index, with the address bar put back to the page it actually is. */
@@ -188,6 +166,11 @@ export function MemorizePage() {
           read in, the citation after them and kept whole. */}
       <FeaturePage
         featureId="memorize"
+        // A subpage names itself: the deck, the card being learned, the run of
+        // flashcards. Repeating "Memorize" above it only pushes that name down
+        // the screen. The verse belongs to the index, which is what the tab
+        // leads to.
+        hideHeading={view.kind !== "decks"}
         subtitle={
           <span>
             <span className="font-serif italic text-foreground/85">
@@ -214,17 +197,17 @@ export function MemorizePage() {
           <Flashcards items={runItems} onClose={goToIndex} />
         ) : view.kind === "hide" && studying ? (
           <WordHiding item={studying} onClose={goToIndex} />
-        ) : view.kind === "deck" && !deckGone ? (
+        ) : view.kind === "deck" && openDeck ? (
           <DeckView
-            name={openDeck?.name ?? "Memory List"}
+            name={openDeck.name}
+            deckId={openDeck.id}
             cards={openCards}
             onStudy={(id) => setView({ kind: "hide", id })}
-            onRun={() => setView({ kind: "cards", deckId: openId })}
-            // The main list has nothing to rename, so only a named deck carries
-            // the way back into the sheet. It is here as well as on the index
+            onRun={() => setView({ kind: "cards", deckId: openDeck.id })}
+            // The way back into the sheet. It is here as well as on the index
             // because opening a deck is where the reader notices what is missing
             // from it.
-            onEdit={openDeck ? () => openSheet({ deck: openDeck, items: openCards }) : undefined}
+            onEdit={() => openSheet({ deck: openDeck, items: openCards })}
           />
         ) : (
           <DeckIndex
@@ -233,9 +216,8 @@ export function MemorizePage() {
             onOpen={goToDeck}
             onAdd={() => openSheet(null)}
             onEdit={(deck) =>
-              openSheet({ deck, items: items.filter((item) => item.deckId === deck.id) })
+              openSheet({ deck, items: items.filter((item) => item.deckIds.includes(deck.id)) })
             }
-            onClear={clearMemory}
           />
         )}
 
@@ -263,10 +245,10 @@ export function MemorizePage() {
 /**
  * The page: one card per deck.
  *
- * A deck is the unit here — a named group of cards, and the main list is the
- * group that never got a name. Each card says what the deck is called and how
- * many cards are in it, and carries its own edit and delete: the two things a
- * reader wants to do to a group from the outside. What is *inside* a deck is one
+ * A deck is the unit here — a named group of cards, and the only kind of group
+ * there is. Each card says what the deck is called and how many cards are in
+ * it, and carries its own edit and delete: the two things a reader wants to do
+ * to a group from the outside. What is *inside* a deck is one
  * tap away, on its own screen (`DeckView`), rather than spilling down this one —
  * a reader with three decks should be able to see all three at once.
  */
@@ -276,26 +258,21 @@ function DeckIndex({
   onOpen,
   onAdd,
   onEdit,
-  onClear,
 }: {
   items: MemoryItem[];
   decks: Deck[];
-  /** Open a deck, or the main list when there is no id. */
-  onOpen: (deckId?: string) => void;
+  onOpen: (deckId: string) => void;
   onAdd: () => void;
   onEdit: (deck: Deck) => void;
-  onClear: () => void;
 }) {
-  const main = items.filter((item) => !item.deckId);
-  const count = (deckId?: string) =>
-    deckId ? items.filter((item) => item.deckId === deckId).length : main.length;
+  const count = (deckId: string) => items.filter((item) => item.deckIds.includes(deckId)).length;
 
   return (
     <>
       <div className="memorize-page space-y-8">
         <AddCard onOpen={onAdd} />
 
-        {decks.length === 0 && main.length === 0 ? (
+        {decks.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border px-6 py-14 text-center">
             <span className="mx-auto block text-accent/40">
               <Glyph name="cards" className="mx-auto h-10 w-10" />
@@ -322,21 +299,6 @@ function DeckIndex({
                   deleteLabel={`Delete the deck ${deck.name} and its cards`}
                 />
               ))}
-
-              {/* The unnamed group, and the last card on the shelf: the passages
-                  that were taken on before decks existed, or without one. It is
-                  a deck like the others except that it cannot be renamed — there
-                  is nothing to call it — so it carries only the way to empty
-                  it. */}
-              {main.length > 0 && (
-                <DeckRow
-                  title="Memory List"
-                  count={main.length}
-                  onOpen={() => onOpen(undefined)}
-                  onDelete={onClear}
-                  deleteLabel="Clear every card in the memory list"
-                />
-              )}
             </ul>
           </section>
         )}
@@ -358,43 +320,46 @@ function DeckIndex({
  */
 function DeckView({
   name,
+  deckId,
   cards,
   onStudy,
   onRun,
   onEdit,
 }: {
   name: string;
+  /** The deck's own id, so a card can be taken out of this one and no other. */
+  deckId: string;
   cards: MemoryItem[];
   onStudy: (id: string) => void;
   onRun: () => void;
-  /** Rename the deck or change its cards; absent for the unnamed main list. */
-  onEdit?: () => void;
+  /** Rename the deck or change its cards. */
+  onEdit: () => void;
 }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <h3 className="font-serif text-2xl font-semibold text-foreground">{name}</h3>
+          {/* The page's heading now that the section's is gone, so it is set at
+              the size the page heading had. */}
+          <h3 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">{name}</h3>
           <p className="mt-0.5 text-sm text-muted">
             {cards.length} {cards.length === 1 ? "card" : "cards"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {onEdit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label={`Rename or edit the deck ${name}`}
-              title="Edit this deck"
-              // Quiet, but here with the run rather than behind a menu: a deck
-              // is opened to use it, and the thing that is wrong with it is
-              // usually seen from inside.
-              className={`${QUIET} px-3 py-2.5`}
-            >
-              <Glyph name="pencil" className="h-4 w-4" />
-              <span className="hidden sm:inline">Edit</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Rename or edit the deck ${name}`}
+            title="Edit this deck"
+            // Quiet, but here with the run rather than behind a menu: a deck
+            // is opened to use it, and the thing that is wrong with it is
+            // usually seen from inside.
+            className={`${QUIET} px-3 py-2.5`}
+          >
+            <Glyph name="pencil" className="h-4 w-4" />
+            <span className="hidden sm:inline">Edit</span>
+          </button>
           {cards.length > 0 && (
             <button type="button" onClick={onRun} className={PRIMARY}>
               <Glyph name="cards" className="h-4 w-4" />
@@ -411,7 +376,12 @@ function DeckView({
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {cards.map((item) => (
-            <MemoryCard key={item.id} item={item} onStudy={() => onStudy(item.id)} />
+            <MemoryCard
+              key={item.id}
+              item={item}
+              deckId={deckId}
+              onStudy={() => onStudy(item.id)}
+            />
           ))}
         </ul>
       )}
@@ -469,7 +439,7 @@ function DeckRow({
             onClick={onEdit}
             aria-label={editLabel}
             title="Edit this deck"
-            className="grid h-10 w-10 place-items-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+            className="grid h-10 w-10 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
           >
             <Glyph name="pencil" className="h-4 w-4" />
           </button>
@@ -479,7 +449,7 @@ function DeckRow({
           onClick={onDelete}
           aria-label={deleteLabel}
           title={deleteLabel}
-          className="grid h-10 w-10 place-items-center rounded-full border border-border bg-surface-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+          className="grid h-10 w-10 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
         >
           <Glyph name="trash" className="h-4 w-4" />
         </button>
@@ -510,10 +480,10 @@ function AddCard({ onOpen }: { onOpen: () => void }) {
       <span className="mt-3 flex items-center justify-between gap-3">
         <span className="min-w-0">
           <span className="block font-serif text-lg font-semibold text-foreground">
-            Add to your memory list
+            Make a deck
           </span>
           <span className="mt-0.5 block text-sm text-muted">
-            Draw a passage, take a favorite, or build a deck of your own.
+            Name a deck, then pick the passages that go in it.
           </span>
         </span>
         <span className="shrink-0 rounded-full border border-accent/50 bg-accent/10 p-2 text-accent-strong">
@@ -537,8 +507,8 @@ function AddFab({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      aria-label="Add to your memory list"
-      title="Add a passage or a deck"
+      aria-label="Make a deck"
+      title="Make a deck"
       className="memorize-add-fab fixed z-20 h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-contrast"
     >
       <Glyph name="plus" className="h-6 w-6" />
@@ -547,22 +517,55 @@ function AddFab({ onOpen }: { onOpen: () => void }) {
 }
 
 /** One passage on the list. */
-function MemoryCard({ item, onStudy }: { item: MemoryItem; onStudy: () => void }) {
+function MemoryCard({
+  item,
+  deckId,
+  onStudy,
+}: {
+  item: MemoryItem;
+  /** The deck it was opened in: removing it here leaves its other decks alone. */
+  deckId: string;
+  onStudy: () => void;
+}) {
   const total = itemWordCount(item);
+  /**
+   * The card's passage in the reader, with every verse (or paragraph) it holds
+   * marked there. Learning a passage by heart starts with reading it, and the
+   * card is a copy of words that live a chapter away.
+   */
+  const href = storedPassageHref({
+    kind: item.kind,
+    book: item.book,
+    chapter: item.chapter,
+    verses: item.parts.map((part) => part.number).filter((number) => number > 0),
+    url: item.url,
+  });
 
   return (
     <li className="flex flex-col rounded-3xl border border-border bg-surface p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h4 className="font-serif text-lg font-semibold text-accent-strong">{item.reference}</h4>
+          {/* The card's name opens the passage it was taken from, the same way
+              a reference does everywhere else in the app. */}
+          <h4 className="font-serif text-lg font-semibold text-accent-strong">
+            {href ? (
+              <Link href={href} className="hover:underline">
+                {item.reference}
+              </Link>
+            ) : (
+              item.reference
+            )}
+          </h4>
           <p className="mt-0.5 text-xs text-muted">{item.sourceLabel}</p>
         </div>
         <button
           type="button"
-          onClick={() => removeMemory(item.id)}
-          aria-label={`Remove ${item.reference} from your memory list`}
-          title="Remove from your memory list"
-          className="-mr-1 -mt-1 shrink-0 rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+          onClick={() => removeFromDeck(item.id, deckId)}
+          aria-label={`Remove ${item.reference} from this deck`}
+          title="Remove from this deck"
+          // A mark rather than a control in its own right: no face, no rim, no
+          // raised edge on the playful themes either. The bin is the button.
+          className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
         >
           <Glyph name="trash" className="h-4 w-4" />
         </button>
@@ -577,14 +580,25 @@ function MemoryCard({ item, onStudy }: { item: MemoryItem; onStudy: () => void }
           {reviewLine(item)}
           {item.hiddenLevel > 0 && ` · ${item.hiddenLevel} of ${total} words hidden`}
         </p>
-        <button
-          type="button"
-          onClick={onStudy}
-          className="inline-flex items-center gap-1.5 rounded-full border border-accent/50 bg-accent/10 px-3.5 py-1.5 text-sm font-semibold text-accent-strong transition-colors hover:bg-accent/20"
-        >
-          Study
-          <Glyph name="arrow" className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-4">
+          {href && (
+            <Link
+              href={href}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-strong hover:underline"
+            >
+              <Glyph name="book" className="h-4 w-4" />
+              Read
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={onStudy}
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent/50 bg-accent/10 px-3.5 py-1.5 text-sm font-semibold text-accent-strong transition-colors hover:bg-accent/20"
+          >
+            Study
+            <Glyph name="arrow" className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </li>
   );

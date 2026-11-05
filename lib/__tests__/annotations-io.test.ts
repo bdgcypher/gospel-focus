@@ -140,7 +140,7 @@ describe("browseIndex", () => {
   const volumes = browseIndex(manifest as unknown as Manifest);
 
   it("lists the standard works in the manifest's own order", () => {
-    expect(volumes.map((volume) => volume.id)).toEqual(["bom", "dc", "pgp", "nt", "ot"]);
+    expect(volumes.map((volume) => volume.id)).toEqual(["ot", "nt", "bom", "dc", "pgp"]);
   });
 
   it("gives every book at least one chapter", () => {

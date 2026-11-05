@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { Glyph } from "./glyph";
 import { OpenBookLogo } from "./logo";
 import { StatusTray } from "./status-tray";
@@ -38,9 +39,72 @@ interface Props {
  */
 export function AppHeader({ onOpenMenu }: Props) {
   const pathname = usePathname();
+  // The reader is the one page where the bar is not furniture: a reader deep in
+  // a chapter wants the width and the height for the words, so the bar leaves as
+  // they go down and returns the moment they come back up. Everywhere else it
+  // stays where it has always been.
+  const reading = /^\/read\/?$/.test(pathname);
+  const header = useRef<HTMLElement>(null);
+
+  // The height is measured rather than guessed: the rail and the chapter's own
+  // bar both park under this one, and they have to park under *this* bar at
+  // whatever size the reader's text and the safe area have made it.
+  useEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      const node = header.current;
+      if (node) root.style.setProperty("--app-header-height", `${node.offsetHeight}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (header.current) observer.observe(header.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Down the page the bar is away; up the page it is back. The flag lives on the
+  // document so the reader's rail and chapter bar, which are a page's own
+  // markup, can follow it in the stylesheet (see "The reader's chrome" in
+  // globals.css) without a second copy of the scroll position in React.
+  useEffect(() => {
+    const root = document.documentElement;
+    const show = () => {
+      delete root.dataset.chrome;
+    };
+    if (!reading) {
+      show();
+      return;
+    }
+    let last = window.scrollY;
+    let frame = 0;
+    const settle = () => {
+      frame = 0;
+      const y = window.scrollY;
+      const height = header.current?.offsetHeight ?? 56;
+      // The bar has nowhere to hide until it is past its own height, and the top
+      // of a chapter is always the bar's own place. The threshold keeps a
+      // jittery thumb or a trackpad's momentum from flickering it.
+      if (y <= height) show();
+      else if (y > last + 6) root.dataset.chrome = "away";
+      else if (y < last - 6) show();
+      last = y;
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(settle);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+      show();
+    };
+  }, [reading]);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border/70 bg-background/80 backdrop-blur">
+    <header
+      ref={header}
+      className="app-header sticky top-0 z-20 border-b border-border/70 bg-background/80 backdrop-blur"
+    >
       <div className="app-header-row mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:max-w-5xl sm:px-6">
         {/* The mark and the name together are the way home from any page. On a
             phone the link is only as wide as the mark; where the top bar is on

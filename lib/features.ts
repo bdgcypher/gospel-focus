@@ -33,6 +33,7 @@ export type IconName =
   | "journal"
   | "widget"
   | "bookmark"
+  | "star"
   | "gear"
   | "chart"
   | "flame";
@@ -127,6 +128,8 @@ export const FEATURES: Feature[] = [
       "Every chapter and general conference talk, with the one before and after at the edge",
       "Highlight or underline any run of words — yellow, red, green, blue and more",
       "A note or a link on a mark, opened by the mark itself",
+      "A handle on each end of a mark — or of words just selected — to drag it a word at a time, in a target a thumb can find",
+      "Double tap the words to read without the app's bars, and double tap again to bring them back",
       "Marks kept per word, in Gospel Library's own shape, so they import and export cleanly",
       "Marks list for the chapter, and a jump straight to any verse",
     ],
@@ -137,7 +140,10 @@ export const FEATURES: Feature[] = [
     href: "/passage",
     title: "Random Passage",
     blurb: "One tap draws a verse or a conference paragraph",
-    icon: "book",
+    // The draw's own mark rather than a book: a passage that turns up is a
+    // sparkle, and the book beside "Library" already says which shelf it came
+    // from. It is also the glyph every "New passage" button carries.
+    icon: "sparkles",
     status: "ready",
     capabilities: [
       "Draws from the standard works, general conference, or any mix of books",
@@ -192,7 +198,7 @@ export const FEATURES: Feature[] = [
       "Word hiding: step a passage's words out of sight one at a time, from the top or scattered",
       "Flashcards: two-sided cards — the citation and the words — started on whichever face you choose",
       "Recalling the words from the citation, or the citation from the words, with first letters as the hint",
-      "Your memory list, filled from a draw, today's verse, or several saved passages at once",
+      "Decks of your own, filled from a draw, today's verse, or several saved passages at once",
       "Every recitation logged with the day it happened",
     ],
   },
@@ -297,8 +303,8 @@ export const FEATURES: Feature[] = [
     group: "shelf",
     href: "/favorites",
     title: "Favorites",
-    blurb: "Every passage you have bookmarked",
-    icon: "bookmark",
+    blurb: "Every passage you have starred",
+    icon: "star",
     status: "ready",
     capabilities: [
       "Bookmark any passage, or a whole run of verses",
@@ -333,7 +339,7 @@ export const FEATURES: Feature[] = [
     status: "ready",
     capabilities: [
       "The current run of days, the best one, and every day counted",
-      "Passages read, daily word puzzles solved, flashcards recited, and passages bookmarked",
+      "Passages read, daily word puzzles solved, flashcards recited, and passages starred",
       "Minutes studied today against the daily goal, and the days it was met",
     ],
   },

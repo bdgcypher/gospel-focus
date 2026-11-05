@@ -241,11 +241,11 @@ function StatusChip({
       href={href}
       title={title}
       aria-label={`${label}: ${title}`}
-      // Semibold rather than the ordinary weight: these are three readings at
-      // the top of every page, sized small enough to sit in the bar, and at 12px
-      // the regular weight faded into the header behind them. The playful skin
-      // sets them in Nunito, whose round bowls carry the extra weight without
-      // the line looking bolder than the page — a chip that reads clearly at a
+      // Bold rather than the ordinary weight: these are three readings at the
+      // top of every page, sized small enough to sit in the bar, and at 12px the
+      // regular weight faded into the header behind them. The playful skin sets
+      // them in Nunito, whose round bowls carry the extra weight without the
+      // line looking bolder than the page — a chip that reads clearly at a
       // glance rather than one that competes with the wordmark beside it.
       className={`group relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-semibold transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-strong focus-visible:border-accent/40 focus-visible:bg-accent/10 focus-visible:text-accent-strong ${
         ink ? `status-ink-${ink} ` : ""
@@ -265,7 +265,17 @@ function StatusChip({
               className={`h-4 w-4${tone === "dim" ? " opacity-60 grayscale" : ""}`}
             />
           )}
-          {text && <span className="tabular-nums">{text}</span>}
+          {/* The reading is shifted down by the gap between the top of a
+              digit's em box and the top of the digit itself. A line box puts
+              more room above the cap than below the baseline (the space a
+              descender would use), so a flex row that centres the boxes leaves
+              the ink of a number sitting about 0.19em high — beside a mark,
+              the number reads as floating rather than as centred on it. The
+              emoji and the drawn marks have no descender either, so both are
+              unaffected and the pair lines up. */}
+          {text && (
+            <span className="translate-y-[0.19em] font-bold tabular-nums">{text}</span>
+          )}
         </span>
         {progress !== undefined && (
           <span

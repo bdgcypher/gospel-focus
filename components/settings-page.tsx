@@ -446,12 +446,17 @@ export function SettingsPage() {
   return (
     <AppShell>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
-        {/* The page's padding is the whole of the gap under the app bar. */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 max-w-2xl">
-            <h2 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">Settings</h2>
-          </div>
+        {/* The way back on its own line, the title under it starting at the
+            page's left edge — the shape every page header in the app takes, as
+            components/feature-page.tsx sets it out. The arrow's box is drawn
+            10px left and 8px up so its drawing, not its invisible edge, is what
+            sits at the top left corner, and 24px of air separate it from the
+            heading below. */}
+        <div className="-ml-2.5 -mt-2 flex">
           <BackLink />
+        </div>
+        <div className="min-w-0 max-w-2xl">
+          <h2 className="mt-6 font-serif text-2xl font-semibold text-foreground sm:text-3xl">Settings</h2>
         </div>
 
         {/* Full column width, like the rest of the app's cards: the sections

@@ -21,7 +21,10 @@ export type GlyphName =
   | "lock-open"
   | "pencil"
   | "menu"
+  | "more"
+  | "grip"
   | "close"
+  | "contents"
   | "link"
   | "copy"
   | "return"
@@ -203,6 +206,14 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   minus: "➖",
   pencil: "✏️",
   menu: null,
+  // A column of dots is a shape, not a picture: like the menu's three rules it
+  // stays drawn in both styles.
+  more: null,
+  // The dots a list is dragged by, in the same hand and for the same reason.
+  grip: null,
+  // The table of contents is a control: three dotted lines read as a list in
+  // every skin, where an emoji would read as a notebook or a page.
+  contents: null,
   clock: "⏰",
   close: null,
   trash: "🗑️",
@@ -424,6 +435,16 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
     </>
   ),
   check: <path d="m5.5 12.6 4.4 4.4 8.6-9.5" />,
+  // Three rows of a contents list: a dot for the entry, a rule for its name.
+  // The dots are zero-length paths, so the round cap draws them at the same
+  // weight as the rules rather than as a separate filled circle.
+  contents: (
+    <>
+      <path d="M4.8 6.4h.01M8.4 6.4h10.8" />
+      <path d="M4.8 12h.01M8.4 12h10.8" />
+      <path d="M4.8 17.6h.01M8.4 17.6h10.8" />
+    </>
+  ),
   arrow: (
     <>
       <path d="M5 12h13.5" />
@@ -501,6 +522,30 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
   // the same hand as the rest, so the header button and the bar's last tab are
   // recognisably the same control (see app-header.tsx and nav-bar.tsx).
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  // The same three marks stood on end, for the one control on a card that opens
+  // its other controls rather than doing a job of its own (the passage card's
+  // menu). Vertical because it sits in the card's corner, where a row of rules
+  // would read as the menu button in the header.
+  more: (
+    <>
+      <circle cx="12" cy="5.4" r="1.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="18.6" r="1.9" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // Two columns of dots: the handle a list is dragged by (the chain of links on
+  // a mark, the bookmarks in their sheet). Drawn rather than typed, and filled
+  // rather than stroked, so it reads as a grip rather than as a word.
+  grip: (
+    <>
+      <circle cx="9" cy="6.4" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="6.4" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="17.6" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="17.6" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="8.4" />

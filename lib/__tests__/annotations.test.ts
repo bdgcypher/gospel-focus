@@ -246,7 +246,7 @@ describe("searchMarks", () => {
     mark({ id: "alma-seed", doc: "bom/alma/32", verse: 28, note: "<p>Experiment on the seed.</p>" }),
     mark({ id: "jer", doc: "ot/jer/3", book: "Jeremiah", chapter: "3", verse: 15, note: "<p>Pastors after mine own heart.</p>" }),
     mark({ id: "jer5", doc: "ot/jer/5", book: "Jeremiah", chapter: "5", note: "<p>Their faces are harder than a rock.</p>" }),
-    mark({ id: "link", doc: "bom/1-ne/3", book: "1 Nephi", chapter: "3", verse: 7, note: "<p>I will go.</p>", link: { book: "1 Nephi", chapter: "3", section: 7, label: "1 Nephi 3:7" } }),
+    mark({ id: "link", doc: "bom/1-ne/3", book: "1 Nephi", chapter: "3", verse: 7, note: "<p>I will go.</p>", links: [{ book: "1 Nephi", chapter: "3", section: 7, label: "1 Nephi 3:7" }] }),
   ];
 
   it("returns everything for an empty query", () => {

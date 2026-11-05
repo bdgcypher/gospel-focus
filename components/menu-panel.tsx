@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
-import { BookmarkIcon } from "./bookmark-icon";
 import { Glyph } from "./glyph";
+import { StarIcon } from "./star-icon";
 import { useFavorites } from "@/lib/favorites";
 import { featureById } from "@/lib/features";
 
@@ -22,7 +22,6 @@ export function MenuPanel({ open, onClose }: Props) {
   const streak = featureById("streak");
   const journal = featureById("journal");
   const marks = featureById("marks");
-  const reader = featureById("reader");
 
   // Escape closes the pane, like any other dialog.
   useEffect(() => {
@@ -65,7 +64,7 @@ export function MenuPanel({ open, onClose }: Props) {
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+                className="grid h-9 w-9 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
               >
                 <CloseIcon />
               </button>
@@ -74,24 +73,18 @@ export function MenuPanel({ open, onClose }: Props) {
             {/* Top to bottom: the reader's own shelf first (what they saved
                 and what they wrote), then the run those readings build, then
                 the two places that spend and explain it, and settings last as
-                the least frequented door. */}
+                the least frequented door.
+
+                The library itself is not here: reading starts from the Study
+                page's own cards, and a menu that also kept a copy of the way in
+                would be a second door to the same room (components/study-page.tsx). */}
             <nav className="space-y-2 px-5 py-4">
-              {/* The reader leads, because it is where the last visit left
-                  off: the chapter is remembered (see lib/reader.ts's caller),
-                  so this is "keep reading" more than "go somewhere new". */}
-              <MenuLink
-                href={reader?.href ?? "/read"}
-                onClick={onClose}
-                icon={<Glyph name={reader?.icon ?? "book"} />}
-                label={reader?.title ?? "Reader"}
-                hint="Keep reading, and mark the words that matter"
-              />
               <MenuLink
                 href="/favorites"
                 onClick={onClose}
-                // The bookmark is only filled in once something is saved, so
-                // the menu itself says whether the shelf is empty.
-                icon={<BookmarkIcon filled={favorites.length > 0} />}
+                // The star is only filled in once something is saved, so the
+                // menu itself says whether the shelf is empty.
+                icon={<StarIcon filled={favorites.length > 0} />}
                 label="Favorites"
                 hint={
                   favorites.length === 0

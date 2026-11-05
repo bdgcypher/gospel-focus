@@ -10,7 +10,6 @@ import {
   itemFromFavorite,
   itemFromPassage,
   updateDeck,
-  useMemory,
   type Deck,
   type MemoryItem,
 } from "@/lib/memorize";
@@ -72,7 +71,6 @@ type Step = "menu" | "custom";
 
 export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
   const favorites = useFavorites();
-  const memory = useMemory();
   const prefs = usePreferences();
 
   const [step, setStep] = useState<Step>(deck ? "custom" : "menu");
@@ -126,13 +124,11 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, step, close]);
 
-  // Everything the reader already has, so the builder offers only what would be
-  // new. A passage is one card wherever it lives, so a verse on the main list is
-  // not on offer for a deck either — except for the cards this deck already
-  // holds: those are the draft, and a card taken back out of it has to become
-  // available again.
+  // What is already in this deck, so the builder offers only what would be new
+  // here. A passage is one card wherever it lives, and one card can sit in
+  // several decks: a verse another deck holds is still welcome in this one, so
+  // only the cards already on this shelf are out of the search.
   const taken = new Set([
-    ...memory.filter((item) => !deck || item.deckId !== deck.id).map((item) => item.id),
     ...draft.map((item) => item.id),
   ]);
   const availableFavorites = favorites.filter((favorite) => !taken.has(favorite.id));
@@ -208,8 +204,12 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
    * recitation is logged against.
    */
   const setRun = (item: MemoryItem, chapter: Passage, numbers: number[]) => {
-    const rebuilt = itemFromPassage(chapter, item.deckId, numbers);
-    setDraft((previous) => previous.map((entry) => (entry.id === item.id ? { ...rebuilt, id: entry.id } : entry)));
+    const rebuilt = itemFromPassage(chapter, undefined, numbers);
+    setDraft((previous) =>
+      previous.map((entry) =>
+        entry.id === item.id ? { ...rebuilt, id: entry.id, deckIds: entry.deckIds } : entry
+      )
+    );
   };
 
   const draw = async (kind: "daily" | "draw") => {
@@ -322,7 +322,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl"
+            className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl"
           >
             <header className="flex items-center gap-3 border-b border-border/70 px-5 py-4">
               {step === "custom" && !deck && (
@@ -330,7 +330,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                   type="button"
                   onClick={() => setStep("menu")}
                   aria-label="Back"
-                  className="-ml-1 rounded-full border border-border bg-surface-2 p-1.5 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+                  className="-ml-1 grid h-8 w-8 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
                 >
                   <Glyph name="arrow" className="h-4 w-4 rotate-180" />
                 </button>
@@ -339,7 +339,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                 id="add-memorize-title"
                 className="min-w-0 flex-1 font-serif text-lg font-semibold text-foreground"
               >
-                {deck ? "Edit Deck" : step === "custom" ? "Custom Deck" : "Add to Memorize"}
+                Memorize
               </h2>
               {/* A plain cross rather than a raised control: it is the sheet's
                   way out, not one of the things the sheet is for, and a 3D
@@ -349,7 +349,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="rounded-full p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+                className="grid h-8 w-8 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
               >
                 <Glyph name="close" className="h-4 w-4" />
               </button>
@@ -359,7 +359,6 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
               {step === "menu" ? (
                 <div className="space-y-2.5">
                   <ChoiceRow
-                    icon="cards"
                     title="Custom Deck"
                     hint="Name a deck, then choose the passages in it."
                     onClick={() => setStep("custom")}
@@ -368,7 +367,6 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                       shelf. Disabled rather than hidden: the second way to get
                       decks is worth knowing about before it exists. */}
                   <ChoiceRow
-                    icon="star"
                     title="Buy Decks"
                     hint="Ready-made decks of passages to memorize."
                     badge="Soon"
@@ -495,7 +493,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                         onClick={() => setFavoritesOpen((open) => !open)}
                         className={QUIET}
                       >
-                        <Glyph name="bookmark" className="h-4 w-4" />
+                        <Glyph name="star" className="h-4 w-4" />
                         From favorites
                         {availableFavorites.length > 0 && (
                           <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-accent-strong">
@@ -634,7 +632,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                                   setDraft((previous) => previous.filter((entry) => entry.id !== item.id))
                                 }
                                 aria-label={`Remove ${item.reference} from this deck`}
-                                className="shrink-0 rounded-full border border-border bg-surface-2 p-1.5 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
                               >
                                 <Glyph name="close" className="h-3.5 w-3.5" />
                               </button>
@@ -657,7 +655,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-cta px-5 py-2.5 text-sm font-semibold text-cta-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Glyph name="check" className="h-4 w-4" />
-                  {deck ? "Save changes" : "Save deck"}
+                  Save
                 </button>
                 {(!name.trim() || draft.length === 0) && (
                   <p className="mt-2 text-center text-xs text-muted">
@@ -688,43 +686,41 @@ const STEP =
  * knows the shelf is planned.
  */
 function ChoiceRow({
-  icon,
   title,
   hint,
   onClick,
   disabled = false,
   badge,
 }: {
-  icon: "cards" | "star";
   title: string;
   hint: string;
   onClick?: () => void;
   disabled?: boolean;
   badge?: string;
 }) {
+  // The same row as the deck picker's: the words on the left, one circled mark
+  // on the right. No leading tile — the sheet is a list of things to choose,
+  // and a picture beside each one competed with the name it was naming.
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3.5 text-left transition-colors enabled:hover:border-accent/50 enabled:hover:bg-accent/5 disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors enabled:hover:border-accent/50 enabled:hover:bg-accent/5 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-surface-2 text-accent-strong">
-        <Glyph name={icon} className="h-5 w-5" />
-      </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className="font-serif text-sm font-semibold text-foreground">{title}</span>
+          <span className="truncate font-serif text-sm font-semibold text-foreground">{title}</span>
           {badge && (
             <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent-strong">
               {badge}
             </span>
           )}
         </span>
-        <span className="mt-0.5 block text-xs text-muted">{hint}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted">{hint}</span>
       </span>
-      <span className="shrink-0 text-muted">
-        <Glyph name="arrow" className="h-4 w-4" />
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border text-muted">
+        <Glyph name="plus" className="h-3.5 w-3.5" />
       </span>
     </button>
   );

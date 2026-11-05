@@ -10,8 +10,7 @@
  * the picker already caches (`loadVolumeData`), so opening a chapter from a
  * search result costs no more than the search result itself did.
  */
-import { loadConferenceData, loadManifest, loadVolumeData, resolveCitation } from "./picker";
-import type { AnnotationLink } from "./annotations";
+import { loadConferenceData, loadManifest, loadVolumeData } from "./picker";
 import type { Manifest, Passage } from "./types";
 
 export interface ReaderVerse {
@@ -63,8 +62,70 @@ export interface ReaderCitation {
 
 const normalise = (value: string) => value.trim().toLowerCase();
 
-/** The reader's address for a place in the library. */
-export function readerHref(citation: ReaderCitation & { verse?: number }): string {
+/**
+ * The verses (or paragraphs) named by one value: `15`, `3-4`, or a run of them
+ * — `3-4; 6`, `3, 4, 6`, `3–4 6`. Sorted, de-duplicated, and empty when the
+ * value names nothing the reader can open.
+ *
+ * The same grammar a citation is written in, so a link can carry a whole study
+ * range rather than one verse of it. A backwards range (`6-3`) reads as the
+ * range it obviously means, and an absurd one is dropped rather than walked.
+ */
+export function parseVerseList(value: string | null | undefined): number[] {
+  if (!value) return [];
+  const found = new Set<number>();
+
+  for (const token of value.split(/[,;\s]+/)) {
+    if (!token) continue;
+    const range = /^(\d+)\s*[-–—]\s*(\d+)$/.exec(token);
+    if (range) {
+      const from = Number(range[1]);
+      const to = Number(range[2]);
+      if (from < 1 || to < 1) continue;
+      // A chapter runs to about a hundred verses; anything past this is a typo.
+      if (Math.abs(to - from) > 999) continue;
+      for (let n = Math.min(from, to); n <= Math.max(from, to); n += 1) found.add(n);
+      continue;
+    }
+    if (/^\d+$/.test(token)) {
+      const number = Number(token);
+      if (number > 0) found.add(number);
+    }
+  }
+
+  return [...found].sort((a, b) => a - b);
+}
+
+/**
+ * A verse list written back the way `parseVerseList` reads it: consecutive
+ * numbers squeezed into a range, the rest listed apart (`3-4,6`).
+ */
+export function formatVerseList(verses: number[]): string {
+  const sorted = [...new Set(verses.filter((n) => Number.isInteger(n) && n > 0))].sort(
+    (a, b) => a - b
+  );
+  const parts: string[] = [];
+  for (let i = 0; i < sorted.length; ) {
+    let end = i;
+    while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) end += 1;
+    const from = sorted[i];
+    const to = sorted[end];
+    parts.push(from === to ? String(from) : `${from}-${to}`);
+    i = end + 1;
+  }
+  return parts.join(",");
+}
+
+/**
+ * The reader's address for a place in the library.
+ *
+ * `verses` names a series to open and mark (a range, a scattered pick); `verse`
+ * is the single place every shorter link writes, and the two are not meant to
+ * be given together — a list wins.
+ */
+export function readerHref(
+  citation: ReaderCitation & { verse?: number; verses?: number[] }
+): string {
   const params = new URLSearchParams();
   if (citation.kind === "conference") {
     params.set("kind", "conference");
@@ -72,8 +133,53 @@ export function readerHref(citation: ReaderCitation & { verse?: number }): strin
   }
   params.set("book", citation.book);
   params.set("chapter", citation.chapter);
-  if (citation.verse && citation.verse > 0) params.set("verse", String(citation.verse));
+
+  const list = citation.verses?.length
+    ? citation.verses
+    : citation.verse && citation.verse > 0
+      ? [citation.verse]
+      : [];
+  if (list.length) params.set("verse", formatVerseList(list));
   return `/read?${params.toString()}`;
+}
+
+/** The conference a talk's Gospel Library address belongs to, as `2015-04`. */
+function sessionOf(url: string): string | undefined {
+  const match = /\/general-conference\/(\d{4})\/(\d{1,2})\//.exec(url);
+  return match ? `${match[1]}-${match[2].padStart(2, "0")}` : undefined;
+}
+
+/**
+ * The reader's address for a passage the app has already stored — a favorite or
+ * a memory card — built from what that record keeps rather than from a live
+ * draw.
+ *
+ * It holds the book and chapter (or the talk's title), the verses (or
+ * paragraphs) it covers, and the Gospel Library page it was saved from: a
+ * conference talk's session is only written in that URL, and two conferences can
+ * print the same title. A record with no place to open — an imported favorite
+ * whose row named no chapter — gets null, and its card stays a card.
+ */
+export function storedPassageHref(stored: {
+  kind: ReaderCitation["kind"];
+  book?: string;
+  chapter?: string;
+  /** Every verse, or paragraph, the record covers. */
+  verses?: number[];
+  /** The single verse, or paragraph, it opens at — when there is only one. */
+  verse?: number;
+  /** The Gospel Library page the passage was saved from. */
+  url?: string;
+}): string | null {
+  if (!stored.book || !stored.chapter) return null;
+  return readerHref({
+    kind: stored.kind,
+    book: stored.book,
+    chapter: stored.chapter,
+    conferenceId: stored.kind === "conference" ? sessionOf(stored.url ?? "") : undefined,
+    verses: stored.verses,
+    verse: stored.verse,
+  });
 }
 
 /**
@@ -208,18 +314,35 @@ export interface BrowseVolume {
 }
 
 /**
+ * The standard works, in the order the app presents them: the Bible first, in
+ * its two testaments, then the restored scriptures in the order the Church
+ * publishes them. The manifest is keyed by volume name rather than in reading
+ * order, so every list sorts through this — the reader's menus and rail, the
+ * filters, the picker.
+ */
+export const VOLUME_ORDER = ["ot", "nt", "bom", "dc", "pgp"] as const;
+
+/** Where a volume sits in that order; unknown volumes go last. */
+export function volumeRank(id: string): number {
+  const index = VOLUME_ORDER.indexOf(id as (typeof VOLUME_ORDER)[number]);
+  return index < 0 ? VOLUME_ORDER.length : index;
+}
+
+/**
  * The standard works as a browsing tree.
  *
- * Built from the manifest alone, because the manifest already carries what a
- * browse screen needs — every volume, every book, and how many chapters each
+ * Built from the manifest alone, because the manifest already carries what the
+ * reader's menus need — every volume, every book, and how many chapters each
  * book holds. Opening a chapter is what loads the chapter itself
  * (`openReaderDoc`), so the index costs no fetch of its own and works before a
  * single verse has been read. A volume with no books in this build is dropped
- * rather than shown empty.
+ * rather than shown empty, and the rest are put in the app's reading order
+ * (see `VOLUME_ORDER`) whatever order the manifest arrives in.
  */
 export function browseIndex(manifest: Manifest): BrowseVolume[] {
   return manifest.volumes
     .filter((volume) => volume.books.length > 0)
+    .sort((a, b) => volumeRank(a.id) - volumeRank(b.id))
     .map((volume) => ({
       id: volume.id,
       title: volume.title,
@@ -230,27 +353,6 @@ export function browseIndex(manifest: Manifest): BrowseVolume[] {
         chapters: book.chapters,
       })),
     }));
-}
-
-/**
- * A typed reference ("Alma 32:21") as a link target, or null when it isn't one.
- *
- * The book may be a name or a slug, and a chapter without a verse points at the
- * chapter's first verse. Talks are not offered here: their titles are not
- * references a reader types, and the citation box is for scripture chains.
- */
-export async function resolveReference(value: string): Promise<AnnotationLink | null> {
-  const match = /^(.+?)\s+(\d+)(?::\s*(\d+))?$/.exec(value.trim());
-  if (!match) return null;
-  const section = match[3] ? Number(match[3]) : 1;
-  const passage = await resolveCitation("scripture", match[1], match[2], section);
-  if (!passage?.book || !passage.chapter) return null;
-  return {
-    book: passage.book,
-    chapter: passage.chapter,
-    section: passage.section ?? 1,
-    label: passage.reference,
-  };
 }
 
 /**

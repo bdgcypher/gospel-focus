@@ -164,11 +164,13 @@ export async function toGospelLibrary(annotations: Annotation[]): Promise<Gospel
 
     const note = annotation.note?.trim() ? annotation.note : undefined;
     const links: string[] = [];
-    if (annotation.link) {
-      const key = `${annotation.link.book}/${annotation.link.chapter}/${annotation.link.section}`;
-      if (!linkCache.has(key)) linkCache.set(key, await linkUri(annotation.link));
+    for (const link of annotation.links ?? []) {
+      const key = `${link.book}/${link.chapter}/${link.section}`;
+      if (!linkCache.has(key)) linkCache.set(key, await linkUri(link));
       const uri = linkCache.get(key);
-      if (uri) links.push(uri);
+      // A mark's chain of links is a chain in Gospel Library too: `links` is an
+      // array there, and every entry of it is kept.
+      if (uri && !links.includes(uri)) links.push(uri);
     }
 
     records.push({
@@ -534,7 +536,7 @@ export async function importAnnotationsText(source: string): Promise<AnnotationI
       color,
       style,
       note,
-      link: links[0],
+      links: links.length ? links : undefined,
       tags: (() => {
         const tags = pick(record, ["tags", "labels"]);
         return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === "string") : [];

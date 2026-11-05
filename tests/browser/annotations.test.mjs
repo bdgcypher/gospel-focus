@@ -121,7 +121,7 @@ export async function run({ page, check, base }) {
     const style = getComputedStyle([...document.querySelectorAll('[data-verse="3"]')][0]);
     return [style.textDecorationLine, style.textDecorationColor];
   })()`);
-  check("the underline is still where it was drawn", kept[0].includes("underline") && kept[1] === "rgb(165, 31, 24)", kept.join(" "));
+  check("the underline is still where it was drawn", kept[0].includes("underline") && kept[1] === "rgb(204, 90, 80)", kept.join(" "));
 
   // --- a file that isn't an export ---------------------------------------
   await page.goto(`${base}/settings/`, 2400);

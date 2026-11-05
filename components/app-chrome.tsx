@@ -12,6 +12,7 @@ import { ReminderSync } from "./reminder-sync";
 import { StreakTracker } from "./streak-tracker";
 import { StudyTracker } from "./study-tracker";
 import { WidgetPrompt } from "./widget-prompt";
+import { useImmersive } from "@/lib/immersive";
 import { setPageDirection } from "@/lib/page-motion";
 
 /**
@@ -31,6 +32,10 @@ import { setPageDirection } from "@/lib/page-motion";
  */
 export function AppChrome({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // The reader can ask for the bars to go while it has the reader's whole
+  // attention (see lib/immersive.ts). The stylesheet does the hiding, because
+  // both bars live in here and the page that asked lives in `children`.
+  const immersive = useImmersive();
 
   // The back and forward buttons take the reader through the history rather
   // than along the bar, and a history step is a step back by definition. A
@@ -56,7 +61,10 @@ export function AppChrome({ children }: { children: ReactNode }) {
     // strip lands where the page ends, which is the only place it can do its
     // job. Short pages are unchanged: the shell still fills the viewport and
     // the footer still rides at the foot of the screen.
-    <div className="app-shell-content flex min-h-full grow shrink-0 basis-auto flex-col">
+    <div
+      data-immersive={immersive ? "true" : undefined}
+      className="app-shell-content flex min-h-full grow shrink-0 basis-auto flex-col"
+    >
       <AppHeader onOpenMenu={() => setMenuOpen(true)} />
 
       {children}

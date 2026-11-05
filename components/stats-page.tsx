@@ -134,8 +134,8 @@ export function StatsPage() {
           value={String(memorized)}
           hint={
             memory.length === 0
-              ? "Nothing in your memory list yet."
-              : `${memory.length} in your list · ${recitations} ${
+              ? "No cards in your decks yet."
+              : `${memory.length} ${memory.length === 1 ? "card" : "cards"} · ${recitations} ${
                   recitations === 1 ? "recitation" : "recitations"
                 }`
           }

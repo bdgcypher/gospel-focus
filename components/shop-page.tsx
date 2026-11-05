@@ -42,7 +42,6 @@ export function ShopPage() {
     <FeaturePage
       title="Shop"
       subtitle=""
-      icon="gem"
       status="ready"
       contentClassName="mt-6 space-y-8"
     >

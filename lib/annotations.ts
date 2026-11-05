@@ -144,7 +144,16 @@ export function readRecentChoices(): MarkChoice[] {
 export interface AnnotationLink {
   book: string;
   chapter: string;
+  /** The first verse (or paragraph) the link covers. */
   section: number;
+  /**
+   * Every verse the link covers, when it names a range or a scattered pick.
+   *
+   * Kept beside `section` rather than replacing it: `section` is what the older
+   * links — and every exported one — already say, and a single-verse link is
+   * still a single verse. A link made from the picker sets both.
+   */
+  sections?: number[];
   conferenceId?: string;
   label: string;
 }
@@ -165,7 +174,20 @@ export interface Annotation {
   style: MarkStyle;
   /** What the reader wrote, as sanitized HTML (see lib/journal.ts). */
   note?: string;
-  link?: AnnotationLink;
+  /**
+   * An optional name for the note, shown as its heading in the lists. It stays
+   * on the mark, so it travels with the words it belongs to.
+   */
+  title?: string;
+  /**
+   * The passages this mark points at, in the order they were added.
+   *
+   * A mark can carry a chain of them — the verse it was marked on and the talk
+   * that quotes it, an old reading and a newer one — and the reader's one link
+   * indicator lists them all. Older records carry a single `link` instead, which
+   * `parseLink` lifts into this list as they are read.
+   */
+  links?: AnnotationLink[];
   tags: string[];
   /** Marks made in one gesture across several verses share this. */
   groupId?: string;
@@ -190,12 +212,50 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * A stored link, checked enough to trust: it needs a place to point at, and its
+ * verse list — when it has one — comes back as the positive numbers it was
+ * written with. A link saved before the list existed has none, and stays the
+ * single verse its `section` names.
+ */
+function parseLink(value: Partial<AnnotationLink>): AnnotationLink | null {
+  if (typeof value.book !== "string" || !value.book) return null;
+  const section = Number(value.section);
+  const sections = Array.isArray(value.sections)
+    ? [
+        ...new Set(
+          value.sections
+            .map((n) => Number(n))
+            .filter((n) => Number.isInteger(n) && n > 0)
+        ),
+      ].sort((a, b) => a - b)
+    : [];
+  return {
+    book: value.book,
+    chapter: typeof value.chapter === "string" ? value.chapter : "",
+    section: Number.isInteger(section) && section > 0 ? section : (sections[0] ?? 1),
+    sections: sections.length ? sections : undefined,
+    conferenceId: typeof value.conferenceId === "string" ? value.conferenceId : undefined,
+    label: typeof value.label === "string" && value.label ? value.label : value.book,
+  };
+}
+
 function parse(value: unknown): Annotation[] | null {
   if (!Array.isArray(value)) return null;
   const out: Annotation[] = [];
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
-    const a = entry as Partial<Annotation>;
+    const a = entry as Partial<Annotation> & { link?: Partial<AnnotationLink> };
+    // A record written before a mark could hold more than one link says so with
+    // a single `link`; it becomes the first of the list, which is the one link
+    // it had.
+    const links = (Array.isArray(a.links) ? a.links : [])
+      .map((item) => (item && typeof item === "object" ? parseLink(item) : null))
+      .filter((item): item is AnnotationLink => item !== null);
+    if (!links.length && a.link && typeof a.link.book === "string") {
+      const legacy = parseLink(a.link);
+      if (legacy) links.push(legacy);
+    }
     if (typeof a.id !== "string" || typeof a.doc !== "string") continue;
     if (typeof a.verse !== "number" || typeof a.startWord !== "number" || typeof a.endWord !== "number") continue;
     if (a.color !== "clear" && !MARK_COLORS.includes(a.color as (typeof MARK_COLORS)[number])) continue;
@@ -210,7 +270,8 @@ function parse(value: unknown): Annotation[] | null {
       color: a.color as MarkColor,
       style: a.style === "underline" ? "underline" : "fill",
       note: typeof a.note === "string" ? a.note : undefined,
-      link: a.link && typeof a.link.book === "string" ? a.link : undefined,
+      title: typeof a.title === "string" && a.title.trim() ? a.title : undefined,
+      links: links.length ? links : undefined,
       tags: Array.isArray(a.tags) ? a.tags.filter((t): t is string => typeof t === "string") : [],
       groupId: typeof a.groupId === "string" ? a.groupId : undefined,
       createdAt: typeof a.createdAt === "string" ? a.createdAt : new Date(0).toISOString(),
@@ -346,7 +407,9 @@ export interface NewAnnotation {
   color?: MarkColor;
   style?: MarkStyle;
   note?: string;
-  link?: AnnotationLink;
+  title?: string;
+  /** The passages the mark points at, in the order they were added. */
+  links?: AnnotationLink[];
   tags?: string[];
   groupId?: string;
   origin?: Annotation["origin"];
@@ -367,7 +430,8 @@ export async function addAnnotations(items: NewAnnotation[]): Promise<Annotation
     color: item.color ?? "yellow",
     style: item.style ?? "fill",
     note: item.note,
-    link: item.link,
+    title: item.title,
+    links: item.links?.length ? item.links : undefined,
     tags: item.tags ?? [],
     groupId: item.groupId,
     createdAt: now,
@@ -619,10 +683,14 @@ export function searchMarks(annotations: Annotation[], query: string): Annotatio
     const chapter = annotation.chapter.toLowerCase();
     const verse = String(annotation.verse);
     const reference = `${book} ${chapter}:${verse}`;
+    const title = (annotation.title ?? "").toLowerCase();
     const note = noteText(annotation.note).toLowerCase();
     const tags = annotation.tags.map((tag) => tag.toLowerCase());
     const tagged = tags.map((tag) => `#${tag}`).join(" ");
-    const link = (annotation.link?.label ?? "").toLowerCase();
+    const link = (annotation.links ?? [])
+      .map((entry) => entry.label)
+      .join(" ")
+      .toLowerCase();
 
     return terms.every((term) => {
       // A number: the chapter, the verse, the book's own number, or a word in
@@ -640,6 +708,7 @@ export function searchMarks(annotations: Annotation[], query: string): Annotatio
       return (
         book.includes(term) ||
         reference.includes(term) ||
+        title.includes(term) ||
         note.includes(term) ||
         tags.some((tag) => tag.includes(term)) ||
         tagged.includes(term) ||

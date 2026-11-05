@@ -16,11 +16,13 @@ interface Props {
   passage: string;
   /** What is already written, as HTML, or "" for a passage with no note yet. */
   initial: string;
+  /** The note's optional name, shown as its heading wherever it is listed. */
+  initialTitle?: string;
   /**
    * Save the note. An empty body means "no note" — the caller decides whether
    * that deletes an old one or simply never writes a new one (see lib/notes.ts).
    */
-  onSave: (text: string) => void;
+  onSave: (text: string, title: string) => void;
   /** Offered only when there is a note to remove. */
   onDelete?: () => void;
   onClose: () => void;
@@ -42,11 +44,22 @@ interface Props {
  * and the backdrop close it without saving, because a note half-written is not
  * a thing to persist by accident.
  */
-export function NoteDialog({ open, title, source, passage, initial, onSave, onDelete, onClose }: Props) {
+export function NoteDialog({
+  open,
+  title,
+  source,
+  passage,
+  initial,
+  initialTitle = "",
+  onSave,
+  onDelete,
+  onClose,
+}: Props) {
   // The caller gives this component a fresh key per opening (see the favorites
   // page and the passage card), so the draft starts from the stored note without
   // an effect to reset it: the note being edited is decided by what mounted.
   const html = useRef(initial);
+  const heading = useRef(initialTitle);
   /** The link picker sits over this sheet, so it answers Escape before the sheet does. */
   const [linking, setLinking] = useState(false);
 
@@ -62,7 +75,7 @@ export function NoteDialog({ open, title, source, passage, initial, onSave, onDe
   if (typeof document === "undefined") return null;
 
   const save = () => {
-    onSave(html.current);
+    onSave(html.current, heading.current.trim());
     onClose();
   };
 
@@ -103,7 +116,7 @@ export function NoteDialog({ open, title, source, passage, initial, onSave, onDe
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="-mr-1 -mt-1 shrink-0 rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+                className="-mr-1 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
               >
                 <Glyph name="close" className="h-4 w-4" />
               </button>
@@ -112,6 +125,23 @@ export function NoteDialog({ open, title, source, passage, initial, onSave, onDe
             <p className="mt-2 line-clamp-2 border-l-2 border-accent/40 pl-3 font-serif text-sm leading-relaxed text-foreground/70">
               {passage}
             </p>
+
+            {/* The name comes first, the way a note is titled in a notebook:
+                one line a reader can leave empty, and the note reads under the
+                passage's reference as every note did before this field. */}
+            <label htmlFor="note-title" className="mt-4 block text-xs font-semibold uppercase tracking-wider text-muted">
+              Title <span className="font-normal normal-case tracking-normal">(optional)</span>
+            </label>
+            <input
+              id="note-title"
+              type="text"
+              defaultValue={initialTitle}
+              onChange={(event) => {
+                heading.current = event.target.value;
+              }}
+              placeholder={title}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none"
+            />
 
             <RichTextEditor
               initialHtml={initial}

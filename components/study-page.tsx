@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FeatureCard, FeatureGrid } from "./feature-card";
 import { FeaturePage } from "./feature-page";
+import { Glyph } from "./glyph";
 import { featureById, featuresInGroup, groupById, type Feature } from "@/lib/features";
 import { citationHref } from "@/lib/picker";
 
@@ -11,11 +12,13 @@ const group = groupById("study");
 const reading = groupById("read");
 /** The picker's own entry, so the card points where the catalog says it is. */
 const picker = featureById("picker");
+/** The reader's own entry: the library, named on this page for what it holds. */
+const reader = featureById("reader");
 /**
- * Searching is the way into the words from here, so it leads the wall — and it
- * leads it at full width, as the one card that opens the whole library rather
- * than one of the shelves inside it. A half-width card beside another read as
- * a pair when it is really the door.
+ * Searching is the way into the words from here, but it is not one of the
+ * shelves: a card for it took a whole row of the wall it did not belong to. It
+ * sits in the header's corner instead, the lens beside the arrow, and opens the
+ * search page the way the reader's own lens does.
  */
 const search = featureById("search");
 /**
@@ -32,7 +35,7 @@ const rest = ORDER.map((id) => featuresInGroup("study").find((feature) => featur
 /**
  * Reading is where studying starts, so the way to the passage picker sits here
  * as well as on the hub. It is a card like the others rather than the wide
- * banner it used to be — one wall, two across under the search's own row — so
+ * banner it used to be — one wall, two across — so
  * the heading and the line under it come from the Read section's catalog entry and
  * the way there from the picker's, the way the rest of the wall comes from the
  * study section's. Its own call to action, though: the reader is drawing a new
@@ -50,6 +53,31 @@ const readCard: Feature = {
   icon: picker?.icon ?? "book",
   status: "ready",
   capabilities: picker?.capabilities ?? [],
+};
+
+/**
+ * The library itself: the reader page, named for what a reader finds there
+ * rather than for the tool, and leading the wall.
+ *
+ * The two are the ways into the words — one that finds a passage and one that
+ * opens any chapter — so they lead the wall together. It is also where the
+ * reader's entry lives now that the More menu is the shelf and the settings
+ * rather than a second set of doors (components/menu-panel.tsx). The heading is
+ * this card's own, because the same page is "Reader" in the catalog and on the
+ * home tiles; everything else comes from that entry, so the card and the page
+ * cannot describe it differently.
+ */
+const libraryCard: Feature = {
+  id: reader?.id ?? "reader",
+  group: "read",
+  href: reader?.href ?? "/read",
+  title: "Library",
+  tileTitle: "Library",
+  tileBlurb: "Read any chapter, and mark the words",
+  blurb: reader?.blurb ?? "Read a whole chapter, and mark the words that matter",
+  icon: reader?.icon ?? "book",
+  status: "ready",
+  capabilities: reader?.capabilities ?? [],
 };
 
 /**
@@ -92,17 +120,20 @@ export function StudyPage() {
           </span>
         </span>
       }
-      icon="book"
       status="ready"
+      action={
+        <Link
+          href={search?.href ?? "/search"}
+          aria-label="Search the library"
+          title="Search"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
+        >
+          <Glyph name="search" className="h-6 w-6" />
+        </Link>
+      }
     >
       <FeatureGrid>
-        {/* The search owns the first row on its own: two columns' worth of card,
-            so the one door into the library is read before the shelves. */}
-        {search && (
-          <div className="col-span-2">
-            <FeatureCard feature={search} />
-          </div>
-        )}
+        <FeatureCard feature={libraryCard} cta="Read" />
         <FeatureCard feature={readCard} cta="New passage" />
         {rest.map((feature) => (
           <FeatureCard key={feature.id} feature={feature} />

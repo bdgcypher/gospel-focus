@@ -2,17 +2,29 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { AppShell } from "./app-shell";
 import { AnnotationDialog } from "./annotation-dialog";
 import { AnnotationToolbar } from "./annotation-toolbar";
 import { BackLink } from "./back-link";
-import { ChapterBrowser } from "./chapter-browser";
+import { BookmarkIcon } from "./bookmark-icon";
+import { BookmarksDialog } from "./bookmarks-dialog";
+import { ChapterRail, ReaderPlaceButton, ReaderPlaceMenu } from "./reader-nav";
 import { Glyph } from "./glyph";
 import { MarkChooser } from "./mark-chooser";
+import { MarkHandles, type WordPoint, type WordRange } from "./mark-handles";
 import { Sheet } from "./sheet";
-import { SaveToMemorizeDialog } from "./save-to-memorize-dialog";
+import { SaveToDeckDialog } from "./save-to-deck-dialog";
 import { ShareCardDialog } from "./share-card-dialog";
+import { VerseAside } from "./verse-aside";
 import {
   addAnnotations,
   annotationsFor,
@@ -35,23 +47,36 @@ import {
   type MarkStyle,
   type SelectionRange,
 } from "@/lib/annotations";
+import { bookmarkReference, type BookmarkPlace } from "@/lib/bookmarks";
 import { dayKey } from "@/lib/daily";
-import { isNative, openExternal } from "@/lib/external";
+import { openExternal } from "@/lib/external";
+import { setImmersive, toggleImmersive } from "@/lib/immersive";
 import { favoriteId, toggleFavorite, useFavorites } from "@/lib/favorites";
 import { sanitizeBody } from "@/lib/journal";
+import { itemFromPassage, type MemoryItem } from "@/lib/memorize";
 import { loadManifest, pickDailyPassage } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
 import {
   docCitation,
   openReaderDoc,
+  parseVerseList,
   readerHref,
   versePassage,
   type ReaderCitation,
   type ReaderDoc,
 } from "@/lib/reader";
 import type { ShareCard } from "@/lib/share-image";
+import type { Passage } from "@/lib/types";
 
 const LAST_KEY = "gospel-focus:reader:v1";
+
+/**
+ * How quick, and how still, a second tap has to be to be one gesture with the
+ * first. The window is the one every platform uses for a double tap; the few
+ * pixels allowed are for a thumb that is not perfectly still between them.
+ */
+const DOUBLE_TAP_MS = 320;
+const DOUBLE_TAP_PX = 28;
 
 interface LastRead extends ReaderCitation {
   verse?: number;
@@ -90,7 +115,10 @@ interface EditorState {
   title: string;
   quote: string;
   note: string;
-  link: AnnotationLink | null;
+  /** The note's optional name, shown as its heading in the lists. */
+  noteTitle: string;
+  /** The passages the mark points at, in the order they were added. */
+  links: AnnotationLink[];
   ranges: SelectionRange[];
   /** The annotation being edited, when the sheet was opened from a mark. */
   existingId?: string;
@@ -111,6 +139,7 @@ interface EditorState {
  * accepts three addresses:
  *
  *   /read?book=jer&chapter=3&verse=15   the place, in the reader's own words
+ *   /read?book=jer&chapter=31&verse=3-4,6   the verses of it that were named
  *   /read?action=cite&…                 the older citation links, still valid
  *   /read?action=daily                  today's Come, Follow Me passage
  *
@@ -129,7 +158,12 @@ export function ChapterReader() {
   const [doc, setDoc] = useState<ReaderDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [focus, setFocus] = useState<number | null>(null);
+  /**
+   * The verses the address asked to be shown, marked down the chapter. A list
+   * rather than one number: a citation can name a range or a scattered pick
+   * (`Jeremiah 31:3-4; 6`), and every part of it is the place being opened.
+   */
+  const [focus, setFocus] = useState<number[]>([]);
   const [fromDaily, setFromDaily] = useState(false);
   const [selection, setSelection] = useState<SelectionState | null>(null);
   /** The mark the panel is open on — its group id, not one verse's segment. */
@@ -137,17 +171,35 @@ export function ChapterReader() {
   /** The style the next colour tap will make, before any mark exists. */
   const [pendingStyle, setPendingStyle] = useState<MarkStyle>("fill");
   const [editor, setEditor] = useState<EditorState | null>(null);
-  const [marksOpen, setMarksOpen] = useState(false);
-  const [browseOpen, setBrowseOpen] = useState(false);
-  const [chaptersOpen, setChaptersOpen] = useState(false);
+  /** The chapter's own name, opened as the way to another chapter on a phone. */
+  const [placeOpen, setPlaceOpen] = useState(false);
+  /** The reader's saved places, and where they were when they opened them. */
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [bookmarkPlace, setBookmarkPlace] = useState<BookmarkPlace | null>(null);
   const [verseSheet, setVerseSheet] = useState<number | null>(null);
   const [share, setShare] = useState<ShareCard | null>(null);
-  const [memory, setMemory] = useState<number | null>(null);
+  /** The card a memorized run would become, before it is filed in a deck. */
+  const [memory, setMemory] = useState<MemoryItem | null>(null);
+  /** A verse's note or link, read in a panel beside the words. */
+  const [aside, setAside] = useState<{ mode: "note" | "link"; verse: number } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  /** The bar's one control: the library, the chapter grid, the marks. */
-  const [menuOpen, setMenuOpen] = useState(false);
   /** Several marks lie under one tap; the chooser is the choice between them. */
   const [choosing, setChoosing] = useState<Annotation[][] | null>(null);
+  /** Where a dragged edge has reached, painted in place of the stored mark. */
+  const [dragRange, setDragRange] = useState<WordRange | null>(null);
+  /** A handle is being dragged; a finger lifting over a word is not a tap. */
+  const adjusting = useRef(false);
+  /** The last tap on the words, so the next one can be read as part of a pair. */
+  const lastTap = useRef<{ at: number; x: number; y: number } | null>(null);
+  /**
+   * Until when the words a double tap may have selected are to be ignored.
+   *
+   * The gesture is answered the moment both taps are counted, but the browser's
+   * own selection arrives a moment later (see the three events above), and that
+   * delayed read would paint a word and open the marking panel a beat after the
+   * bars had gone.
+   */
+  const quietUntil = useRef(0);
 
   const article = useRef<HTMLDivElement>(null);
   const noticeTimer = useRef<number | null>(null);
@@ -175,7 +227,7 @@ export function ChapterReader() {
       try {
         const action = params.get("action");
         let citation: ReaderCitation | null = null;
-        let verse: number | null = null;
+        let verses: number[] = [];
         let daily = false;
 
         const book = params.get("book");
@@ -191,9 +243,14 @@ export function ChapterReader() {
             chapter,
             conferenceId: params.get("session") ?? undefined,
           };
-          const raw = params.get("verse") ?? (action === "cite" ? params.get("section") : null);
-          const number = Number(raw);
-          verse = Number.isInteger(number) && number > 0 ? number : null;
+          // One param, but a series of verses: `verse=3-4,6` (or with the
+          // separators a citation uses, `3-4; 6`). A cite link names its verse
+          // with `section`, as the older citation links always did.
+          const raw =
+            params.get("verse") ??
+            params.get("verses") ??
+            (action === "cite" ? params.get("section") : null);
+          verses = parseVerseList(raw);
         }
 
         if (action === "daily" || (!citation && !readLast())) {
@@ -205,7 +262,7 @@ export function ChapterReader() {
             book: passageBook,
             chapter: passage.chapter ?? "",
           };
-          verse = passage.highlightVerse ?? null;
+          verses = passage.highlightVerse ? [passage.highlightVerse] : [];
           daily = true;
         } else if (!citation) {
           const last = readLast();
@@ -216,7 +273,7 @@ export function ChapterReader() {
               chapter: last.chapter,
               conferenceId: last.conferenceId,
             };
-            verse = last.verse ?? null;
+            verses = last.verse ? [last.verse] : [];
           }
         }
 
@@ -232,9 +289,17 @@ export function ChapterReader() {
           return;
         }
         setDoc(opened);
-        setFocus(verse);
+        setFocus(verses);
         setFromDaily(daily);
-        writeLast({ kind: opened.kind, book: opened.book, chapter: opened.chapter, conferenceId: opened.conferenceId, verse: verse ?? undefined });
+        writeLast({
+          kind: opened.kind,
+          book: opened.book,
+          chapter: opened.chapter,
+          conferenceId: opened.conferenceId,
+          // The place is the start of the series, which is where a return visit
+          // should land; the rest of it is kept in the address it came from.
+          verse: verses[0],
+        });
       } catch (cause) {
         if (!live) return;
         setError(cause instanceof Error ? cause.message : "The chapter couldn't be opened.");
@@ -248,12 +313,14 @@ export function ChapterReader() {
     };
   }, [params, prefs.filters]);
 
-  /** Bring the requested verse into view, or start a new chapter at its head. */
+  /** Bring the first requested verse into view, or start a new chapter at its head. */
   useEffect(() => {
     if (!doc) return;
     const id = window.setTimeout(() => {
-      if (focus) {
-        document.getElementById(`verse-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (focus.length) {
+        document
+          .getElementById(`verse-${focus[0]}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
       } else {
         window.scrollTo({ top: 0, behavior: "auto" });
       }
@@ -272,26 +339,43 @@ export function ChapterReader() {
    * before the click lands), so a tap is only treated as a dismissal when it
    * lands inside the chapter with nothing selected.
    */
+  /**
+   * Read the browser's selection back as word ranges.
+   *
+   * The events below call it, and so do the handles when a fresh selection's
+   * edge is dragged: the browser's selection is what paints those words, so
+   * moving an edge means moving the selection and then reading it back.
+   */
+  const captureSelection = useCallback(() => {
+    const box = article.current;
+    if (!box) return;
+    // A double tap is about the screen, not about the words: whatever the
+    // browser selected as part of that gesture is not a mark the reader asked
+    // for. The range is dropped here rather than only at the tap itself because
+    // on a phone the browser applies its own selection a beat after the taps
+    // that asked for it — after the reader's handler has already cleared what
+    // was there.
+    if (performance.now() < quietUntil.current) {
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+    const ranges = rangesInSelection(box);
+    const text = window.getSelection()?.toString().trim() ?? "";
+    if (ranges.length && text) {
+      // New words under the finger, so the panel is for these words and not
+      // for whatever mark was open a moment ago.
+      setActiveId(null);
+      setSelection({ ranges, text });
+    }
+  }, []);
+
   useEffect(() => {
     if (!doc) return;
-
-    const capture = () => {
-      const box = article.current;
-      if (!box) return;
-      const ranges = rangesInSelection(box);
-      const text = window.getSelection()?.toString().trim() ?? "";
-      if (ranges.length && text) {
-        // New words under the finger, so the panel is for these words and not
-        // for whatever mark was open a moment ago.
-        setActiveId(null);
-        setSelection({ ranges, text });
-      }
-    };
 
     let timer = 0;
     const schedule = (delay: number) => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(capture, delay);
+      timer = window.setTimeout(captureSelection, delay);
     };
 
     const onUp = () => schedule(30);
@@ -300,7 +384,11 @@ export function ChapterReader() {
     };
     const onPointerUp = (event: PointerEvent) => {
       const box = article.current;
-      if (box && event.target instanceof Node && box.contains(event.target)) {
+      // A press on one of a mark's own handles is not a dismissal: the handle
+      // sits inside the words, and taking the mark away would take the handle
+      // and the drag with it.
+      const onHandle = event.target instanceof Element && Boolean(event.target.closest("[data-mark-handle]"));
+      if (!onHandle && !adjusting.current && box && event.target instanceof Node && box.contains(event.target)) {
         // A tap in the words with nothing selected is a dismissal: the panel
         // belongs to the words under the finger, and the finger has moved. A
         // tap *on* a mark reopens it from the word's own click, which lands
@@ -322,12 +410,16 @@ export function ChapterReader() {
       document.removeEventListener("keyup", onUp);
       document.removeEventListener("selectionchange", onSelectionChange);
     };
-  }, [doc]);
+  }, [doc, captureSelection]);
 
   const docMarks = useMemo(
     () => (doc ? annotationsFor(annotations, doc.doc) : []),
     [annotations, doc]
   );
+
+  /** How many words a verse of this chapter holds, for the handles' edges. */
+  const wordsInVerse = (verse: number) =>
+    wordsOf(doc?.verses.find((entry) => entry.number === verse)?.text ?? "").length;
 
   /** Close every way into a mark: the words' selection, the panel, the chooser. */
   const dismiss = useCallback(() => {
@@ -335,6 +427,90 @@ export function ChapterReader() {
     setSelection(null);
     setActiveId(null);
   }, []);
+
+  /**
+   * A double tap on the words hands the screen to the chapter, and a second one
+   * gives the bars back (see lib/immersive.ts).
+   *
+   * The pair is counted from two pointerups rather than taken from `dblclick`,
+   * because a phone's WebView only turns a double tap into a mouse event when
+   * it feels like it. A press that lands on one of the page's own controls is
+   * not this gesture at all: a verse number is opened by tapping it, and opening
+   * a note twice should not cost the reader the bars.
+   *
+   * The browser answers a double tap on text with a word of its own — a phone
+   * selects the word under the finger — and that selection is the platform's
+   * reading of the gesture, not the reader's. The reader asked for room, so the
+   * word is dropped before the reader's own tracking can turn it into a mark.
+   * Marking is done by dragging across the words and by the handles that come
+   * with the run, both of which are untouched.
+   */
+  const onWordsPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button, a")) {
+      lastTap.current = null;
+      return;
+    }
+    const now = performance.now();
+    const previous = lastTap.current;
+    lastTap.current = { at: now, x: event.clientX, y: event.clientY };
+    if (
+      !previous ||
+      now - previous.at > DOUBLE_TAP_MS ||
+      Math.hypot(event.clientX - previous.x, event.clientY - previous.y) > DOUBLE_TAP_PX
+    ) {
+      return;
+    }
+    lastTap.current = null;
+    // Long enough to outlast the delayed read of the selection this gesture
+    // makes — the tracking above waits 160ms for a selection to settle — and
+    // short enough that the reader's next drag across the words is heard.
+    quietUntil.current = now + 300;
+    window.getSelection()?.removeAllRanges();
+    setSelection(null);
+    toggleImmersive();
+  };
+
+  // Fullscreen is a mode of the chapter, not of the app: leaving it — for the
+  // library, a game, anywhere without a way out of it — gives the bars back.
+  useEffect(() => () => setImmersive(false), []);
+
+  /** Draw a run of words as the browser's own selection — that is what paints it. */
+  const drawSelection = (range: WordRange) => {
+    const box = article.current;
+    if (!box) return;
+    const from = box.querySelector<HTMLElement>(
+      `[data-verse="${range.from.verse}"][data-word="${range.from.word}"]`
+    );
+    const to = box.querySelector<HTMLElement>(`[data-verse="${range.to.verse}"][data-word="${range.to.word}"]`);
+    if (!from || !to) return;
+    const dom = document.createRange();
+    dom.setStartBefore(from);
+    dom.setEndAfter(to);
+    const live = window.getSelection();
+    if (!live) return;
+    live.removeAllRanges();
+    live.addRange(dom);
+  };
+
+  /**
+   * A handle on words that are not a mark yet.
+   *
+   * There is nothing stored to repaint here, so the drag moves the browser's
+   * selection instead: the words the reader would mark grow and shrink under the
+   * finger exactly as they will when the colour is chosen, and the panel's quote
+   * and reference follow because they are read from that selection.
+   */
+  const previewSelection = (range: WordRange) => {
+    adjusting.current = true;
+    drawSelection(range);
+    captureSelection();
+  };
+
+  const commitSelection = (range: WordRange) => {
+    adjusting.current = false;
+    drawSelection(range);
+    captureSelection();
+  };
 
   /** The reference a selection spans, e.g. "Jeremiah 3:15" or "Jeremiah 3:20-21". */
   const rangeLabel = useCallback(
@@ -360,6 +536,38 @@ export function ChapterReader() {
       .sort((a, b) => a.verse - b.verse || a.startWord - b.startWord);
     return group.length ? group : null;
   }, [activeId, docMarks]);
+
+  /**
+   * The marks of a verse's margin, read back for the panel they open: only the
+   * ones that carry a note (or a link), oldest first, so two thoughts on the
+   * same verse read in the order they were written.
+   */
+  const asideMarks = useMemo(() => {
+    if (!aside) return [];
+    return docMarks
+      .filter((mark) => mark.verse === aside.verse)
+      .filter((mark) =>
+        aside.mode === "note" ? noteText(mark.note).length > 0 : Boolean(mark.links?.length)
+      )
+      .sort((a, b) => a.startWord - b.startWord || a.createdAt.localeCompare(b.createdAt));
+  }, [aside, docMarks]);
+
+  /**
+   * What the words look like while one of a mark's edges is being dragged.
+   *
+   * It replaces the stored paint rather than adding to it, so dragging an edge
+   * in leaves nothing of the old extent showing behind the finger.
+   */
+  const preview = useMemo(() => {
+    if (!dragRange || !active?.length || active[0].color === "clear") return null;
+    return {
+      groupId: markGroupId(active[0]),
+      from: dragRange.from,
+      to: dragRange.to,
+      color: active[0].color,
+      style: active[0].style,
+    };
+  }, [dragRange, active]);
 
   /** The words of a mark, in reading order, as one run of prose. */
   const groupQuote = useCallback(
@@ -393,7 +601,7 @@ export function ChapterReader() {
     // A second colour on the same words replaces the plain mark rather than
     // stacking a second one under it; a mark that carries a note or link is left
     // alone, because its colour is not the only thing it is for.
-    const plain = selectionMarks.filter((mark) => !mark.note && !mark.link);
+    const plain = selectionMarks.filter((mark) => !mark.note && !mark.links?.length);
     if (plain.length) await removeAnnotations(plain.map((mark) => mark.id));
 
     // A run that crosses a verse break is stored one annotation per verse, and
@@ -455,22 +663,110 @@ export function ChapterReader() {
     void applyMark(color, style);
   };
 
+  /**
+   * Move an open mark's edges.
+   *
+   * A mark is one annotation per verse sharing a group, so widening it is the
+   * same shape the reader writes when the mark is first made — except that the
+   * segments already exist. Verses that stay are updated in place, keeping their
+   * ids (and so their place in an export); verses that join are added; verses
+   * that drop out are removed. The note travels with the mark rather than with
+   * the verse it was written on: if that verse is the one being dropped, it
+   * moves to the first verse that remains.
+   */
+  const adjustActive = async (range: WordRange) => {
+    // The drag is over however this ends, so the flag clears before any of the
+    // reasons to give up below — a stuck flag would make every later tap a tap
+    // that cannot close a mark.
+    adjusting.current = false;
+    if (!doc || !active?.length) {
+      setDragRange(null);
+      return;
+    }
+    try {
+      const order = doc.verses.map((verse) => verse.number);
+      const first = order.indexOf(range.from.verse);
+      const last = order.indexOf(range.to.verse);
+      if (first < 0 || last < 0) return;
+
+      const segments: { verse: number; startWord: number; endWord: number }[] = [];
+      for (let index = first; index <= last; index += 1) {
+        const verse = order[index];
+        const total = wordsOf(doc.verses[index].text).length;
+        const startWord = verse === range.from.verse ? range.from.word : 1;
+        const endWord = verse === range.to.verse ? range.to.word : total;
+        if (endWord >= startWord) segments.push({ verse, startWord, endWord });
+      }
+      if (!segments.length) return;
+
+      const head = active[0];
+      const groupId = markGroupId(head);
+      const existing = new Map(active.map((segment) => [segment.verse, segment]));
+      const keeping = new Set(segments.map((segment) => segment.verse));
+      const holder = active.find((segment) => segment.note || segment.links?.length);
+      const carried =
+        holder && !keeping.has(holder.verse)
+          ? { note: holder.note, links: holder.links }
+          : undefined;
+
+      for (const [index, segment] of segments.entries()) {
+        const previous = existing.get(segment.verse);
+        const carry = index === 0 ? carried : undefined;
+        const shared = segments.length > 1 ? groupId : previous?.groupId;
+        if (previous) {
+          await updateAnnotation(previous.id, {
+            startWord: segment.startWord,
+            endWord: segment.endWord,
+            groupId: shared,
+            ...carry,
+          });
+        } else {
+          await addAnnotations([
+            {
+              doc: doc.doc,
+              book: doc.book,
+              chapter: doc.chapter,
+              verse: segment.verse,
+              startWord: segment.startWord,
+              endWord: segment.endWord,
+              color: head.color,
+              style: head.style,
+              tags: head.tags,
+              groupId: shared,
+              ...carry,
+            },
+          ]);
+        }
+      }
+
+      const gone = active.filter((segment) => !keeping.has(segment.verse));
+      if (gone.length) await removeAnnotations(gone.map((segment) => segment.id));
+      announce("Mark adjusted");
+    } finally {
+      setDragRange(null);
+    }
+  };
+
   /** The sheet that writes on a mark, opened only from the panel's Note/Link. */
   const editGroup = (group: Annotation[], focus: "note" | "link") => {
-    const holder = group.find((segment) => segment.note || segment.link) ?? group[0];
+    const holder = group.find((segment) => segment.note || segment.links?.length) ?? group[0];
     setEditor({
       title: rangeLabel(group.map((segment) => ({ verse: segment.verse, startWord: segment.startWord, endWord: segment.endWord }))),
       quote: groupQuote(group),
       note: holder.note ?? "",
-      link: holder.link ?? null,
+      noteTitle: holder.title ?? "",
+      links: holder.links ?? [],
       ranges: group.map((segment) => ({ verse: segment.verse, startWord: segment.startWord, endWord: segment.endWord })),
       existingId: holder.id,
       focus,
     });
   };
 
-  /** The marker after a note's words goes straight to the note, not the panel. */
-  const openMarkNote = (mark: Annotation) => editGroup(markGroup(docMarks, mark), "note");
+  /** A note or link in the margin is read beside the words, not over them. */
+  const openAside = (mode: "note" | "link", verse: number) => {
+    dismiss();
+    setAside({ mode, verse });
+  };
 
   const openEditor = (mode: "note" | "link") => {
     if (active) {
@@ -478,12 +774,13 @@ export function ChapterReader() {
       return;
     }
     if (!doc || !selection) return;
-    const exact = selectionMarks.find((mark) => mark.note || mark.link);
+    const exact = selectionMarks.find((mark) => mark.note || mark.links?.length);
     setEditor({
       title: rangeLabel(selection.ranges),
       quote: selection.text,
       note: exact?.note ?? "",
-      link: exact?.link ?? null,
+      noteTitle: exact?.title ?? "",
+      links: exact?.links ?? [],
       ranges: selection.ranges,
       existingId: exact?.id,
       focus: mode,
@@ -492,13 +789,17 @@ export function ChapterReader() {
     // stay visible behind it; the panel comes back when the sheet closes.
   };
 
-  const saveEditor = async (mark: { note: string; link: AnnotationLink | null }) => {
+  const saveEditor = async (mark: { note: string; links: AnnotationLink[]; title: string }) => {
     if (!doc || !editor) return;
     const note = mark.note && mark.note.trim() ? sanitizeBody(mark.note) : "";
+    // A name only means something above words: without a note it is dropped
+    // rather than left on the mark as a heading for nothing.
+    const noteTitle = note ? mark.title.trim() || undefined : undefined;
+    const links = mark.links.length ? mark.links : undefined;
 
     if (editor.existingId) {
       const existing = docMarks.find((a) => a.id === editor.existingId);
-      if (!note && !mark.link && existing?.color === "clear") {
+      if (!note && !links && existing?.color === "clear") {
         // A mark that was only ever the note goes away with it — every verse of
         // it, or the empty ones would be left behind.
         const group = existing ? markGroup(docMarks, existing) : [];
@@ -506,18 +807,23 @@ export function ChapterReader() {
       } else {
         await updateAnnotation(editor.existingId, {
           note: note || undefined,
-          link: mark.link ?? undefined,
+          title: noteTitle,
+          links,
         });
       }
       announce(note ? "Note saved" : "Annotation updated");
-    } else if (note || mark.link) {
+    } else if (note || links) {
       // Attach to the plain marks already on these words, so the highlight and
       // the note are one annotation rather than two stacked on each other.
       const plain = selectionMarks
-        .filter((a) => !a.note && !a.link && a.color !== "clear")
+        .filter((a) => !a.note && !a.links?.length && a.color !== "clear")
         .sort((a, b) => a.verse - b.verse || a.startWord - b.startWord);
       if (plain.length && plain.length === editor.ranges.length) {
-        await updateAnnotation(plain[0].id, { note: note || undefined, link: mark.link ?? undefined });
+        await updateAnnotation(plain[0].id, {
+          note: note || undefined,
+          title: noteTitle,
+          links,
+        });
       } else {
         const groupId = editor.ranges.length > 1 ? newId() : undefined;
         const created = await addAnnotations(
@@ -531,13 +837,14 @@ export function ChapterReader() {
             color: "clear" as MarkColor,
             style: "fill" as MarkStyle,
             note: index === 0 ? note || undefined : undefined,
-            link: index === 0 ? mark.link ?? undefined : undefined,
+            title: index === 0 ? noteTitle : undefined,
+            links: index === 0 ? links : undefined,
             groupId,
           }))
         );
         if (!created.length) announce("Nothing to save");
       }
-      announce(mark.link && !note ? "Link added" : "Note saved");
+      announce(links && !note ? "Link added" : "Note saved");
     }
     dismiss();
   };
@@ -548,6 +855,45 @@ export function ChapterReader() {
     await removeAnnotations(ids);
     dismiss();
     announce("Removed");
+  };
+
+  /**
+   * Take one link out of a mark's chain, from the panel that reads it.
+   *
+   * The mark goes with its last link when there is nothing else on it — a mark
+   * that was only ever the link would otherwise be left in the file with no
+   * words on it. A mark that still says something, or whose place is inked,
+   * keeps its place and simply holds one link fewer.
+   */
+  const removeLink = async (mark: Annotation, link: AnnotationLink) => {
+    const remaining = (mark.links ?? []).filter((entry) => entry.label !== link.label);
+    const alone = markGroup(docMarks, mark).length <= 1;
+    if (!remaining.length && !noteText(mark.note) && mark.color === "clear" && alone) {
+      await removeAnnotations([mark.id]);
+    } else {
+      await updateAnnotation(mark.id, { links: remaining.length ? remaining : undefined });
+    }
+    announce("Link removed");
+  };
+
+  /**
+   * Take a mark's note off it, from the panel that reads it.
+   *
+   * The ink stays: a note written on highlighted words is one thing holding
+   * two, and only the half that was deleted goes. A mark that was only ever the
+   * note — no colour of its own, no link, every verse of it bare — goes with
+   * its words, which is the same rule the sheet follows when it saves an empty
+   * note.
+   */
+  const removeNote = async (mark: Annotation) => {
+    const group = markGroup(docMarks, mark);
+    const bare = group.every((segment) => segment.color === "clear" && !segment.links?.length);
+    if (bare) {
+      await removeAnnotations(group.map((segment) => segment.id));
+    } else {
+      await updateAnnotation(mark.id, { note: undefined, title: undefined });
+    }
+    announce("Note removed");
   };
 
   const copyHere = async () => {
@@ -571,6 +917,59 @@ export function ChapterReader() {
       lines: [{ text }],
       footer: "Gospel Focus",
     });
+    dismiss();
+  };
+
+  /**
+   * Take the marked words away to be learned by heart.
+   *
+   * A card holds words, not a highlight: the run the mark covers is lifted out
+   * of its verses word for word, so a sentence marked inside a long verse is the
+   * sentence the reader memorizes — not the whole verse around it. A run that
+   * crosses a verse break becomes one part per verse, as a card always does.
+   */
+  const memorizeHere = () => {
+    if (!doc) return;
+    const segments = active
+      ? active.map((mark) => ({ verse: mark.verse, startWord: mark.startWord, endWord: mark.endWord }))
+      : selection?.ranges ?? [];
+    if (!segments.length) return;
+
+    const verses = [...segments]
+      .sort((a, b) => a.verse - b.verse || a.startWord - b.startWord)
+      .map((segment) => ({
+        number: segment.verse,
+        text: rangeText(
+          doc.verses.find((entry) => entry.number === segment.verse)?.text ?? "",
+          segment.startWord,
+          segment.endWord
+        ),
+      }))
+      .filter((part) => part.text.trim());
+    if (!verses.length) return;
+
+    const first = verses[0].number;
+    // The card is named for its first verse; the rest of the run belongs to the
+    // card, not to its label (see `itemFromPassage`).
+    const reference =
+      doc.kind === "conference" ? `“${doc.chapter}” ¶ ${first}` : `${doc.book} ${doc.chapter}:${first}`;
+    const passage: Passage = {
+      kind: doc.kind,
+      reference,
+      sourceLabel: doc.sourceLabel,
+      text: verses.map((part) => part.text).join(" "),
+      url: doc.url,
+      urlLabel: "Open in Gospel Library",
+      expansionTitle: doc.title,
+      expansionSubtitle: doc.subtitle,
+      verses,
+      highlightVerse: first,
+      book: doc.book,
+      chapter: doc.chapter,
+      section: first,
+    };
+
+    setMemory(itemFromPassage(passage, undefined, verses.map((part) => part.number)));
     dismiss();
   };
 
@@ -601,44 +1000,103 @@ export function ChapterReader() {
     router.push(readerHref(citation));
   };
 
+  /**
+   * The place the reader is standing in: the first verse still below the top of
+   * the reading column.
+   *
+   * That is what "here" means when they reach for a bookmark — the words they
+   * are looking at, not the chapter's first verse and not whatever the scroll
+   * happened to leave under the app bar. A chapter with no verse past the fold
+   * (a very short one) keeps its first verse, so there is always somewhere to
+   * put the ribbon.
+   */
+  const placeAtTop = (current: ReaderDoc): BookmarkPlace => {
+    const fold = 128;
+    let verse = current.verses[0]?.number ?? 1;
+    for (const node of document.querySelectorAll<HTMLElement>("[data-verse]")) {
+      if (node.getBoundingClientRect().bottom <= fold) continue;
+      verse = Number(node.dataset.verse) || verse;
+      break;
+    }
+    const place = {
+      kind: current.kind,
+      book: current.book,
+      chapter: current.chapter,
+      verse,
+      conferenceId: current.conferenceId,
+    };
+    return { ...place, reference: bookmarkReference(place) };
+  };
+
   const panelColor = active && active[0].color !== "clear" ? active[0].color : null;
   const panelStyle = active ? active[0].style : pendingStyle;
-
-  const markCount = docMarks.filter((mark) => mark.color !== "clear" || mark.note || mark.link).length;
-
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-[46rem] flex-1 px-5 pb-16 pt-4 sm:px-8 sm:pt-6">
-        {/* The bar a reader gets instead of a page header: the way back, the
-            chapter in small type, and one control for everything else. Nothing
-            up here competes with the words below it. */}
-        <div className="flex items-center gap-2">
-          <BackLink fallbackHref="/passage" />
-          <div className="min-w-0 flex-1">
-            {doc ? (
-              <>
-                <h1 className="truncate font-serif text-base font-semibold leading-tight text-foreground">
-                  {doc.title}
-                </h1>
-                <p className="truncate text-[11px] leading-tight text-muted">
-                  {doc.subtitle ?? (doc.kind === "scripture" ? doc.sourceLabel : "General Conference")}
-                  {fromDaily && <span className="text-accent-strong"> · Today&apos;s passage</span>}
-                </p>
-              </>
-            ) : (
-              <div className="h-7 w-40 animate-pulse rounded-full bg-surface-2" aria-hidden="true" />
+      {/* The rail and the words: where the reader is, beside what they are
+          reading. On a phone the rail is off the page entirely (see
+          components/reader-nav.tsx) and the chapter's name carries the same
+          choices in a menu under it. */}
+      {/* The reader is its own sheet, in the card's lighter cream, so the rail's
+          band and the words behind it are one colour (see `--reader-page`).
+          The wrapper spans the page; the column inside keeps the words narrow. */}
+      <div className="flex flex-1 flex-col bg-reader-page">
+        <div className="mx-auto flex w-full max-w-[80rem] flex-1 justify-center gap-10 px-5 pb-16 pt-4 sm:px-8 sm:pt-6">
+          {doc && <ChapterRail doc={doc} onGo={go} />}
+        <main className="min-w-0 w-full max-w-[46rem] flex-1">
+          {/* The bar a reader gets instead of a page header: the way back, the
+              chapter's name — which opens the way to another chapter — the
+              bookmarks and the search. Back leads the row, as it does on every
+              page in the app. Nothing up here competes with the words below it. */}
+          {/* The chapter's bar is the one piece of chrome a reader needs from
+              anywhere in a passage — where they are, a bookmark, a search — so
+              it sticks: under the app bar while that is showing, and at the top
+              of the screen once it has gone (see "The reader's chrome" in
+              globals.css). Its own words scroll beneath it. */}
+          <div
+            data-reader-bar
+            className="relative sticky top-[var(--reader-bar-top)] z-10 -mx-1 flex items-center gap-2 border-b border-border/60 bg-reader-page px-1 py-2"
+          >
+            {/* The way out leads the bar, on the same side of every screen. */}
+            <BackLink fallbackHref="/passage" />
+            <div className="min-w-0 flex-1">
+              {doc ? (
+                <ReaderPlaceButton
+                  doc={doc}
+                  fromDaily={fromDaily}
+                  open={placeOpen}
+                  onToggle={() => setPlaceOpen((open) => !open)}
+                />
+              ) : (
+                <div className="h-7 w-40 animate-pulse rounded-full bg-surface-2" aria-hidden="true" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!doc) return;
+                const place = placeAtTop(doc);
+                setBookmarkPlace(place);
+                setBookmarksOpen(true);
+              }}
+              aria-label="Bookmarks"
+              title="Bookmarks"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
+            >
+              <BookmarkIcon className="h-4 w-4" />
+            </button>
+            <Link
+              href="/search"
+              onClick={() => setPlaceOpen(false)}
+              aria-label="Search the library"
+              title="Search"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
+            >
+              <Glyph name="search" className="h-4 w-4" />
+            </Link>
+            {placeOpen && doc && (
+              <ReaderPlaceMenu doc={doc} onClose={() => setPlaceOpen(false)} onGo={go} />
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Chapter menu"
-            title="Menu"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-accent-strong"
-          >
-            <Glyph name="menu" className="h-5 w-5" />
-          </button>
-        </div>
 
         {loading && !doc ? (
           <div className="mt-10 animate-pulse space-y-3" aria-hidden="true">
@@ -659,10 +1117,19 @@ export function ChapterReader() {
           </div>
         ) : doc ? (
           <>
+            {/* `touch-manipulation` leaves panning and pinching to the page and
+                takes the browser's own double-tap zoom away: a double tap in the
+                words means the screen here, and the page must not answer the
+                same gesture by leaning in. */}
+            {/* On a phone the words take the page's own margins rather than the
+                padding the rest of the app keeps: on a narrow screen the
+                measure is what makes the prose readable, and the bar above
+                keeps its margins so back and search are not against the edge. */}
             <article
               ref={article}
               data-reader
-              className="mt-6 font-serif text-[1.12rem] leading-[1.75] text-foreground/90 sm:mt-8 sm:text-[1.18rem] sm:leading-[1.8]"
+              onPointerUp={onWordsPointerUp}
+              className="relative -mx-3 mt-6 touch-manipulation font-serif text-[1.12rem] leading-[1.75] text-foreground/90 sm:mx-0 sm:mt-8 sm:text-[1.18rem] sm:leading-[1.8]"
             >
               {doc.verses.map((verse) => (
                 <VerseRow
@@ -670,12 +1137,44 @@ export function ChapterReader() {
                   doc={doc}
                   verse={verse}
                   annotations={docMarks}
-                  focused={focus === verse.number}
+                  preview={preview}
+                  focused={focus.includes(verse.number)}
                   onVerse={setVerseSheet}
-                  onNote={openMarkNote}
+                  onNote={(number) => openAside("note", number)}
+                  onLink={(number) => openAside("link", number)}
                   onWords={openAt}
                 />
               ))}
+
+              {/* The two ends a thumb can reach: those of the mark the panel is
+                  open on, or of the words just selected, which have no mark
+                  yet. */}
+              {active ? (
+                <MarkHandles
+                  host={article}
+                  from={{ verse: active[0].verse, word: active[0].startWord }}
+                  to={{ verse: active[active.length - 1].verse, word: active[active.length - 1].endWord }}
+                  wordCount={wordsInVerse}
+                  onPreview={(range) => {
+                    adjusting.current = true;
+                    setDragRange(range);
+                  }}
+                  onCommit={(range) => void adjustActive(range)}
+                />
+              ) : selection ? (
+                <MarkHandles
+                  host={article}
+                  from={{ verse: selection.ranges[0].verse, word: selection.ranges[0].startWord }}
+                  to={{
+                    verse: selection.ranges[selection.ranges.length - 1].verse,
+                    word: selection.ranges[selection.ranges.length - 1].endWord,
+                  }}
+                  subject="selection"
+                  wordCount={wordsInVerse}
+                  onPreview={previewSelection}
+                  onCommit={commitSelection}
+                />
+              ) : null}
             </article>
 
             {/* The neighbouring chapters, as words rather than buttons: at the
@@ -713,7 +1212,9 @@ export function ChapterReader() {
             </nav>
           </>
         ) : null}
-      </main>
+          </main>
+        </div>
+      </div>
 
       {/* One tool for both moments: the words just selected, or the mark just
           tapped. It stays out of the way while the note sheet or the chooser is
@@ -731,9 +1232,26 @@ export function ChapterReader() {
         onLink={() => openEditor("link")}
         onCopy={() => void copyHere()}
         onShare={shareHere}
+        onMemorize={memorizeHere}
         onRemove={() => void removeHere()}
         onClose={dismiss}
       />
+
+      {aside && doc && (
+        <VerseAside
+          doc={doc}
+          verse={aside.verse}
+          mode={aside.mode}
+          marks={asideMarks}
+          onClose={() => setAside(null)}
+          onEdit={(mark, mode) => {
+            setAside(null);
+            editGroup(markGroup(docMarks, mark), mode);
+          }}
+          onRemoveLink={(mark, link) => void removeLink(mark, link)}
+          onRemoveNote={(mark) => void removeNote(mark)}
+        />
+      )}
 
       {editor && (
         <AnnotationDialog
@@ -741,7 +1259,8 @@ export function ChapterReader() {
           title={editor.title}
           quote={editor.quote}
           initialNote={editor.note}
-          initialLink={editor.link}
+          initialTitle={editor.noteTitle}
+          initialLinks={editor.links}
           focus={editor.focus}
           onSave={(mark) => void saveEditor(mark)}
           onClose={() => setEditor(null)}
@@ -768,96 +1287,12 @@ export function ChapterReader() {
         </p>
       )}
 
-      {browseOpen && (
-        <ChapterBrowser
-          onClose={() => setBrowseOpen(false)}
-          onPick={(book, chapter) => {
-            setBrowseOpen(false);
-            go({ kind: "scripture", book, chapter });
-          }}
+      {bookmarksOpen && bookmarkPlace && (
+        <BookmarksDialog
+          place={bookmarkPlace}
+          onClose={() => setBookmarksOpen(false)}
+          onNotice={announce}
         />
-      )}
-
-      {marksOpen && doc && (
-        <MarksSheet
-          doc={doc}
-          marks={docMarks}
-          onClose={() => setMarksOpen(false)}
-          onJump={(mark) => {
-            setMarksOpen(false);
-            setFocus(mark.verse);
-            window.setTimeout(
-              () => document.getElementById(`verse-${mark.verse}`)?.scrollIntoView({ behavior: "smooth", block: "center" }),
-              60
-            );
-          }}
-          onEdit={(mark) => editGroup(markGroup(docMarks, mark), "note")}
-          onDelete={(mark) => void removeAnnotations(markGroup(docMarks, mark).map((segment) => segment.id))}
-        />
-      )}
-
-      {chaptersOpen && doc && (
-        <Sheet title="Chapters" onClose={() => setChaptersOpen(false)}>
-          <div className="grid grid-cols-5 gap-2 sm:grid-cols-8">
-            {doc.chapters?.map((chapter) => (
-              <button
-                key={chapter.number}
-                type="button"
-                onClick={() => {
-                  setChaptersOpen(false);
-                  router.push(readerHref({ ...docCitation(doc), chapter: String(chapter.number) }));
-                }}
-                aria-current={String(chapter.number) === doc.chapter ? "true" : undefined}
-                className={`rounded-xl border px-2 py-2.5 text-sm font-medium transition-colors ${
-                  String(chapter.number) === doc.chapter
-                    ? "border-accent/60 bg-accent/15 text-accent-strong"
-                    : "border-border bg-surface text-foreground hover:border-accent/60"
-                }`}
-              >
-                {chapter.number}
-              </button>
-            ))}
-          </div>
-        </Sheet>
-      )}
-
-      {menuOpen && doc && (
-        <Sheet title={doc.title} onClose={() => setMenuOpen(false)}>
-          <div className="grid gap-1.5">
-            <MenuRow
-              icon="book"
-              label="Browse"
-              hint="Any book, any chapter"
-              onClick={() => {
-                setMenuOpen(false);
-                setBrowseOpen(true);
-              }}
-            />
-            {doc.chapters && (
-              <MenuRow
-                icon="grid"
-                label="Chapters"
-                hint={`Every chapter in ${doc.book}`}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setChaptersOpen(true);
-                }}
-              />
-            )}
-            <MenuRow
-              icon="journal"
-              label={markCount ? `Marks · ${markCount}` : "Marks"}
-              hint="This chapter's marks and notes"
-              onClick={() => {
-                setMenuOpen(false);
-                setMarksOpen(true);
-              }}
-            />
-          </div>
-          <p className="mt-4 text-center text-xs text-muted">
-            {isNative() ? "Marks are kept on this device." : "Marks are kept in this browser."}
-          </p>
-        </Sheet>
       )}
 
       {choosing && doc && (
@@ -898,7 +1333,7 @@ export function ChapterReader() {
             setVerseSheet(null);
           }}
           onMemorize={() => {
-            setMemory(verseSheet);
+            setMemory(itemFromPassage(versePassage(doc, verseSheet), undefined, [verseSheet]));
             setVerseSheet(null);
           }}
           onLibrary={() => {
@@ -914,11 +1349,12 @@ export function ChapterReader() {
         onClose={() => setShare(null)}
       />
 
-      {memory !== null && doc && (
-        <SaveToMemorizeDialog
+      {memory && (
+        <SaveToDeckDialog
           open
-          passage={versePassage(doc, memory)}
-          sections={[memory]}
+          // The card already built: the deck picker files it, and where there
+          // is no deck yet it offers to make the first one.
+          draft={memory}
           onClose={() => setMemory(null)}
         />
       )}
@@ -945,17 +1381,24 @@ function VerseRow({
   doc,
   verse,
   annotations,
+  preview,
   focused,
   onVerse,
   onNote,
+  onLink,
   onWords,
 }: {
   doc: ReaderDoc;
   verse: { number: number; text: string };
   annotations: Annotation[];
+  /** The extent a dragged edge is showing, which paints over the stored mark. */
+  preview: { groupId: string; from: WordPoint; to: WordPoint; color: MarkColor; style: MarkStyle } | null;
   focused: boolean;
   onVerse: (verse: number) => void;
-  onNote: (mark: Annotation) => void;
+  /** Read this verse's note beside the words. */
+  onNote: (verse: number) => void;
+  /** Read the passage this verse's link points at. */
+  onLink: (verse: number) => void;
   /** Which word was pressed, so the reader can gather the marks over it. */
   onWords: (verse: number, word: number) => void;
 }) {
@@ -968,43 +1411,153 @@ function VerseRow({
   const fills = new Map<number, MarkColor>();
   const underlines = new Map<number, MarkColor>();
   const links = new Map<number, Annotation>();
-  const notes = new Map<number, Annotation[]>();
 
   // Oldest first, so a newer mark on the same words paints over an older one and
   // the list under a tap reads newest last.
   for (const mark of [...marks].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))) {
+    // The mark being dragged is painted from the drag instead, below.
+    if (preview && markGroupId(mark) === preview.groupId) continue;
     if (mark.color !== "clear") {
       for (let word = mark.startWord; word <= mark.endWord; word += 1) {
         if (mark.style === "underline") underlines.set(word, mark.color);
         else fills.set(word, mark.color);
       }
     }
-    if (mark.link) {
+    if (mark.links?.length) {
       for (let word = mark.startWord; word <= mark.endWord; word += 1) links.set(word, mark);
-    }
-    if (mark.note?.trim()) {
-      const list = notes.get(mark.endWord) ?? [];
-      list.push(mark);
-      notes.set(mark.endWord, list);
     }
   }
 
-  // Where each highlight band begins and ends, so its outer corners can be
-  // rounded while the joins between its words stay square. A run is bounded
-  // where the colour changes, so two marks of the same colour side by side read
-  // as one band, and at a line break the band runs on to the margin as ink does.
-  const bandStarts = new Set<number>();
-  const bandEnds = new Set<number>();
-  for (const [word, colour] of fills) {
-    if (fills.get(word - 1) !== colour) bandStarts.add(word);
-    if (fills.get(word + 1) !== colour) bandEnds.add(word);
+  /**
+   * What the verse's margin says about it: a mark holding a note, and a mark
+   * holding a link. Both are read from the stored marks rather than painted
+   * into the words, so a thought about a verse is found at the verse's edge
+   * however far into the prose the marked words began.
+   */
+  const noteMarks = marks.filter((mark) => noteText(mark.note).length > 0);
+  const linkMarks = marks.filter((mark) => mark.links?.length);
+
+  // A dragged edge paints the run it is showing, over whatever is stored.
+  if (preview && preview.color !== "clear") {
+    const covers = (word: number) => {
+      if (verse.number < preview.from.verse || verse.number > preview.to.verse) return false;
+      if (verse.number === preview.from.verse && word < preview.from.word) return false;
+      if (verse.number === preview.to.verse && word > preview.to.word) return false;
+      return true;
+    };
+    for (let word = 1; word <= words.length; word += 1) {
+      if (!covers(word)) continue;
+      if (preview.style === "underline") underlines.set(word, preview.color);
+      else fills.set(word, preview.color);
+    }
+  }
+
+  // --- which words share a line --------------------------------------------
+  // One box per run of words would be the simplest thing to paint, and the
+  // browser does round the ends of every line a run wraps onto. But a rounded
+  // corner belongs to the box, not to a line: a run that wraps *and* meets
+  // another mark wears its flat edge on every line it touches, so the ends of
+  // its lines went square. Measuring the words lets the run be drawn as one box
+  // per line instead, and each line end then gets its own corner back.
+  //
+  // Nothing here is painted differently because of the measurement — the boxes
+  // and their padding are the same — so the measurement cannot change where the
+  // words break.
+  const host = useRef<HTMLSpanElement>(null);
+  const [lines, setLines] = useState<number[] | null>(null);
+
+  useLayoutEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const spans = [...element.querySelectorAll<HTMLElement>("[data-word]")];
+      if (!spans.length) return;
+      const found: number[] = [];
+      let top = Number.NaN;
+      let line = -1;
+      for (const span of spans) {
+        const box = span.getBoundingClientRect();
+        // A pixel of slack: one line's glyphs share their top to the
+        // sub-pixel, and the line below is a whole line-height away.
+        if (!Number.isFinite(top) || Math.abs(box.top - top) > 1) {
+          top = box.top;
+          line += 1;
+        }
+        found.push(line);
+      }
+      setLines((old) =>
+        old && old.length === found.length && old.every((n, i) => n === found[i]) ? old : found
+      );
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(read);
+    };
+    read();
+    // The reader's type size and the width of the column both move the lines
+    // without touching a word, and a webfont can land after the first paint.
+    const observer = new ResizeObserver(schedule);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [verse.number, verse.text, annotations, preview]);
+
+  const lineOf = (word: number) => lines?.[word - 1] ?? 0;
+  /** Whether this word starts its line, so its left edge is an edge of text. */
+  const beginsLine = (word: number) => word === 1 || lineOf(word) !== lineOf(word - 1);
+  /** Whether this word ends its line. */
+  const endsLine = (word: number) => word === words.length || lineOf(word) !== lineOf(word + 1);
+  /** Whether any mark — a wash or a line — is inked on this word. */
+  const inked = (word: number) => Boolean(fills.get(word) || underlines.get(word));
+
+  // A band is a run of words in one colour on one line: two marks of the same
+  // colour side by side read as one band, and a band never runs over the end of
+  // a line, so each line can wear its own corners (see the measurement above).
+  const bands: { key: number; fill?: MarkColor; first: number; last: number }[] = [];
+  for (let word = 1; word <= words.length; word += 1) {
+    const fill = fills.get(word);
+    const band = bands[bands.length - 1];
+    if (band && band.fill === fill && lineOf(word) === lineOf(band.last)) {
+      band.last = word;
+    } else {
+      bands.push({ key: word, fill, first: word, last: word });
+    }
   }
 
   return (
+    // Two columns so the number hangs in the margin: the reader's eye runs down
+    // a straight left edge of text, and the verse's first line is the one the
+    // number sits beside however long the verse runs. Both columns are
+    // top-aligned, which is what puts the number level with the first line the
+    // reader is about to read — on a shared baseline the smaller type hangs low
+    // against a line whose leading it does not share.
+    //
+    // Top-aligned boxes are not quite level ink, though: the number's own leading
+    // is scaled to its smaller em, so its capital rides a couple of pixels above
+    // the prose's. The nudge below closes that, in the number's own em so it
+    // holds at both of the reader's type sizes.
+    //
+    // A third column at the right holds the verse's note and link marks. They
+    // are not inside the prose because they would break a highlight at the word
+    // they followed, and because a marker in the margin is found at the verse's
+    // edge however deep into a long verse the marked words began. The column is
+    // reserved on every verse, empty or not, so the measure is one width down
+    // the whole chapter.
     <p
       id={`verse-${verse.number}`}
-      className={`-mx-2 mb-3 rounded-lg px-2 transition-colors ${
-        focused ? "bg-accent/5" : ""
+      className={`-mx-1 mb-3 grid grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] items-start gap-x-1.5 border-l-2 px-1 transition-colors sm:-mx-2 sm:gap-x-2 sm:px-2 ${
+        // The rule is always in the layout and only coloured when the verse is
+        // one the address asked for, so opening a chapter never shifts its text
+        // by two pixels. Gold down the side says which verses are the place, and
+        // survives the faint wash being easy to miss.
+        //
+        // Square, not rounded: the rule is the edge of the verse, the way a
+        // strapline's is the edge of the words it quotes. Rounded corners bent
+        // it away at the top and bottom and made the mark read as a card.
+        focused ? "border-accent bg-accent/5" : "border-transparent"
       }`}
     >
       <button
@@ -1012,189 +1565,132 @@ function VerseRow({
         onClick={() => onVerse(verse.number)}
         aria-label={`Verse ${verse.number}: actions`}
         title={`Verse ${verse.number}`}
-        className="mr-1 inline rounded px-0.5 align-baseline text-[0.72em] font-semibold tabular-nums text-muted transition-colors hover:text-accent-strong"
+
+        className="translate-y-[0.2em] rounded text-right text-[0.72em] font-semibold tabular-nums text-muted transition-colors hover:text-accent-strong"
       >
         {verse.number}
       </button>
 
-      {words.map((word, index) => {
-        const number = index + 1;
-        const fill = fills.get(number);
-        const underline = underlines.get(number);
-        const link = links.get(number);
-        // A mark with no colour, no underline and no link is a note: it has
-        // nothing on the words to press, and its marker is the way in.
-        const pressable = Boolean(fill || underline || link);
-        return (
-          <span key={number}>
-            <span
-              data-verse={verse.number}
-              data-word={number}
-              onClick={() => {
-                if (!pressable) return;
-                if (!window.getSelection()?.isCollapsed) return;
-                onWords(verse.number, number);
-              }}
-              className={pressable ? "cursor-pointer" : undefined}
-              style={{
-                backgroundColor: fill ? `var(--mark-${fill})` : undefined,
-                // Slightly rounded at the two ends of the band and square
-                // between the words it runs through.
-                borderRadius: fill
-                  ? `${bandStarts.has(number) ? "0.22rem" : "0"} ${bandEnds.has(number) ? "0.22rem" : "0"} ${bandEnds.has(number) ? "0.22rem" : "0"} ${bandStarts.has(number) ? "0.22rem" : "0"}`
-                  : undefined,
-                textDecoration: underline || link ? "underline" : undefined,
-                textDecorationColor: underline
-                  ? `var(--mark-ink-${underline})`
-                  : link
-                    ? "var(--mark-ink-blue)"
-                    : undefined,
-                textDecorationThickness: underline || link ? "2px" : undefined,
-                textUnderlineOffset: underline || link ? "3px" : undefined,
-                textDecorationStyle: link ? "dotted" : undefined,
-              }}
-            >
-              {word.word}
-              {index < words.length - 1 ? " " : null}
-            </span>
-            {notes.get(number)?.map((mark) => (
-              <button
-                key={mark.id}
-                type="button"
-                onClick={() => onNote(mark)}
-                aria-label={`Open the note on verse ${verse.number}`}
-                title="Note"
-                className="mx-0.5 inline-grid h-5 w-5 translate-y-[-1px] place-items-center rounded-full bg-accent/20 align-baseline text-accent-strong transition-colors hover:bg-accent/30"
-              >
-                <Glyph name="journal" className="h-3 w-3" />
-              </button>
-            ))}
+      <span ref={host} className="min-w-0">
+        {bands.map((band) => {
+          // Where one mark meets another they are one passage made in two inks,
+          // so the seam is flat: two rounded corners meeting left a notch above
+          // and below the join, and the colours read as separate stickers. The
+          // ends of the lines keep their corners — a wash that wraps is a box
+          // per line, so only the line that really touches another mark is
+          // flat.
+          //
+          // It does not matter what the neighbouring mark is — a wash or a
+          // line — only that something is inked on the word at the join.
+          const leftSeam = Boolean(band.fill) && !beginsLine(band.first) && inked(band.first - 1);
+          const rightSeam = Boolean(band.fill) && !endsLine(band.last) && inked(band.last + 1);
+          // A line inked on the edge word has to reach the seam too: its own box
+          // stops 0.3em short of the band's edge, which is where the ink of the
+          // mark it meets begins (see `.mark-underline-bleed`).
+          const leftInk = leftSeam ? underlines.get(band.first) : undefined;
+          const rightInk = rightSeam ? underlines.get(band.last) : undefined;
+
+          return (
+          <span
+            key={band.key}
+            className={
+              band.fill
+                ? `mark-band${leftSeam ? " mark-band-meets-left" : ""}${
+                    rightSeam ? " mark-band-meets-right" : ""
+                  }`
+                : undefined
+            }
+            style={band.fill ? { backgroundColor: `var(--mark-${band.fill})` } : undefined}
+          >
+            {leftInk && (
+              <span
+                aria-hidden
+                className="mark-underline-bleed mark-underline-bleed-start"
+                style={{ backgroundColor: `var(--mark-ink-${leftInk})` }}
+              />
+            )}
+            {words.slice(band.first - 1, band.last).map((word, offset) => {
+              const index = band.first - 1 + offset;
+              const number = index + 1;
+              const fill = fills.get(number);
+              const underline = underlines.get(number);
+              const link = links.get(number);
+              // A mark with no colour and no underline has nothing on the words
+              // to press; its margin marker is the way in.
+              const pressable = Boolean(fill || underline || link);
+              return (
+                <span
+                  key={number}
+                  data-verse={verse.number}
+                  data-word={number}
+                  onClick={() => {
+                    if (!pressable) return;
+                    if (!window.getSelection()?.isCollapsed) return;
+                    onWords(verse.number, number);
+                  }}
+                  className={pressable ? "cursor-pointer" : undefined}
+                  style={{
+                    // A link is drawn as one more line of ink, not a second
+                    // kind of line: the same weight, offset and style as an
+                    // underline, in a blue the palette keeps for links. Only
+                    // its colour says it goes somewhere — the verse's margin
+                    // mark is what opens it.
+                    textDecorationLine: underline || link ? "underline" : undefined,
+                    textDecorationColor: underline
+                      ? `var(--mark-ink-${underline})`
+                      : link
+                        ? "var(--mark-ink-blue)"
+                        : undefined,
+                    textDecorationThickness: underline || link ? "2px" : undefined,
+                    textUnderlineOffset: underline || link ? "3px" : undefined,
+                  }}
+                >
+                  {word.word}
+                  {index < words.length - 1 ? " " : null}
+                </span>
+              );
+            })}
+            {rightInk && (
+              <span
+                aria-hidden
+                className="mark-underline-bleed mark-underline-bleed-end"
+                style={{ backgroundColor: `var(--mark-ink-${rightInk})` }}
+              />
+            )}
           </span>
-        );
-      })}
-    </p>
-  );
-}
-
-function MarksSheet({
-  doc,
-  marks,
-  onClose,
-  onJump,
-  onEdit,
-  onDelete,
-}: {
-  doc: ReaderDoc;
-  marks: Annotation[];
-  onClose: () => void;
-  onJump: (mark: Annotation) => void;
-  onEdit: (mark: Annotation) => void;
-  onDelete: (mark: Annotation) => void;
-}) {
-  const ordered = [...marks].sort((a, b) => a.verse - b.verse || a.startWord - b.startWord);
-  return (
-    <Sheet title="Marks in this chapter" onClose={onClose}>
-      {ordered.length === 0 ? (
-        <p className="pb-2 text-sm text-muted">
-          Nothing marked yet. Select a few words to highlight them, underline them, or attach a note.
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {ordered.map((mark) => {
-            const quote = noteText(mark.note);
-            const verse = doc.verses.find((v) => v.number === mark.verse);
-            return (
-              <li key={mark.id} className="rounded-2xl border border-border bg-surface p-3">
-                <div className="flex items-start gap-2">
-                  <MarkChip mark={mark} />
-                  <button type="button" onClick={() => onJump(mark)} className="min-w-0 flex-1 text-left">
-                    <p className="text-xs font-semibold text-accent-strong">
-                      {doc.book} {doc.chapter}:{mark.verse}
-                    </p>
-                    {quote ? (
-                      <p className="mt-0.5 line-clamp-2 text-sm text-foreground/85">{quote}</p>
-                    ) : (
-                      <p className="mt-0.5 line-clamp-2 font-serif text-sm text-muted">
-                        {verse ? rangeText(verse.text, mark.startWord, mark.endWord) : ""}
-                      </p>
-                    )}
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 border-t border-border pt-2">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(mark)}
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-muted hover:bg-surface-2 hover:text-accent-strong"
-                  >
-                    <Glyph name="pencil" className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(mark)}
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-muted hover:bg-surface-2 hover:text-accent-strong"
-                  >
-                    <Glyph name="trash" className="h-3.5 w-3.5" />
-                    Delete
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Sheet>
-  );
-}
-
-/**
- * A mark at a glance: a filled swatch, or — for an underline — a bar of the ink
- * it is drawn in. A note with no colour of its own keeps an empty ring, so the
- * row still lines up with the others.
- */
-function MarkChip({ mark }: { mark: Annotation }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="h-4 w-4 shrink-0 rounded-full border border-border"
-      style={
-        mark.style === "underline"
-          ? {
-              borderBottomColor: `var(--mark-ink-${mark.color === "clear" ? "gray" : mark.color})`,
-              borderBottomWidth: 3,
-            }
-          : {
-              backgroundColor: mark.color === "clear" ? "transparent" : `var(--mark-${mark.color})`,
-            }
-      }
-    />
-  );
-}
-
-/** One row of the reader's one menu: a mark, a name, and a line of explanation. */
-function MenuRow({
-  icon,
-  label,
-  hint,
-  onClick,
-}: {
-  icon: "book" | "grid" | "journal";
-  label: string;
-  hint: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3.5 py-3 text-left transition-colors hover:border-accent/60 hover:text-accent-strong"
-    >
-      <Glyph name={icon} className="h-5 w-5 shrink-0 text-muted" />
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold text-foreground">{label}</span>
-        <span className="block text-xs text-muted">{hint}</span>
+          );
+        })}
       </span>
-    </button>
+
+      {/* The verse's margin, at its right edge: a note and a link each leave a
+          mark there, and the mark is how the note is read or the linked passage
+          shown. One mark per kind, however many notes or links the verse holds
+          — the panel behind it lists them all. */}
+      <span className="flex flex-col items-end gap-1">
+        {noteMarks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onNote(verse.number)}
+            aria-label={`Open the note on verse ${verse.number}`}
+            title="Note"
+            className="grid h-6 w-6 place-items-center rounded-full bg-accent/20 text-accent-strong transition-colors hover:bg-accent/30"
+          >
+            <Glyph name="journal" className="h-3 w-3" />
+          </button>
+        )}
+        {linkMarks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onLink(verse.number)}
+            aria-label={`Open the link on verse ${verse.number}`}
+            title="Linked passage"
+            className="grid h-6 w-6 place-items-center rounded-full bg-accent/20 text-accent-strong transition-colors hover:bg-accent/30"
+          >
+            <Glyph name="link" className="h-3 w-3" />
+          </button>
+        )}
+      </span>
+    </p>
   );
 }
 

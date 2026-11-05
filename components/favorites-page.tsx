@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
-import { BookmarkIcon } from "./bookmark-icon";
+import { StarIcon } from "./star-icon";
 import { Glyph } from "./glyph";
 import { NoteDialog } from "./note-dialog";
+import { SaveToDeckDialog } from "./save-to-deck-dialog";
 import { isNative, openExternal } from "@/lib/external";
 import { clearFavorites, removeFavorite, useFavorites, type Favorite } from "@/lib/favorites";
-import { addFavoriteToMemory, removeMemory, useMemory } from "@/lib/memorize";
+import { itemFromFavorite, useMemory } from "@/lib/memorize";
 import { noteFor, noteHtml, removeNote, saveNote, useNotes } from "@/lib/notes";
+import { storedPassageHref } from "@/lib/reader";
 
 /** How many verses a card shows before it offers to expand. */
 const COLLAPSE_AFTER = 3;
@@ -30,31 +32,36 @@ export function FavoritesPage() {
 
   const subtitle =
     favorites.length === 0
-      ? "Passages you bookmark are kept here"
+      ? "Passages you star are kept here"
       : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`;
 
   return (
     <AppShell>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
-        {/* The page's padding is the whole of the gap under the app bar. */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">
-              Favorites
-            </h2>
-            <p className="mt-0.5 text-sm text-muted">{subtitle}</p>
-          </div>
+        {/* The way back on its own line, the title under it starting at the
+            page's left edge — the shape every page header in the app takes, as
+            components/feature-page.tsx sets it out. The arrow's box is drawn
+            10px left and 8px up so its drawing, not its invisible edge, is what
+            sits at the top left corner, and 24px of air separate it from the
+            heading below. */}
+        <div className="-ml-2.5 -mt-2 flex">
           <BackLink />
+        </div>
+        <div className="min-w-0">
+          <h2 className="mt-6 font-serif text-2xl font-semibold text-foreground sm:text-3xl">
+            Favorites
+          </h2>
+          <p className="mt-0.5 text-sm text-muted">{subtitle}</p>
         </div>
 
         {favorites.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border px-6 py-16 text-center">
             <span className="mx-auto block text-accent/40">
-              <BookmarkIcon className="mx-auto h-10 w-10" />
+              <StarIcon className="mx-auto h-10 w-10" />
             </span>
             <p className="mt-4 text-sm font-medium text-foreground">No favorites yet</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-              Tap the bookmark on any passage and it will show up here.
+              Tap the star on any passage and it will show up here.
             </p>
             <Link
               href="/passage"
@@ -96,15 +103,32 @@ export function FavoritesPage() {
 function FavoriteCard({ favorite }: { favorite: Favorite }) {
   const [expanded, setExpanded] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  /** The deck picker, for taking this passage on as a card. */
+  const [deckOpen, setDeckOpen] = useState(false);
   const notes = useNotes();
   const note = noteFor(notes, favorite.id);
   const memory = useMemory();
   const inMemory = memory.some((item) => item.id === favorite.id);
+  /** The card this passage would become, for the deck picker to file. */
+  const draft = useMemo(() => itemFromFavorite(favorite), [favorite]);
   const parts = favorite.parts ?? [];
   const multi = parts.length > 1;
   const collapsible = parts.length > COLLAPSE_AFTER;
   const shown = collapsible && !expanded ? parts.slice(0, COLLAPSE_AFTER) : parts;
   const unit = favorite.kind === "scripture" ? "verse" : "paragraph";
+  /**
+   * The saved passage in the reader, with every verse (or paragraph) the card
+   * covers marked there — a run or a scattered pick alike. A favorite is a
+   * passage rather than a quotation: the chapter it was taken from is one tap
+   * away, so the card reads in place as well as here.
+   */
+  const href = storedPassageHref({
+    kind: favorite.kind,
+    book: favorite.book,
+    chapter: favorite.chapter,
+    verses: favorite.sections ?? (favorite.section ? [favorite.section] : undefined),
+    url: favorite.url,
+  });
 
   return (
     <li
@@ -113,7 +137,17 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-serif text-lg font-semibold text-accent-strong">{favorite.reference}</h2>
+          {/* The reference is the passage's name, so it is the link: naming a
+              passage in this app has always meant opening it in the reader. */}
+          <h2 className="font-serif text-lg font-semibold text-accent-strong">
+            {href ? (
+              <Link href={href} className="hover:underline">
+                {favorite.reference}
+              </Link>
+            ) : (
+              favorite.reference
+            )}
+          </h2>
           <p className="mt-0.5 text-xs text-muted">{favorite.sourceLabel}</p>
         </div>
         <button
@@ -164,6 +198,9 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
           <p className="text-[11px] font-semibold uppercase tracking-wider text-accent-strong">
             Notes
           </p>
+          {note.title && (
+            <p className="mt-1 font-serif text-base font-semibold text-foreground">{note.title}</p>
+          )}
           {/* Sanitized on the way in and again on the way out: what is in
               storage is data, and data is not trusted with the page's DOM. */}
           <div
@@ -174,6 +211,16 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        {href && (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
+          >
+            <Glyph name="book" className="h-4 w-4" />
+            Read
+          </Link>
+        )}
+
         <button
           type="button"
           onClick={() => setNoteOpen(true)}
@@ -202,30 +249,38 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
         )}
 
         {/* The bridge from reading to learning by heart: a starred passage is
-            one tap from the memory list. */}
+            one tap from a deck, which the picker asks for. There is no default
+            shelf to inherit — a card belongs to a deck the reader made. The
+            picker opens even once the passage is saved, because a card can sit
+            in several decks and that is also where it is taken back out. */}
         <button
           type="button"
           aria-pressed={inMemory}
-          title={inMemory ? "Remove from your memory list" : "Add to your memory list"}
-          onClick={() =>
-            inMemory ? removeMemory(favorite.id) : addFavoriteToMemory(favorite)
-          }
+          title={`Choose decks for ${favorite.reference}`}
+          onClick={() => setDeckOpen(true)}
           className="inline-flex items-center gap-2 text-sm font-medium text-accent-strong hover:underline"
         >
           <Glyph name="cards" className="h-4 w-4" />
-          {inMemory ? "On your memory list" : "Memorize"}
+          {inMemory ? "In Memorize" : "Memorize"}
         </button>
       </div>
 
+      <SaveToDeckDialog
+        open={deckOpen}
+        onClose={() => setDeckOpen(false)}
+        draft={draft}
+      />
+
       <NoteDialog
         // Remounted per opening so the field starts from the stored note.
-        key={noteOpen ? `${favorite.id}:${note?.text ?? ""}` : "note-closed"}
+        key={noteOpen ? `${favorite.id}:${note?.text ?? ""}:${note?.title ?? ""}` : "note-closed"}
         open={noteOpen}
         title={favorite.reference}
         source={favorite.sourceLabel}
         passage={favorite.text}
         initial={note?.text ?? ""}
-        onSave={(text) => saveNote(favorite, text)}
+        initialTitle={note?.title ?? ""}
+        onSave={(text, title) => saveNote(favorite, text, title)}
         onDelete={note ? () => removeNote(favorite.id) : undefined}
         onClose={() => setNoteOpen(false)}
       />

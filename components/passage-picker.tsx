@@ -10,7 +10,6 @@ import { RifflingPages } from "./riffling-pages";
 import { PassageCard } from "./passage-card";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
-import { StreakBadge } from "./streak-badge";
 import { dayKey } from "@/lib/daily";
 import {
   NoSourcesError,
@@ -18,12 +17,10 @@ import {
   loadManifest,
   pickDailyPassage,
   pickPassage,
-  resolveCitation,
   summarize,
 } from "@/lib/picker";
 import { setPreference, usePreferences } from "@/lib/preferences";
 import { recordPassage } from "@/lib/study";
-import type { SearchCitation as Citation } from "@/lib/search";
 import type { Filters, Manifest, Passage } from "@/lib/types";
 
 /** How long the book's sheets turn before it lands on the draw. */
@@ -40,37 +37,18 @@ const LAND_MS = 500;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * The passage named by a `?action=cite` URL, as the search page writes it.
+ * The verse the page's strapline quotes, as the reader's address for it.
  *
- * Returns null rather than a half-filled citation when the query string is
- * incomplete, so a malformed link lands on the ordinary idle page instead of an
- * error the reader can do nothing about.
+ * One constant rather than two copies: the line's words and its link have to
+ * agree, and this is the only place that says which verse the invitation on
+ * this page comes from.
  */
-function readCitation(params: URLSearchParams): Citation | null {
-  const kind = params.get("kind");
-  const book = params.get("book");
-  const chapter = params.get("chapter");
-  const section = Number(params.get("section"));
-
-  if (kind !== "scripture" && kind !== "conference") return null;
-  if (!book || !chapter || !Number.isInteger(section) || section < 1) return null;
-
-  return { kind, book, chapter, section, conferenceId: params.get("session") ?? undefined };
-}
-
-/**
- * The verse the page's strapline quotes, as a citation.
- *
- * One constant rather than two copies: the line's link and the passage the
- * link opens have to agree, and this is the only place that says which verse
- * the invitation on this page comes from.
- */
-const STRAPLINE: Citation = {
+const STRAPLINE = {
   kind: "scripture",
   book: "Doctrine and Covenants",
   chapter: "42",
   section: 61,
-};
+} as const;
 
 /**
  * The widths that get the sidebar layout, matching Tailwind's `md`. A sidebar
@@ -86,24 +64,6 @@ const getIsWide = () => window.matchMedia(WIDE_QUERY).matches;
 /** Phones are what get prerendered, so that is the server's answer. */
 const getIsWideOnServer = () => false;
 
-function CalendarIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.9}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
-      <path d="M3.5 9.5h17M8 3.5V6m8-2.5V6" />
-    </svg>
-  );
-}
-
 export function PassagePicker() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -116,10 +76,10 @@ export function PassagePicker() {
   const [phase, setPhase] = useState<"idle" | "rifling" | "result">("idle");
   /**
    * Where the passage on the page came from, which the heading names: a random
-   * draw, the day's passage, or one named by a link. Before anything is drawn
-   * the page is about to draw, so it reads as random.
+   * draw, or the day's passage. Before anything is drawn the page is about to
+   * draw, so it reads as random.
    */
-  const [origin, setOrigin] = useState<"random" | "daily" | "cited">("random");
+  const [origin, setOrigin] = useState<"random" | "daily">("random");
   const [passage, setPassage] = useState<Passage | null>(null);
   /** The passage the book has landed on, shown on the page before it opens up. */
   const [landedPassage, setLandedPassage] = useState<Passage | null>(null);
@@ -133,8 +93,7 @@ export function PassagePicker() {
   /**
    * Which passage is the current one, as a number that goes up every time one
    * is asked for. A draw takes seconds, so by the time it resolves the reader
-   * may have asked for something else — a citation from the strapline link can
-   * arrive while the book is still turning. The slow step then finds the count
+   * may have asked for something else. The slow step then finds the count
    * moved and drops its own passage instead of landing on top of the new one.
    */
   const shownRef = useRef(0);
@@ -204,8 +163,7 @@ export function PassagePicker() {
       }
       const untilLand = RIFFLE_MS - (performance.now() - started);
       if (untilLand > 0) await sleep(untilLand);
-      // Checked again on the far side of the turn, which is the long wait: a
-      // citation asked for while the pages were still turning wins.
+      // Checked again on the far side of the turn, which is the long wait.
       if (shownRef.current !== token) return;
       recordPassage();
       setOrigin(day ? "daily" : "random");
@@ -231,44 +189,6 @@ export function PassagePicker() {
     }
   }, [manifest, filters, passage, wide, prefs.reduceMotion]);
 
-  /**
-   * Show a passage that was named rather than drawn.
-   *
-   * No riffle: the reader already knows which verse they asked for, so turning
-   * pages at them would be theatre. It is also not counted as a passage read —
-   * that number on the stats page is of draws that landed (see `draw` above) —
-   * though the time spent reading it counts like any other, because the study
-   * timer follows the page rather than the draw.
-   */
-  const showCitation = useCallback(async (citation: Citation) => {
-    // Takes over from anything already in flight — a draw the reader has
-    // overtaken with this click, or an earlier citation still resolving.
-    const token = ++shownRef.current;
-    setError(null);
-    try {
-      const next = await resolveCitation(
-        citation.kind,
-        citation.book,
-        citation.chapter,
-        citation.section,
-        citation.conferenceId
-      );
-      if (shownRef.current !== token) return;
-      if (!next) {
-        setError("That passage isn't in this build of the library.");
-        return;
-      }
-      setOrigin("cited");
-      setLandedPassage(next);
-      setPassage(next);
-      setDrawKey((k) => k + 1);
-      setPhase("result");
-    } catch (e: unknown) {
-      if (shownRef.current !== token) return;
-      setError(e instanceof Error ? e.message : "Something went wrong opening that passage.");
-    }
-  }, []);
-
   // The home-screen widgets open the app straight into a draw, with the action
   // in the URL (`?action=autoriffle` for a fresh draw, `?action=daily` for the
   // day's passage). Read from `window.location` rather than next/navigation's
@@ -278,12 +198,7 @@ export function PassagePicker() {
     if (!manifest || actionHandled.current) return;
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
-    if (action !== "autoriffle" && action !== "daily" && action !== "cite") return;
-    // `?action=cite` names a passage instead of asking for one — it is how a
-    // search result comes over, and how a shared citation would. The others
-    // draw.
-    const citation = action === "cite" ? readCitation(params) : null;
-    if (action === "cite" && !citation) return;
+    if (action !== "autoriffle" && action !== "daily") return;
     // Drop the parameter, so reloading — or coming back to the tab — doesn't
     // throw another draw at the reader.
     window.history.replaceState(null, "", window.location.pathname);
@@ -294,11 +209,10 @@ export function PassagePicker() {
     // superseded before the tick, the next one still picks the action up.
     const id = window.setTimeout(() => {
       actionHandled.current = true;
-      if (citation) void showCitation(citation);
-      else void draw(action === "daily" ? dayKey() : undefined);
+      void draw(action === "daily" ? dayKey() : undefined);
     }, 0);
     return () => window.clearTimeout(id);
-  }, [manifest, draw, showCitation]);
+  }, [manifest, draw]);
 
   // Space / Enter draws another passage when the app is focused on the page body.
   useEffect(() => {
@@ -368,36 +282,25 @@ export function PassagePicker() {
               <section className="text-center sm:text-left">
                 {/* The full column width, so the draw button below spans it. */}
                 <div className="mx-auto w-full">
-                  {/* The heading says which passage is on the page, and the
-                      open book beside it is the mark /study leads with and the
-                      one the catalog gives this page: the same drawing for the
-                      same act, whether the passage was drawn or cited. The line
-                      under it is left with the icon rather than centred, so it
-                      reads as this page's title, not a label on the button. */}
-                  {/* The back control rides the heading row, in line with the
-                      title it belongs to — the same place every page built on
-                      the shared frame puts it. */}
-                  <div className="flex items-center gap-3 text-left">
-                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-surface text-accent-strong">
-                      <Glyph name="book" className="h-6 w-6" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      {/* The back control shares the title's line rather than
-                          the whole block's: with the tagline under it, a row
-                          centred on the block leaves the arrow a little below
-                          the heading it belongs to. */}
-                      <div className="flex items-center justify-between gap-3">
-                        <h2 className="font-serif text-2xl font-semibold text-foreground">
-                          {origin === "daily"
-                            ? "Daily Scripture"
-                            : origin === "cited"
-                              ? "Scripture"
-                              : "Random Scripture"}
-                        </h2>
-                        <BackLink />
-                      </div>
-                    </div>
+                  {/* The heading says which passage is on the page, and the way
+                      back is the line above it — the shape every page header in
+                      the app takes, as components/feature-page.tsx sets it out.
+                      The drawn tile that used to open the row was a second mark
+                      for the page the heading already names.
+
+                      This section centres itself on a phone, so the heading
+                      asks for the left edge by name; without it the stacked
+                      title would drift to the middle of the column while the
+                      arrow stayed left. The arrow's box is drawn 10px left and
+                      8px up so its drawing, not its invisible edge, is what sits
+                      at the top left corner, with 24px of air between it and
+                      the heading. */}
+                  <div className="-ml-2.5 -mt-2 flex justify-start">
+                    <BackLink />
                   </div>
+                  <h2 className="mt-6 text-left font-serif text-2xl font-semibold text-foreground">
+                    {origin === "daily" ? "Daily Scripture" : "Random Scripture"}
+                  </h2>
 
                   {/* On its own line under the heading, not tucked beneath the
                       title: the heading row is the page's title bar, and this is
@@ -407,11 +310,10 @@ export function PassagePicker() {
                       the words in the serif italic they are read in, the
                       citation after them and kept whole — and, like the ones on
                       the quiz and memorize pages, a way into the verse it
-                      names rather than a label. The click is handled here as
-                      well as by the URL: the effect above only reads the query
-                      string when the page arrives, so a client navigation from
-                      /read to /read would otherwise leave the card showing the
-                      passage it already had. */}
+                      names rather than a label. It goes to the reader, which is
+                      where a passage is read: the citation rides in the query
+                      string and /read resolves it, opening the chapter at the
+                      verse instead of drawing it here. */}
                   <p className="mt-2 text-left text-sm text-muted">
                     <span className="font-serif italic text-foreground/85">
                       &ldquo;If thou shalt ask, thou shalt receive revelation upon revelation…&rdquo;
@@ -420,31 +322,6 @@ export function PassagePicker() {
                       —{" "}
                       <Link
                         href={citationHref(STRAPLINE)}
-                        onClick={(e) => {
-                          // A modified click opens the passage in a new tab or
-                          // window, which the URL already handles.
-                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                          // Handled here rather than by the URL: the effect above
-                          // only reads the query string as the page arrives, so a
-                          // client navigation from /read to /read would leave the
-                          // card showing the passage it already had. The address
-                          // bar still gets the citation, so the passage stays
-                          // linkable — but the parameter is marked as handled, so
-                          // the arrival effect never acts on it later and pulls
-                          // the reader back to this verse.
-                          e.preventDefault();
-                          actionHandled.current = true;
-                          const href = citationHref(STRAPLINE);
-                          // This page's own path (trailing slash and all), with
-                          // the citation's query string added: the address the
-                          // navigation would have written.
-                          window.history.replaceState(
-                            null,
-                            "",
-                            `${window.location.pathname}${href.slice(href.indexOf("?"))}`
-                          );
-                          void showCitation(STRAPLINE);
-                        }}
                         className="text-accent-strong hover:underline"
                       >
                         Doctrine and Covenants 42:61
@@ -520,21 +397,6 @@ export function PassagePicker() {
                         <path d="m6 9 6 6 6-6" />
                       </svg>
                     </button>
-
-                    {/* The daily habit, below the draw itself: the passage the
-                        reminder pointed at, and how long the run has lasted. */}
-                    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-start">
-                      <button
-                        type="button"
-                        onClick={() => void draw(dayKey())}
-                        disabled={!manifest || phase === "rifling" || loading || nothingSelected}
-                        className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <CalendarIcon />
-                        Today&apos;s passage
-                      </button>
-                      <StreakBadge />
-                    </div>
                   </div>
                 </div>
 

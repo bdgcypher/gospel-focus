@@ -3,7 +3,6 @@
 import type { JournalEntry } from "./journal";
 import { bodyText, displayTitle } from "./journal";
 import { noteText, type Note } from "./notes";
-import type { SearchHit } from "./search";
 
 /**
  * What a journal entry can point at, and where each of those things lives.
@@ -33,29 +32,6 @@ export interface LinkTarget {
   href: string;
   /** A line of context under the candidate. */
   detail: string;
-}
-
-/** Where a citation lives in the reader — the address the search results use. */
-export function passageHref(hit: Pick<SearchHit, "citation">): string {
-  const params = new URLSearchParams({
-    action: "cite",
-    kind: hit.citation.kind,
-    book: hit.citation.book,
-    chapter: hit.citation.chapter,
-    section: String(hit.citation.section),
-  });
-  if (hit.citation.conferenceId) params.set("session", hit.citation.conferenceId);
-  return `/read?${params.toString()}`;
-}
-
-export function passageTarget(hit: SearchHit): LinkTarget {
-  return {
-    id: `passage:${hit.id}`,
-    source: "passages",
-    text: hit.reference,
-    href: passageHref(hit),
-    detail: hit.source,
-  };
 }
 
 /** A note's address is its card on the favorites page. */

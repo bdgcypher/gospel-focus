@@ -34,14 +34,19 @@ export interface MemoryItem {
   /** Stable across a re-add, so one passage is one card. */
   id: string;
   /**
-   * The custom deck this card belongs to, or nothing for the main list.
+   * The decks this card is in, at least one once it is saved.
    *
-   * A passage lives in exactly one place: the list is the passage, and a deck
-   * is one way of naming a group of them. That is why this is a field on the
-   * card rather than a set of ids on the deck — deleting a deck takes its cards
-   * with it, and no card can be left pointing at a deck that isn't there.
+   * One passage is one card however many decks hold it: the words, the hiding
+   * level and the recitations belong to the passage, not to the shelf, so a
+   * card added to a second deck arrives with everything already learned about
+   * it. A card with no deck is not kept — it would be a card with nowhere to be
+   * found — so nothing writes one, and taking a card out of its last deck takes
+   * the card with it.
+   *
+   * Ids live on the card rather than on the deck for the same reason as ever:
+   * deleting a deck must leave no card pointing at one that isn't there.
    */
-  deckId?: string;
+  deckIds: string[];
   kind: Passage["kind"];
   reference: string;
   sourceLabel: string;
@@ -74,8 +79,33 @@ const KEY = "gospel-focus:memorize:v1";
 const EMPTY: MemoryItem[] = [];
 
 let cache: MemoryItem[] | null = null;
+/**
+ * The stored text `cache` was parsed from.
+ *
+ * A snapshot is only reused while storage still says what it said when it was
+ * parsed. Reading is a single `getItem`, and the JSON is only parsed again when
+ * that string has changed — which is what lets two copies of this module (a
+ * route that was hot-reloaded, a page restored from suspension) agree: each one
+ * compares against the store rather than trusting a cache it cannot see the
+ * other side of.
+ */
+let cachedRaw: string | null = null;
 let listening = false;
 const listeners = new Set<() => void>();
+
+/**
+ * A stored card's decks, from either shape the store has kept them in: the
+ * `deckIds` of today, or the single `deckId` a card had before one passage
+ * could sit on several shelves. A card stored before decks existed at all comes
+ * back with none — still readable, so nothing is thrown away, and the first deck
+ * it is added to adopts it.
+ */
+function deckIdsOf(candidate: Partial<MemoryItem> & { deckId?: unknown }): string[] {
+  if (Array.isArray(candidate.deckIds)) {
+    return [...new Set(candidate.deckIds.filter((id): id is string => typeof id === "string" && !!id))];
+  }
+  return typeof candidate.deckId === "string" && candidate.deckId ? [candidate.deckId] : [];
+}
 
 /**
  * A stored row, checked enough to trust: it needs a name and at least one
@@ -103,8 +133,7 @@ function parseItem(value: unknown): MemoryItem | null {
 
   return {
     id: candidate.id,
-    deckId:
-      typeof candidate.deckId === "string" && candidate.deckId ? candidate.deckId : undefined,
+    deckIds: deckIdsOf(candidate),
     kind: candidate.kind === "conference" ? "conference" : "scripture",
     reference: candidate.reference,
     sourceLabel: typeof candidate.sourceLabel === "string" ? candidate.sourceLabel : "",
@@ -145,16 +174,20 @@ function parse(raw: string | null): MemoryItem[] {
 }
 
 function read(): MemoryItem[] {
-  if (cache) return cache;
   if (typeof window === "undefined") return EMPTY;
-  cache = parse(window.localStorage.getItem(KEY));
+  const raw = window.localStorage.getItem(KEY);
+  if (cache && raw === cachedRaw) return cache;
+  cachedRaw = raw;
+  cache = parse(raw);
   return cache;
 }
 
 function write(next: MemoryItem[]): void {
+  const raw = JSON.stringify(next);
   cache = next;
+  cachedRaw = raw;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
+    window.localStorage.setItem(KEY, raw);
   } catch {
     // Storage can be unavailable (private mode, full quota) — the session still
     // works, it just won't persist.
@@ -168,8 +201,12 @@ function ensureStorageListener(): void {
   listening = true;
   window.addEventListener("storage", (e) => {
     if (e.key !== KEY && e.key !== DECKS_KEY && e.key !== null) return;
-    cache = parse(window.localStorage.getItem(KEY));
-    deckCache = parseDecks(window.localStorage.getItem(DECKS_KEY));
+    // Dropped rather than re-read here: the next snapshot reads the store
+    // itself (see `read`), which is the one place that knows how.
+    cache = null;
+    cachedRaw = null;
+    deckCache = null;
+    cachedDecksRaw = null;
     for (const listener of listeners) listener();
     for (const listener of deckListeners) listener();
   });
@@ -191,11 +228,33 @@ export function memoryId(passage: Passage): string {
   return `${passage.kind}:${passage.reference}:${passage.highlightVerse ?? 0}`;
 }
 
-function upsert(item: MemoryItem): { item: MemoryItem; added: boolean } {
+/**
+ * Put a card on the shelf, in a deck.
+ *
+ * A passage already known to the app is not rebuilt: adding it to another deck
+ * adds the deck to the card and keeps everything learned about it. That is what
+ * makes one passage one card across the decks that hold it, and what lets a
+ * card be taken out of one deck without losing what another deck knows.
+ *
+ * Public because the deck picker has the card already built (`itemFromPassage`,
+ * `itemFromFavorite`) and only needs to file it: building it again would throw
+ * away nothing, but it would also mean the picker knew how every kind of card
+ * is made.
+ */
+export function addCardToDeck(
+  draft: MemoryItem,
+  deckId?: string
+): { item: MemoryItem; added: boolean } {
   const list = read();
-  const existing = list.find((entry) => entry.id === item.id);
-  if (existing) return { item: existing, added: false };
-  write([item, ...list]);
+  const existing = list.find((entry) => entry.id === draft.id);
+  if (!existing) {
+    const item = deckId ? { ...draft, deckIds: [deckId] } : draft;
+    write([item, ...list]);
+    return { item, added: true };
+  }
+  if (!deckId || existing.deckIds.includes(deckId)) return { item: existing, added: false };
+  const item = { ...existing, deckIds: [...existing.deckIds, deckId] };
+  write(list.map((entry) => (entry.id === item.id ? item : entry)));
   return { item, added: true };
 }
 
@@ -240,7 +299,7 @@ export function itemFromPassage(
 
   return {
     id: `${passage.kind}:${reference}:${first}`,
-    deckId,
+    deckIds: deckId ? [deckId] : [],
     kind: passage.kind,
     reference,
     sourceLabel: passage.sourceLabel,
@@ -266,7 +325,7 @@ export function addPassage(
   deckId?: string,
   verses?: number[]
 ): { item: MemoryItem; added: boolean } {
-  return upsert(itemFromPassage(passage, deckId, verses));
+  return addCardToDeck(itemFromPassage(passage, deckId, verses), deckId);
 }
 
 /**
@@ -278,7 +337,7 @@ export function addPassage(
 export function itemFromFavorite(favorite: Favorite, deckId?: string): MemoryItem {
   return {
     id: favorite.id,
-    deckId,
+    deckIds: deckId ? [deckId] : [],
     kind: favorite.kind,
     reference: favorite.reference,
     sourceLabel: favorite.sourceLabel,
@@ -302,24 +361,31 @@ export function addFavoriteToMemory(
   favorite: Favorite,
   deckId?: string
 ): { item: MemoryItem; added: boolean } {
-  return upsert(itemFromFavorite(favorite, deckId));
+  return addCardToDeck(itemFromFavorite(favorite, deckId), deckId);
+}
+
+/**
+ * Take a card out of one deck, keeping it everywhere else it lives.
+ *
+ * The last deck is the difference between a card and a ghost: with nowhere left
+ * to be seen, the card goes, along with what had been learned about it. A card
+ * that leaves one deck while another still holds it keeps its words and its
+ * recitations exactly as they were.
+ */
+export function removeFromDeck(cardId: string, deckId: string): void {
+  const list = read();
+  const card = list.find((item) => item.id === cardId);
+  if (!card) return;
+  const deckIds = card.deckIds.filter((id) => id !== deckId);
+  write(
+    deckIds.length
+      ? list.map((item) => (item.id === cardId ? { ...item, deckIds } : item))
+      : list.filter((item) => item.id !== cardId)
+  );
 }
 
 export function removeMemory(id: string): void {
   write(read().filter((item) => item.id !== id));
-}
-
-/**
- * Drop the main list — the passages and everything learned about them.
- *
- * A custom deck is its own shelf, so clearing the list leaves the decks alone:
- * "clear the whole list" is a promise about the list, not about every card the
- * reader has named a group around. The list is the unnamed cards — the ones
- * with no deck — so those are the ones that go; everything the reader grouped
- * stays where it was put.
- */
-export function clearMemory(): void {
-  write(read().filter((item) => Boolean(item.deckId)));
 }
 
 /** Log one recitation, from memory and whole. */
@@ -365,6 +431,8 @@ const DECKS_KEY = "gospel-focus:decks:v1";
 const NO_DECKS: Deck[] = [];
 
 let deckCache: Deck[] | null = null;
+/** The stored text `deckCache` was parsed from. See `cachedRaw`. */
+let cachedDecksRaw: string | null = null;
 const deckListeners = new Set<() => void>();
 
 function parseDecks(raw: string | null): Deck[] {
@@ -393,16 +461,20 @@ function parseDecks(raw: string | null): Deck[] {
 }
 
 function readDecks(): Deck[] {
-  if (deckCache) return deckCache;
   if (typeof window === "undefined") return NO_DECKS;
-  deckCache = parseDecks(window.localStorage.getItem(DECKS_KEY));
+  const raw = window.localStorage.getItem(DECKS_KEY);
+  if (deckCache && raw === cachedDecksRaw) return deckCache;
+  cachedDecksRaw = raw;
+  deckCache = parseDecks(raw);
   return deckCache;
 }
 
 function writeDecks(next: Deck[]): void {
+  const raw = JSON.stringify(next);
   deckCache = next;
+  cachedDecksRaw = raw;
   try {
-    window.localStorage.setItem(DECKS_KEY, JSON.stringify(next));
+    window.localStorage.setItem(DECKS_KEY, raw);
   } catch {
     // As with the cards: the session still works, it just won't persist.
   }
@@ -420,19 +492,27 @@ function deckId(): string {
  * Name a group of cards and put it on the shelf.
  *
  * The cards arrive as drafts (see `itemFromPassage`) and are stamped with the
- * deck's id here, at the one moment the deck exists. A card already on the list
- * is skipped rather than moved: a passage is one card, and saving the deck must
- * not quietly take it away from wherever it already was.
+ * deck's id here, at the one moment the deck exists. A card already on the
+ * shelf is not rebuilt — it joins this deck as well, keeping everything learned
+ * about it, because one passage is one card wherever it is kept.
  */
 export function createDeck(name: string, items: MemoryItem[]): Deck {
   const deck: Deck = { id: deckId(), name: name.trim(), createdAt: Date.now() };
   const list = read();
-  const taken = new Set(list.map((item) => item.id));
-  const cards = items
-    .filter((item) => !taken.has(item.id))
-    .map((item) => ({ ...item, deckId: deck.id }));
+  const drafts = new Map(items.map((item) => [item.id, item]));
+  let changed = false;
+  const joined = list.map((item) => {
+    if (!drafts.has(item.id) || item.deckIds.includes(deck.id)) return item;
+    changed = true;
+    return { ...item, deckIds: [...item.deckIds, deck.id] };
+  });
+  const present = new Set(list.map((item) => item.id));
+  const added = items
+    .filter((item) => !present.has(item.id))
+    .map((item) => ({ ...item, deckIds: [...new Set([...item.deckIds, deck.id])] }));
+
   writeDecks([deck, ...readDecks()]);
-  if (cards.length) write([...cards, ...list]);
+  if (added.length || changed) write([...added, ...joined]);
   return deck;
 }
 
@@ -442,47 +522,73 @@ export function createDeck(name: string, items: MemoryItem[]): Deck {
  * The cards that stayed keep their own record — a recitation logged this
  * morning is not lost because the deck was renamed this afternoon — while the
  * words themselves are taken from the draft, which is how a card can be
- * stretched to cover the verses next to it. Only the cards that left are
- * dropped from the store. A card that is already somewhere else is not taken:
- * saving the deck must not quietly pull a passage out of another deck or off
- * the main list.
+ * stretched to cover the verses next to it. A card taken out of this deck stays
+ * if another deck still holds it, and goes if this was its only one. A card
+ * already in another deck is welcome here too: adding it must not quietly pull
+ * the passage out of that one.
  */
 export function updateDeck(id: string, name: string, items: MemoryItem[]): void {
   const all = read();
-  const wanted = new Set(items.map((item) => item.id));
-  const draftById = new Map(items.map((item) => [item.id, item]));
-  const kept = all
-    .filter((item) => item.deckId !== id || wanted.has(item.id))
-    .map((item) => {
-      const draft = draftById.get(item.id);
-      if (!draft) return item;
+  const drafts = new Map(items.map((item) => [item.id, item]));
+  const next: MemoryItem[] = [];
+
+  for (const item of all) {
+    const draft = drafts.get(item.id);
+    const here = item.deckIds.includes(id);
+
+    if (here && draft) {
       // The words come from the draft — a run of verses can be stretched or
       // trimmed while the deck is open — while everything learned about the
       // card (its recitations, the hiding level, the day it was added) stays as
       // it was. A morning's recitation is not lost because the card grew a
       // verse in the afternoon.
-      return {
+      next.push({
         ...item,
         reference: draft.reference,
         book: draft.book,
         chapter: draft.chapter,
         parts: draft.parts,
-      };
-    });
+      });
+      continue;
+    }
+
+    if (here) {
+      // Left this deck: still a card if another one holds it.
+      const deckIds = item.deckIds.filter((deckId) => deckId !== id);
+      if (deckIds.length) next.push({ ...item, deckIds });
+      continue;
+    }
+
+    next.push(draft ? { ...item, deckIds: [...item.deckIds, id] } : item);
+  }
+
   const present = new Set(all.map((item) => item.id));
   const added = items
     .filter((item) => !present.has(item.id))
-    .map((item) => ({ ...item, deckId: id }));
+    .map((item) => ({ ...item, deckIds: [...new Set([...item.deckIds, id])] }));
 
   writeDecks(readDecks().map((deck) => (deck.id === id ? { ...deck, name: name.trim() } : deck)));
-  write([...added, ...kept]);
+  write([...added, ...next]);
 }
 
-/** Remove a deck and the cards it held — they were only ever on that shelf. */
+/**
+ * Remove a deck. Its cards leave with it, unless another deck still holds them.
+ */
 export function removeDeck(id: string): void {
   writeDecks(readDecks().filter((deck) => deck.id !== id));
-  write(read().filter((item) => item.deckId !== id));
+  const next: MemoryItem[] = [];
+  for (const item of read()) {
+    if (!item.deckIds.includes(id)) {
+      next.push(item);
+      continue;
+    }
+    const deckIds = item.deckIds.filter((deckId) => deckId !== id);
+    if (deckIds.length) next.push({ ...item, deckIds });
+  }
+  write(next);
 }
+
+
 
 function subscribeDecks(onChange: () => void): () => void {
   ensureStorageListener();
@@ -505,7 +611,7 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
-/** The memory list, newest first. Empty during server rendering. */
+/** Every card, newest first. Empty during server rendering. */
 export function useMemory(): MemoryItem[] {
   return useSyncExternalStore(subscribe, read, () => EMPTY);
 }

@@ -35,6 +35,12 @@ export interface Note {
   sourceLabel: string;
   /** The passage itself, so a note reads on its own. */
   passage: string;
+  /**
+   * An optional name for the note, shown as its heading wherever it is listed.
+   * A note without one reads under the passage's reference, which is what every
+   * note had before there was a field for it.
+   */
+  title?: string;
   /** What the reader wrote, as sanitized HTML. */
   text: string;
   updatedAt: number;
@@ -134,7 +140,7 @@ export function noteFor(notes: Note[], favoriteId: string): Note | null {
  * note rather than storing an empty one, so "clear the field and save" behaves
  * the way the reader means it.
  */
-export function saveNote(favorite: Favorite, text: string): void {
+export function saveNote(favorite: Favorite, text: string, title = ""): void {
   const html = noteHtml(text);
   const rest = read().filter((note) => note.favoriteId !== favorite.id);
   // An empty editor is not always an empty string — clearing the body can
@@ -149,6 +155,7 @@ export function saveNote(favorite: Favorite, text: string): void {
       reference: favorite.reference,
       sourceLabel: favorite.sourceLabel,
       passage: favorite.text,
+      title: title.trim() || undefined,
       text: html,
       updatedAt: Date.now(),
     },

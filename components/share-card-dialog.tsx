@@ -178,7 +178,7 @@ export function ShareCardDialog({ open, card, onClose }: Props) {
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="rounded-full border border-border bg-surface-2 p-2 text-muted transition-colors hover:border-accent/60 hover:text-accent-strong"
+                className="grid h-9 w-9 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
               >
                 <CloseIcon />
               </button>

@@ -12,7 +12,7 @@ import { addStudySeconds, startSession, stopSession, useStudy } from "@/lib/stud
  * The session is no longer the reader's to start. Being on a page that studies is
  * the whole of the condition — the passage picker, the study tools, the section
  * that gathers them (lib/features.ts names them) — so opening the picker from a
- * reminder, or going straight to the memorization list, counts without anyone
+ * reminder, or going straight to the memorizer, counts without anyone
  * remembering to press anything. The hub keeps a way in of its own, as a door
  * that goes to the study section, and the reader who wanders off it leaves the
  * timer behind: this is a record of minutes spent studying, not of the app being

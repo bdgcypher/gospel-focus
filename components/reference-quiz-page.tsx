@@ -18,25 +18,17 @@ import {
   pickPassage,
 } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
+import { volumeRank } from "@/lib/reader";
 import { useRevealDelay } from "@/lib/reveal";
 import type { Manifest, Passage } from "@/lib/types";
 
 /** The four parts of a reference, in the order the hints give them away. */
 const PARTS = ["volume", "book", "chapter", "verse"] as const;
 
-/**
- * The volumes in the order a reader meets them, not the order the library was
- * built: the Bible first, front to back, then the books restored later. The
- * manifest is a lookup, not a reading order, so the dropdown sorts by this —
- * which is also the order the hint walks the canon in.
- */
-const VOLUME_ORDER = ["ot", "nt", "bom", "dc", "pgp"];
-
-/** Where a volume sits in that order; anything unknown goes last. */
-function canonRank(id: string): number {
-  const index = VOLUME_ORDER.indexOf(id);
-  return index === -1 ? VOLUME_ORDER.length : index;
-}
+// The volumes in the order a reader meets them, taken from the reader's one
+// list (lib/reader.ts) so the dropdown and the hint walk the canon the same way
+// as the reader's menus and the rail.
+const canonRank = volumeRank;
 type Part = (typeof PARTS)[number];
 
 const LABELS: Record<Part, string> = {
