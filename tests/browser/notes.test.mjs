@@ -22,7 +22,8 @@ const search = async (page, value) => {
  * Two notes on different chapters, and one highlight with no note, so the view
  * has something it must show and something it must leave out. Then the search,
  * the empty state, and the jump back to the words — which is the whole point of
- * a collected note.
+ * a collected note. One note is tagged, so the tag pills can be pressed to
+ * narrow the page to that theme and pressed again to let it go.
  */
 export async function run({ page, check, base }) {
   await reset(page, base);
@@ -39,6 +40,29 @@ export async function run({ page, check, base }) {
   await pressToolbar(page, "Note");
   await writeNoteTitle(page, "A new heart");
   await writeNote(page, "<p>Pastors after mine own heart.</p>");
+
+  // The same words now wear a tag, so the collected note has a theme.
+  await selectWords(page, 15, 4, 9);
+  await pressToolbar(page, "Tags");
+  await page.evaluate(`(() => {
+    const box = document.querySelector("#tag-field");
+    if (!box) throw new Error("the tags sheet isn't open");
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    set.call(box, "faith");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  })()`);
+  await page.sleep(160);
+  await page.evaluate(`document.querySelector('[aria-label="Add the tag"]')?.click()`);
+  await page.sleep(160);
+  await page.evaluate(`(() => {
+    const save = [...document.querySelectorAll('[role="dialog"] button')]
+      .find((button) => button.textContent.trim() === "Save");
+    if (!save) throw new Error("no Save button in the tags sheet");
+    save.click();
+    return true;
+  })()`);
+  await page.sleep(600);
 
   await openChapter(page, base, "book=Jeremiah&chapter=5&verse=3");
   await selectWords(page, 3, 2, 6);
@@ -68,6 +92,33 @@ export async function run({ page, check, base }) {
     return heading ? heading.className : "";
   })()`);
   check("a named note shows its name as the heading", titled.includes("font-serif") && titled.includes("font-semibold"), titled);
+
+  // --- a theme, followed from the note ------------------------------------
+  const pill = await page.evaluate(`(() => {
+    const button = [...document.querySelectorAll("main li button")]
+      .find((entry) => entry.textContent.trim() === "#faith");
+    if (!button) return null;
+    const pressed = button.getAttribute("aria-pressed");
+    button.click();
+    return pressed;
+  })()`);
+  check("a note shows its tags as pills", pill === "false", pill === null ? "no pill" : `pressed=${pill}`);
+  await page.sleep(500);
+  check("pressing one narrows the notes to that theme", (await rowCount(page)) === 1, `${await rowCount(page)} row`);
+  const themed = await page.evaluate(`(() => {
+    const headings = [...document.querySelectorAll("main section h2")].map((h2) => h2.textContent);
+    const chip = document.querySelector('[aria-label^="Stop showing only the notes tagged"]');
+    return { headings, chip: Boolean(chip) };
+  })()`);
+  check(
+    "only the tagged note is left",
+    themed.headings.length === 1 && themed.headings[0] === "Jeremiah 3",
+    themed.headings.join(", ")
+  );
+  check("with a way to let the theme go", themed.chip);
+  await page.evaluate(`document.querySelector('[aria-label^="Stop showing only the notes tagged"]')?.click()`);
+  await page.sleep(450);
+  check("letting it go brings the other note back", (await rowCount(page)) === 2, `${await rowCount(page)} rows`);
 
   // --- search -------------------------------------------------------------
   await search(page, "pastors");

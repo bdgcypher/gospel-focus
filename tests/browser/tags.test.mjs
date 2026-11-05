@@ -1,4 +1,4 @@
-import { openChapter, pressToolbar, reset, selectWords, writeNote } from "./helpers.mjs";
+import { escape, openChapter, pressToolbar, reset, selectWords, waitFor, writeNote } from "./helpers.mjs";
 
 export const name = "tags";
 
@@ -257,6 +257,62 @@ export async function run({ page, check, base }) {
     "the sheet opens on the tags the verse already wears",
     Boolean(sheet) && sheet.pills.some((label) => label.includes("#faith")),
     sheet?.pills?.join(", ") ?? ""
+  );
+
+  // --- the library finds the theme ---------------------------------------
+  await escape(page);
+
+  // The theme is worn by more than one passage again, so search has something
+  // to gather rather than a single row that any match would explain.
+  await openChapter(page, base, "book=Alma&chapter=32&verse=27");
+  await selectWords(page, 27, 1, 3);
+  await pressToolbar(page, "Tags");
+  await page.evaluate(`(() => {
+    const button = [...document.querySelectorAll('[role="dialog"] button')]
+      .find((entry) => entry.textContent.trim() === "#faith");
+    if (!button) throw new Error("no #faith suggestion");
+    button.click();
+    return true;
+  })()`);
+  await save(page);
+
+  await page.goto(`${base}/search/`, 2400);
+  await page.evaluate(`(() => {
+    const box = document.querySelector("#library-search");
+    if (!box) throw new Error("the search page has no box");
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    set.call(box, "faith");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  })()`);
+  const answered = await waitFor(
+    page,
+    `Boolean(document.querySelector('[aria-labelledby="tagged-results"]'))`,
+    20000
+  );
+  const found = await page.evaluate(`(() => {
+    const section = document.querySelector('[aria-labelledby="tagged-results"]');
+    if (!section) return null;
+    return {
+      heading: section.querySelector("h2")?.textContent ?? "",
+      rows: [...section.querySelectorAll("li a")].map((anchor) => anchor.getAttribute("href") ?? ""),
+    };
+  })()`);
+  check("a search for a tag name answers with the tagged passages", answered && Boolean(found));
+  check(
+    "under the tag's own name",
+    found?.heading === "Tagged #faith",
+    found?.heading ?? "no heading"
+  );
+  check(
+    "one row for each passage wearing it",
+    found?.rows.length === 2,
+    found ? `${found.rows.length} row(s)` : ""
+  );
+  check(
+    "and each opens the reader at its verse",
+    Boolean(found) && found.rows.some((href) => href.includes("verse=21")) && found.rows.some((href) => href.includes("verse=27")),
+    found?.rows.join(", ") ?? ""
   );
 }
 

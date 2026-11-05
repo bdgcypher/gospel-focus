@@ -6,7 +6,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FeaturePage } from "./feature-page";
 import { FilterPanel } from "./filter-panel";
 import { Glyph } from "./glyph";
+import {
+  markGroup,
+  markGroupId,
+  noteText,
+  tagKey,
+  useAnnotations,
+  type Annotation,
+} from "@/lib/annotations";
 import { loadManifest, loadPassageText, summarize } from "@/lib/picker";
+import { readerHref } from "@/lib/reader";
 import { setPreference, usePreferences } from "@/lib/preferences";
 import {
   SearchUnsupportedError,
@@ -70,6 +79,15 @@ const MATCH_QUOTES = 3;
  */
 const SNIPPET_LIMIT = GROUP_LIMIT;
 
+/**
+ * How many tagged passages a tag query lists.
+ *
+ * A tag is the reader's own theme, and a long one is a chapter of their study;
+ * a screenful and a bit is enough to see whether that is the theme they meant,
+ * and the reader can open any of them for the rest.
+ */
+const TAG_LIMIT = 20;
+
 /** Searches worth trying, for the empty state. */
 const EXAMPLES = ["still small voice", "alma 32", "repentance", "charity never faileth"];
 
@@ -104,6 +122,8 @@ export function SearchPage() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   /** Folded away to begin with: on a search page the query is the first thing. */
   const [filtersOpen, setFiltersOpen] = useState(false);
+  /** The reader's own marks, where the tags live. */
+  const annotations = useAnnotations();
 
   // The reader's own sources, and the same ones the passage page draws from: one
   // selection, edited from either page. Narrowing it here narrows the draw too,
@@ -158,6 +178,42 @@ export function SearchPage() {
     const chaptersShown = chapters.slice(0, GROUP_LIMIT - reserved);
     return [...chaptersShown, ...talks.slice(0, Math.max(reserved, GROUP_LIMIT - chaptersShown.length))];
   }, [hits]);
+
+  /** The query as a tag, without the hash a pill is drawn with. */
+  const tag = asked ? asked.replace(/^#+/, "").trim() : "";
+
+  /**
+   * The reader's tagged passages, when the query names one of their tags.
+   *
+   * Tags live on the marks in this device's library rather than in the search
+   * index, which is built from the words; so a tag is answered here, beside the
+   * words, and the mark's whole run is one row. The match is the tag itself, not
+   * a prefix: “faith” should not answer every theme that begins with it.
+   */
+  const tagged = useMemo(() => {
+    if (!tag) return [] as Annotation[][];
+    const key = tagKey(tag);
+    const groups = new Map<string, Annotation[]>();
+    for (const annotation of annotations) {
+      if (!annotation.tags.some((entry) => tagKey(entry) === key)) continue;
+      const id = markGroupId(annotation);
+      if (!groups.has(id)) groups.set(id, markGroup(annotations, annotation));
+    }
+    return [...groups.values()]
+      .sort((a, b) => (newestOf(b) ?? "").localeCompare(newestOf(a) ?? ""))
+      .slice(0, TAG_LIMIT);
+  }, [annotations, tag]);
+
+  /** The tag as the reader typed it, not the query's own casing. */
+  const taggedName = useMemo(() => {
+    if (!tag) return "";
+    const key = tagKey(tag);
+    for (const annotation of annotations) {
+      const named = annotation.tags.find((entry) => tagKey(entry) === key);
+      if (named) return named;
+    }
+    return tag;
+  }, [annotations, tag]);
 
   useEffect(() => {
     if (!asked || nothingSelected) return;
@@ -255,7 +311,7 @@ export function SearchPage() {
           onChange={(event) => setQuery(event.target.value)}
           autoComplete="off"
           enterKeyHint="search"
-          placeholder="A word, a phrase, or a reference"
+          placeholder="A word, a phrase, a reference, or #tag"
           className="h-12 w-full rounded-2xl border border-border bg-surface-2 pl-12 pr-12 text-base text-foreground placeholder:text-muted focus:border-accent/60 focus:outline-none"
         />
         {query && (
@@ -338,7 +394,27 @@ export function SearchPage() {
             label={placesLabel(places)}
             documents={library?.documents ?? null}
             allCommon={status === "ok" && library ? allCommonWords(asked, library) : false}
+            tagged={tagged.length}
+            taggedName={taggedName}
           />
+
+          {status === "ok" && tagged.length > 0 && (
+            <section aria-labelledby="tagged-results" className="mt-4">
+              <h2
+                id="tagged-results"
+                className="text-xs font-semibold uppercase tracking-wider text-muted"
+              >
+                {`Tagged #${taggedName}`}
+              </h2>
+              <ul className="mt-2 space-y-2">
+                {tagged.map((group) => (
+                  <li key={markGroupId(group[0])}>
+                    <TaggedRow group={group} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {status === "idle" && <Idle onPick={setQuery} />}
 
@@ -382,6 +458,8 @@ function StatusLine({
   label,
   documents,
   allCommon,
+  tagged,
+  taggedName,
 }: {
   status: "idle" | "searching" | "ok" | "unsupported" | "error";
   asked: string;
@@ -391,6 +469,9 @@ function StatusLine({
   label: string;
   documents: number | null;
   allCommon: boolean;
+  /** How many of the reader's own passages wear the query as a tag. */
+  tagged: number;
+  taggedName: string;
 }) {
   if (status === "idle") {
     // Nothing to count until a search has loaded the index; the empty state
@@ -420,8 +501,9 @@ function StatusLine({
   if (status === "ok" && count === 0) {
     return (
       <p className="mt-3 text-sm text-muted" aria-live="polite">
-        Nothing matches “{asked}” in the sources you have selected. Try fewer words, an older
-        spelling of one, or a source you have filtered out.
+        {tagged > 0
+          ? `No verses contain “${asked}”; the passages tagged #${taggedName} are below.`
+          : `Nothing matches “${asked}” in the sources you have selected. Try fewer words, an older spelling of one, or a source you have filtered out.`}
       </p>
     );
   }
@@ -431,6 +513,59 @@ function StatusLine({
       {label} for “{asked}”
     </p>
   );
+}
+
+/**
+ * A passage the reader tagged with the query, read as one row.
+ *
+ * This is a way back to words already marked rather than a search result in the
+ * usual sense: it names the place, quotes the note if there is one, and lists
+ * the links. The whole run is one row, so a mark that crosses a verse break is
+ * not the theme said twice.
+ */
+function TaggedRow({ group }: { group: Annotation[] }) {
+  const first = group[0];
+  const last = group[group.length - 1];
+  const span = first.verse === last.verse ? `${first.verse}` : `${first.verse}–${last.verse}`;
+  const reference =
+    first.book === "General Conference"
+      ? `“${first.chapter}” ¶ ${span}`
+      : `${first.book} ${first.chapter}:${span}`;
+  const holder =
+    group.find((mark) => noteText(mark.note).length > 0 || mark.links?.length) ?? first;
+  const note = noteText(holder.note);
+  const links = group.flatMap((mark) => mark.links ?? []);
+  const conferenceId = first.doc.startsWith("c/") ? first.doc.split("/")[1] : undefined;
+  const href = readerHref({
+    kind: conferenceId ? "conference" : "scripture",
+    book: first.book,
+    chapter: first.chapter,
+    conferenceId,
+    verse: first.verse,
+  });
+
+  return (
+    <Link
+      href={href}
+      className="block rounded-3xl border border-border bg-surface p-4 transition-colors hover:border-accent/60"
+    >
+      <p className="flex items-center gap-2 font-serif text-base font-semibold text-accent-strong">
+        <Glyph name="annotations" plain className="h-4 w-4 shrink-0" />
+        <span className="truncate">{reference}</span>
+      </p>
+      {note && (
+        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-foreground/85">{note}</p>
+      )}
+      {links.length > 0 && (
+        <p className="mt-1.5 text-xs text-muted">{links.map((link) => link.label).join(" · ")}</p>
+      )}
+    </Link>
+  );
+}
+
+/** The latest moment any segment of a mark was made or changed. */
+function newestOf(group: Annotation[]): string | undefined {
+  return group.map((mark) => mark.updatedAt).sort().at(-1);
 }
 
 /**
