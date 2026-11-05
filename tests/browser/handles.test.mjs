@@ -253,14 +253,25 @@ export async function run({ page, check, base }) {
     `${pickedEnd?.x} vs ${pickedLast.right}`
   );
 
+  // The selection is the app's own: the words it covers are washed by the
+  // stylesheet, and the browser's selection is gone so the platform's handles
+  // and menu cannot sit over the panel's.
+  const pickedWords = await page.evaluate(
+    `[...document.querySelectorAll('[data-verse="20"][data-selected]')].map((node) => Number(node.dataset.word))`
+  );
+  check("the app paints the words it selected", pickedWords.join(",") === "3,4,5,6", pickedWords.join(","));
+  check("and the browser's own selection is gone", await page.evaluate(`window.getSelection().isCollapsed`));
+
   // Stretch the far edge to word 9: the selection grows, nothing is written.
   const ninth = await word(page, 20, 9);
   await grab(page, "end", pickedEnd);
   await page.sleep(140);
   await dragTo(page, ninth);
   await page.sleep(200);
-  const grown = await page.evaluate(`window.getSelection().toString().trim()`);
-  check("the selection itself is what grows", grown.split(/\s+/).length === 7, grown);
+  const grown = await page.evaluate(
+    `[...document.querySelectorAll('[data-verse="20"][data-selected]')].map((node) => Number(node.dataset.word))`
+  );
+  check("the selection itself is what grows", grown.join(",") === "3,4,5,6,7,8,9", grown.join(","));
   check("and still nothing is stored", (await marks(page)).length === before, String((await marks(page)).length));
 
   await release(page, ninth);

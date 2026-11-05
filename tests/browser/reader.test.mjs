@@ -310,10 +310,10 @@ export async function run({ page, check, base }) {
     await page.evaluate(`Boolean(document.querySelector('[aria-label="Your note"]'))`)
   );
   await writeNote(page, "<p>Trust the promise: he will do it.</p>");
-  const markers = await page.evaluate(`document.querySelectorAll('[aria-label="Open the note on verse 15"]').length`);
+  const markers = await page.evaluate(`document.querySelectorAll('[aria-label="Open the notes, links, and tags on verse 15"]').length`);
   check("the verse keeps a mark for its note", markers === 1, `${markers} marker(s)`);
   const markerPlace = await page.evaluate(`(() => {
-    const marker = document.querySelector('[aria-label="Open the note on verse 15"]');
+    const marker = document.querySelector('[aria-label="Open the notes, links, and tags on verse 15"]');
     const words = [...document.querySelectorAll('[data-verse="15"]')];
     if (!marker || !words.length) return null;
     return {
@@ -332,7 +332,7 @@ export async function run({ page, check, base }) {
   await page.send("Page.reload");
   await page.sleep(2400);
   check("the highlight survives a reload", (await fillOf(page, 15, 3)) === "rgb(251, 234, 160)");
-  const afterReload = await page.evaluate(`document.querySelectorAll('[aria-label="Open the note on verse 15"]').length`);
+  const afterReload = await page.evaluate(`document.querySelectorAll('[aria-label="Open the notes, links, and tags on verse 15"]').length`);
   check("the note survives a reload", afterReload === 1, `${afterReload} marker(s)`);
 
   // --- the night page ------------------------------------------------------
@@ -1110,15 +1110,15 @@ export async function run({ page, check, base }) {
     (await page.evaluate(`document.documentElement.dataset.chrome ?? "shown"`)) === "shown"
   );
 
-  // --- a verse's margin: the note and the link -----------------------------
+  // --- a verse's margin: notes, links, and tags ----------------------------
   // A note or a link is part of a verse's furniture rather than of its prose:
-  // the margin keeps a small mark for each, and the mark reads the thing itself
-  // in a panel at the page's edge — not the sheet that writes on it.
+  // the margin keeps one small mark for whatever the verse carries, and that
+  // mark reads it in a panel at the page's edge — not the sheet that writes it.
   await openChapter(page, base, "book=Jeremiah&chapter=3&verse=15");
-  await page.evaluate(`document.querySelector('[aria-label="Open the note on verse 15"]')?.click()`);
+  await page.evaluate(`document.querySelector('[aria-label="Open the notes, links, and tags on verse 15"]')?.click()`);
   await page.sleep(600);
   const notePanel = await page.evaluate(`(() => {
-    const panel = document.querySelector('[role="dialog"][aria-label^="Note on"]');
+    const panel = document.querySelector('[role="dialog"][aria-label^="Notes and links on"]');
     if (!panel) return null;
     const box = panel.getBoundingClientRect();
     return {
@@ -1151,7 +1151,7 @@ export async function run({ page, check, base }) {
   await escape(page);
   check(
     "Escape puts the panel away",
-    (await page.evaluate(`Boolean(document.querySelector('[role="dialog"][aria-label^="Note on"]'))`)) === false
+    (await page.evaluate(`Boolean(document.querySelector('[role="dialog"][aria-label^="Notes and links on"]'))`)) === false
   );
 
   // A link is found in the library now: the search answers by words or by a
@@ -1261,20 +1261,20 @@ export async function run({ page, check, base }) {
     });
     return {
       styles,
-      marker: Boolean(document.querySelector('[aria-label="Open the link on verse 15"]')),
+      marker: Boolean(document.querySelector('[aria-label="Open the notes, links, and tags on verse 15"]')),
     };
   })()`);
   check(
-    "linked words are drawn with the same solid line as an underline",
-    linkedInk.styles.every((value) => value === "underline/solid"),
+    "a link paints no line of its own under the words",
+    linkedInk.styles.every((value) => !value.startsWith("underline")),
     linkedInk.styles.join(", ")
   );
   check("and the verse keeps a mark for the link", linkedInk.marker);
 
-  await page.evaluate(`document.querySelector('[aria-label="Open the link on verse 15"]')?.click()`);
+  await page.evaluate(`document.querySelector('[aria-label="Open the notes, links, and tags on verse 15"]')?.click()`);
   await page.sleep(1400);
   const linkPanel = await page.evaluate(`(() => {
-    const panel = document.querySelector('[role="dialog"][aria-label^="Linked passage on"]');
+    const panel = document.querySelector('[role="dialog"][aria-label^="Notes and links on"]');
     if (!panel) return null;
     return {
       text: panel.textContent,

@@ -22,6 +22,7 @@ interface Props {
   onStyle: (style: MarkStyle) => void;
   onNote: () => void;
   onLink: () => void;
+  onTags: () => void;
   onCopy: () => void;
   onShare: () => void;
   /** Take the words away to be learned by heart. */
@@ -76,6 +77,7 @@ export function AnnotationToolbar({
   onStyle,
   onNote,
   onLink,
+  onTags,
   onCopy,
   onShare,
   onMemorize,
@@ -263,9 +265,13 @@ export function AnnotationToolbar({
             </button>
           </div>
 
-          <div className="mt-1.5 grid grid-cols-6 gap-0.5 border-t border-white/10 pt-1.5">
+          {/* Eight actions, four to a row: a phone's width cannot hold them in
+              one without shortening a label, and the verbs read better at their
+              own size than squeezed to fit. */}
+          <div className="mt-1.5 grid grid-cols-4 gap-0.5 border-t border-white/10 pt-1.5">
             <Action icon={<Glyph name="journal" plain className="h-6 w-6" />} label="Note" onClick={onNote} />
             <Action icon={<Glyph name="link" plain className="h-6 w-6" />} label="Link" onClick={onLink} />
+            <Action icon={<Glyph name="tag" plain className="h-6 w-6" />} label="Tags" onClick={onTags} />
             <Action icon={<Glyph name="copy" plain className="h-6 w-6" />} label="Copy" onClick={onCopy} />
             <Action icon={<ShareIcon className="h-6 w-6" />} label="Share" onClick={onShare} />
             <Action icon={<Glyph name="cards" plain className="h-6 w-6" />} label="Memorize" onClick={onMemorize} />

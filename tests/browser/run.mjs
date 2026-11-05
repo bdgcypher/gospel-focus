@@ -9,6 +9,7 @@ import * as links from "./links.test.mjs";
 import * as notes from "./notes.test.mjs";
 import * as reader from "./reader.test.mjs";
 import * as saved from "./saved.test.mjs";
+import * as tags from "./tags.test.mjs";
 
 /**
  * The browser suite: the reader, marking, and the annotations file, driven
@@ -39,7 +40,7 @@ const page = await connect(browser.base);
 const { check, failures } = checker();
 const base = `http://127.0.0.1:${server.port}`;
 
-const scenarios = [reader, annotations, handles, notes, links, saved];
+const scenarios = [reader, annotations, handles, notes, links, saved, tags];
 
 console.log(`Testing ${base} in ${process.env.CHROME_BIN ?? "the found Chromium"}\n`);
 

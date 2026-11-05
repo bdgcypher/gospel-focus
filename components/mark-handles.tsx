@@ -34,12 +34,15 @@ type Edge = "start" | "end";
  *
  * The box is 44px across — the smallest target both touch platforms recommend
  * — because the drop is drawn under a word, where a thumb is already close to
- * the text it is trying to grab. The drop inside it is 28px and hangs below the
+ * the text it is trying to grab. The drop inside it is 34px and hangs below the
  * line, the way a system text selection's handles do: the point is what marks
  * the edge, and the body has to be big enough to read at arm's length on a page
- * of type.
+ * of type. Its body is nearly a circle, so it reads as a knob rather than a pin.
  */
 const HANDLE = 22;
+
+/** Where the drop's point sits inside the handle's box. */
+const POINT = 8;
 
 const atOrBefore = (a: WordPoint, b: WordPoint) =>
   a.verse < b.verse || (a.verse === b.verse && a.word <= b.word);
@@ -146,10 +149,10 @@ export function MarkHandles({
       }
       node.style.visibility = "visible";
       node.style.left = `${(edge === "start" ? box.left : box.right) - HANDLE + offset}px`;
-      // The drop's own point lands on the word's line, just under it, and the
-      // body hangs below: 13 is where that point sits inside the box (see the
-      // drawing below), so the ink, not the target, marks the edge.
-      node.style.top = `${box.bottom - HANDLE + 13}px`;
+      // The drop's own point lands on the word's line, a hair under it, and the
+      // body hangs clear: POINT is where that point sits inside the box (see
+      // the drawing below), so the ink, not the target, marks the edge.
+      node.style.top = `${box.bottom + 4 - POINT}px`;
     };
     // One word is both ends: the two drops would sit on top of each other, so
     // they part to either side of it — far enough apart that a thumb can tell
@@ -299,7 +302,7 @@ function Handle({
       style={{ visibility: "hidden" }}
       className="absolute z-30 grid h-11 w-11 touch-none select-none place-items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/70"
     >
-      <svg viewBox="0 0 20 20" className="h-7 w-7" aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="h-[34px] w-[34px]" aria-hidden="true">
         {/* A drop, not a dot: the point is the thing being placed, and it
             touches the word's line while the body hangs clear of the words.
             One colour in every colour of mark — a handle is the app's control,
@@ -309,7 +312,7 @@ function Handle({
             style so the ink and the hairline around it follow a theme change
             in the same paint as the page behind them. */}
         <path
-          d="M10 2.4c3.1 3.3 5.9 6 5.9 8.9a5.9 5.9 0 1 1-11.8 0c0-2.9 2.8-5.6 5.9-8.9Z"
+          d="M10 1.6c3.9 4 7 7.4 7 10.4a7 7 0 1 1-14 0c0-3 3.1-6.4 7-10.4Z"
           style={{ fill: "var(--handle)", stroke: "var(--background)" }}
           strokeWidth={1.2}
         />

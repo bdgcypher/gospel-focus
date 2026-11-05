@@ -1722,6 +1722,18 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
   margin-right: -0.3em;
 }
 
+/* The words under the app's own selection.
+
+   A live browser selection would bring the platform's handles and its
+   Copy/Share menu along with it, over the marking panel's; the reader collapses
+   it and washes the words itself (see `captureSelection` in
+   components/chapter-reader.tsx). The wash is the handle's blue at a strength
+   the ink still reads through. It sits on the word spans rather than on a band,
+   so selecting a run never pads the line and shifts the type under the finger. */
+[data-reader] [data-selected] {
+  background-color: color-mix(in srgb, var(--handle) 28%, transparent);
+}
+
 /* --- Reading without the bars --------------------------------------------
    A double tap on the words hands the screen to the chapter (see
    components/chapter-reader.tsx and lib/immersive.ts): the app bar and the

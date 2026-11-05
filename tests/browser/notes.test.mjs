@@ -94,7 +94,7 @@ export async function run({ page, check, base }) {
   const heading = await page.evaluate(`document.querySelector("main h1")?.textContent ?? ""`);
   check("a note opens the reader at its chapter", heading.includes("Jeremiah 3"), heading);
   check("and at its verse", /book=Jeremiah/.test(address) && /verse=\d+/.test(address), address);
-  const noteMarker = await page.evaluate(`document.querySelectorAll('[aria-label^="Open the note on verse"]').length`);
+  const noteMarker = await page.evaluate(`document.querySelectorAll('[aria-label^="Open the notes, links, and tags on verse"]').length`);
   check("the note is there to read again", noteMarker >= 1, `${noteMarker} marker(s)`);
 
   // --- the menu offers the view ------------------------------------------

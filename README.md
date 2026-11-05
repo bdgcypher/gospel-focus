@@ -45,14 +45,17 @@ it, so a day's study becomes a streak.
 - Select any words — a phrase, a sentence, a run across verses — and mark them
   in the same highlighter panel Gospel Library uses: two "A" tabs for a
   highlight or an underline, the palette drawn in that style, the last two
-  colours you used leading it in the mode you used them, and Note, Link, Copy,
-  Share and Remove under them. A run across verses is one mark, and
+  colours you used leading it in the mode you used them, and Note, Link, Tags,
+  Copy, Share and Remove under them. A run across verses is one mark, and
   tapping any of it reopens the panel on the whole thing, with a handle on each
   end to drag it wider or narrower a word at a time — each handle a thumb-sized
   target with the drop drawn inside it. Words you have only just selected get the
   same two handles, so a run can be trimmed or stretched before you pick a
   colour. Where two marks overlap, a chooser shows them as they sit on the page
   first. Marks are kept per word, the way Gospel Library keeps them.
+- A verse that carries a note, a link, or a tag keeps one mark in its margin;
+  it opens a panel with the tags, notes, and links together, each stamped with
+  when it was made. A tag gathers every passage that wears it.
 - Double-tap the words — double-click with a mouse — to read without the app's
   bars; do it again to bring them back.
 - Tap verses to share them as images, favorite them, memorize them, or take a

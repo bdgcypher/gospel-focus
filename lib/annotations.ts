@@ -156,6 +156,8 @@ export interface AnnotationLink {
   sections?: number[];
   conferenceId?: string;
   label: string;
+  /** When the link joined the mark's chain; older links fall back to the mark's own creation. */
+  addedAt?: string;
 }
 
 export interface Annotation {
@@ -237,6 +239,7 @@ function parseLink(value: Partial<AnnotationLink>): AnnotationLink | null {
     sections: sections.length ? sections : undefined,
     conferenceId: typeof value.conferenceId === "string" ? value.conferenceId : undefined,
     label: typeof value.label === "string" && value.label ? value.label : value.book,
+    addedAt: typeof value.addedAt === "string" && value.addedAt ? value.addedAt : undefined,
   };
 }
 
@@ -272,7 +275,11 @@ function parse(value: unknown): Annotation[] | null {
       note: typeof a.note === "string" ? a.note : undefined,
       title: typeof a.title === "string" && a.title.trim() ? a.title : undefined,
       links: links.length ? links : undefined,
-      tags: Array.isArray(a.tags) ? a.tags.filter((t): t is string => typeof t === "string") : [],
+      tags: Array.isArray(a.tags)
+        ? [...new Set(a.tags.filter((t): t is string => typeof t === "string").map(cleanTag))].filter(
+            (tag) => tag.length > 0
+          )
+        : [],
       groupId: typeof a.groupId === "string" ? a.groupId : undefined,
       createdAt: typeof a.createdAt === "string" ? a.createdAt : new Date(0).toISOString(),
       updatedAt: typeof a.updatedAt === "string" ? a.updatedAt : new Date(0).toISOString(),
@@ -594,6 +601,36 @@ export function marksAt(annotations: Annotation[], doc: string, verse: number, w
   }
 
   return groups.sort((a, b) => (a[0].createdAt ?? "").localeCompare(b[0].createdAt ?? ""));
+}
+
+/**
+ * A tag as the app stores it: no hash, one space between words, and short.
+ *
+ * Tags are typed by the reader, so they arrive with stray spacing and the
+ * hash a pill is drawn with. The hash is the pill's, not the tag's: it is
+ * added when the tag is shown, so the same tag never exists twice. The length
+ * is the one a pill can read without turning the tag row into a line of prose.
+ */
+export function cleanTag(value: string): string {
+  return value.replace(/^#+/, "").replace(/\s+/g, " ").trim().slice(0, 40);
+}
+
+/** Two tags as one string, for comparing them in whatever case they were typed. */
+export function tagKey(tag: string): string {
+  return cleanTag(tag).toLowerCase();
+}
+
+/** Every tag used in the library once, alphabetically, in the reader's own casing. */
+export function allTags(annotations: Annotation[]): string[] {
+  const seen = new Map<string, string>();
+  for (const annotation of annotations) {
+    for (const raw of annotation.tags) {
+      const tag = cleanTag(raw);
+      const key = tag.toLowerCase();
+      if (tag && !seen.has(key)) seen.set(key, tag);
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
 /** Whitespace-separated words with their character offsets. */

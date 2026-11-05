@@ -26,6 +26,8 @@ export type GlyphName =
   | "close"
   | "contents"
   | "link"
+  | "tag"
+  | "annotations"
   | "copy"
   | "return"
   | "backspace"
@@ -217,9 +219,12 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   clock: "⏰",
   close: null,
   trash: "🗑️",
-  // The annotation bar's two controls: a cross-reference and a copy, both
-  // actions rather than pictures, so they stay drawn in every style.
+  // The annotation bar's own controls: a cross-reference, a tag, the mark that
+  // means "a note or a link", and a copy. All actions rather than pictures, so
+  // they stay drawn in every style.
   link: null,
+  tag: null,
+  annotations: null,
   copy: null,
   gem: "💎",
   // A streak freeze: the ice cube the shop, the status chip, and the buy badge
@@ -561,6 +566,28 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
     <>
       <path d="M10.2 13.8a4.4 4.4 0 0 0 6.6.4l2-2a4.4 4.4 0 0 0-6.2-6.2l-1.1 1.1" />
       <path d="M13.8 10.2a4.4 4.4 0 0 0-6.6-.4l-2 2a4.4 4.4 0 0 0 6.2 6.2l1.1-1.1" />
+    </>
+  ),
+  // A price tag: the mark a reader puts on words to say what they are about.
+  tag: (
+    <>
+      <path d="M3.6 11.2V5.4a1.8 1.8 0 0 1 1.8-1.8h5.8l9 9a1.8 1.8 0 0 1 0 2.5l-5.7 5.7a1.8 1.8 0 0 1-2.5 0Z" />
+      <path d="M7.8 7.8h.01" />
+    </>
+  ),
+  // A page with its corner folded down and a few lines written on it: the
+  // margin's one mark for a verse that has something to read beside it. The
+  // note and the passages it points at are sections of the same page, so the
+  // shape is a written leaf rather than a picture of either one. Drawn in both
+  // skins, because it marks the words rather than signposting a section.
+  annotations: (
+    <>
+      <path
+        d="M12 2.6H6.3A2.1 2.1 0 0 0 4.2 4.7v15.1a2.1 2.1 0 0 0 2.1 2.1h11.4a2.1 2.1 0 0 0 2.1-2.1V10.4Z"
+        strokeWidth={2}
+      />
+      <path d="M12 2.6v5.7a2.1 2.1 0 0 0 2.1 2.1h5.7" strokeWidth={2} />
+      <path d="M8.8 13.3h8.3M8.8 17.3h6.6" strokeWidth={2} />
     </>
   ),
   copy: (
