@@ -30,4 +30,17 @@ public class MainActivity extends BridgeActivity {
         UpdateCheckWorker.schedule(this);
         UpdateCheckWorker.checkNow(this);
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Opening Gospel Focus is one of the ways out of the Focus Lock's gate.
+        // This app is the screen that ends the lock, so a gate still up while it
+        // is what the reader is looking at is a gate over the one place that can
+        // open it — and, on the phones where an accessibility overlay outlives
+        // the service that drew it, the only thing left in the process that can
+        // take the window down. Every resume clears anything left over; there is
+        // nothing to clear in the ordinary case, and the call is cheap.
+        FocusAccessibilityService.dismissAnyGate();
+    }
 }

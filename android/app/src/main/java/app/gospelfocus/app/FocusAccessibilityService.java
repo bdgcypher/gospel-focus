@@ -12,6 +12,7 @@ import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -24,13 +25,19 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.view.WindowMetrics;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * The gate behind the Focus Lock: an accessibility service that notices which app
@@ -63,12 +70,26 @@ import android.widget.TextView;
  * app's to decide (lib/focus.ts), and this service only ever reads it.
  *
  * The other escape hatch, and the one that has to hold whatever state the service
- * is in: Home. The gate is laid out inside the system bars rather than over them,
- * so the home button and the home gesture always reach the system; the screen
- * they open is never gated, and a gate left over it is taken down within a second
- * (gateGuard) and stays down, whichever of the two the reader used (leftPackage).
+ * is in: Home. The gate's frame is measured to end above the navigation bar and
+ * below the status bar (betweenBars), and it is not touch-modal, so the home
+ * button and the home gesture always reach the system; the screen they open is
+ * never gated, and a gate left over it is taken down at once (systemUiReceiver)
+ * and stays down, whichever of the two the reader used (leftPackage). Home is the
+ * one exit the framework does not report as a window change — the launcher comes
+ * up behind the gate — which is why it is listened for by name.
  * A phone whose only way out is a hard reboot is worse than an app that is not
  * blocked at all, so every path here is written to fail towards the home screen.
+ *
+ * That is also true of the window itself, and not only of the decision to draw
+ * it. A gate that is on the screen but not tracked is worse than a gate that was
+ * never drawn: there is nothing left to take it down, and on the phones where an
+ * accessibility overlay outlives the service that added it, the reader is left
+ * with a full-screen sheet no tap can get past until the phone is restarted.
+ * So every window added is recorded (drawnGates) and nothing is forgotten until
+ * its removal is confirmed; nothing is removed without first being made harmless
+ * (takeDown); the Close button in the gate's corner, Back, Home, and opening
+ * Gospel Focus are all independent ways out; and the app itself clears anything
+ * left when it comes to the front, even if the service is no longer running.
  */
 public class FocusAccessibilityService extends AccessibilityService {
 
@@ -77,12 +98,46 @@ public class FocusAccessibilityService extends AccessibilityService {
     /** The running service, so a state change can be applied without an event. */
     private static FocusAccessibilityService instance;
 
+    /**
+     * Every gate window this process has put on the screen and not yet seen come
+     * off it.
+     *
+     * A window is not something the service can afford to lose the reference to:
+     * a sheet that is still on the display with nobody holding it is one no tap
+     * can get past, and on some devices an accessibility overlay outlives the
+     * service that added it — which is exactly how a lock popup ends up surviving
+     * everything but a reboot. So every view that is added is recorded here, and
+     * a view is only forgotten once the platform has confirmed the window is gone
+     * or has been made incapable of covering anything (takeDown).
+     *
+     * Process-wide rather than the service's own, because the app is the other
+     * half of the escape: opening Gospel Focus clears whatever is left, even if
+     * the service that drew it has since been stopped (dismissAnyGate).
+     */
+    private static final Set<View> drawnGates = new LinkedHashSet<>();
+
+    /** The main thread, and the one place windows are taken down from. */
+    private static final Handler cleanup = new Handler(Looper.getMainLooper());
+
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private WindowManager windowManager;
     private View gate;
     private String gatePackage;
     private String lastPackage;
+
+    /**
+     * Whether the gate has ever been the focused window, and for how long it has
+     * been without focus since.
+     *
+     * A window nobody can focus is a window that takes no taps and no Back key —
+     * the shape of a gate that has to be waited out or rebooted. The gate is
+     * focusable and asks for focus when it is drawn, so a gate that has had it and
+     * then loses it for seconds on end is not the window in front of the reader
+     * any more, whatever the last reported package says (gateGuard).
+     */
+    private boolean gateFocused;
+    private int gateUnfocused;
 
     /**
      * The app whose gate the reader has just taken down, and when.
@@ -116,12 +171,19 @@ public class FocusAccessibilityService extends AccessibilityService {
      *
      * Long enough to cover the screen the reader asked for arriving and the left
      * app's window being put away behind it, which is the last of the three
-     * events and comes after the other screen's; short enough that it is not a
-     * way into the app, since whatever the reader went to is still animating for
-     * most of it and nothing has been tapped yet. Past it, opening the app is
+     * events and comes after the other screen's. It is not a fixed animation
+     * time: measured on a device, the echo arrives anywhere from a tenth of a
+     * second to around two and a half seconds after the gate comes down, the slow
+     * end when the display is busy — which the old 2.5s window sat exactly on, and
+     * a leave that took a moment longer drew the gate straight back up over the
+     * home screen. The window is therefore four times the worst delay seen, and
+     * the trade is deliberate: for ten seconds after the reader closes a gate, the
+     * app they left is not gated again. A nudge that can be got past for ten
+     * seconds is worth far more than a gate that comes back over a screen the
+     * reader cannot leave (see the class comment). Past it, opening the app is
      * opening the app, and is gated as usual.
      */
-    private static final long LEAVE_SETTLE_MS = 2500L;
+    private static final long LEAVE_SETTLE_MS = 10000L;
 
     /**
      * How many times a refused overlay is tried again before it is left alone.
@@ -160,13 +222,52 @@ public class FocusAccessibilityService extends AccessibilityService {
      * The gate screen itself is not the home screen, so nothing here can take a
      * gate down that belongs where it is: lastPackage is only ever the last
      * window that was reported, and a held app keeps it on itself.
+     *
+     * Two more states are the same kind of backstop, and are checked here for the
+     * same reason. A window that is no longer attached is not a gate that is up,
+     * whatever the field says, and a done-with window must not be left tracked as
+     * one. And a gate that has lost the window focus it had is one no tap or Back
+     * key can reach: painted, but not input, which is precisely the stuck sheet
+     * this class must not produce. Both are taken down.
      */
     private final Runnable gateGuard = new Runnable() {
         @Override
         public void run() {
-            if (gate == null) return;
-            if (lastPackage == null || isHome(lastPackage) || getPackageName().equals(lastPackage)) {
-                Log.d(TAG, "taking the gate down: " + gatePackage + " is no longer in front");
+            if (gate == null) {
+                // Nothing is tracked as the gate, but a window can still be on the
+                // screen if an earlier removal was lost. Taking everything down
+                // is cheap when there is nothing to take down, and it is the one
+                // place a window outlives its reference.
+                takeDownAll();
+                return;
+            }
+
+            // The window the field is holding has gone from under it — a display
+            // change, a service restart, or a platform that took it away without
+            // saying so. Whatever is left is not a gate that is up, and nothing
+            // should be believed about it any more.
+            if (!gate.isAttachedToWindow()) {
+                Log.d(TAG, "forgetting the gate over " + gatePackage + ": its window is gone");
+                gate = null;
+                gatePackage = null;
+                gateFocused = false;
+                gateUnfocused = 0;
+                takeDownAll();
+                return;
+            }
+
+            // The held app is no longer the screen the reader is on: the home
+            // screen, Gospel Focus, or a different app. Anything but the app the
+            // gate was drawn for means the gate is standing over somewhere the
+            // reader asked to be, so it comes down. A transient window over the
+            // held app (the shade, a system dialog, the lock screen) is not an app
+            // and does not count, or the gate would drop for every one of them.
+            boolean expected = lastPackage != null
+                && !isHome(lastPackage)
+                && !getPackageName().equals(lastPackage)
+                && (!isLaunchableApp(lastPackage) || lastPackage.equals(gatePackage));
+            if (!expected) {
+                Log.d(TAG, "taking the gate down: " + lastPackage + " is in front, not " + gatePackage);
                 // Recorded as a leave like every other exit. The held app is
                 // about to be handed its window back behind whatever the reader
                 // did go to, and its window change would otherwise be mistaken
@@ -176,7 +277,48 @@ public class FocusAccessibilityService extends AccessibilityService {
                 hideGate();
                 return;
             }
+
+            // A gate that has lost the window it needs is a gate that can no
+            // longer take the reader's taps or the Back key: the window is still
+            // painted, but the input is going somewhere else. Nothing that cannot
+            // be closed can be allowed to stay on the screen, so after a few
+            // seconds of it the gate is taken down. Only counted once the gate is
+            // known to have had the focus at all, so a device that never gives its
+            // overlays focus is not left ungated.
+            if (gate.hasWindowFocus()) {
+                gateFocused = true;
+                gateUnfocused = 0;
+            } else if (gateFocused && ++gateUnfocused >= 3) {
+                Log.d(TAG, "taking the gate down over " + gatePackage + ": it lost the window focus");
+                recordLeave(gatePackage);
+                hideGate();
+                return;
+            }
+
             handler.postDelayed(this, 1000L);
+        }
+    };
+
+    /**
+     * Every few seconds, take down a tracked window that is not the gate in use.
+     *
+     * The gate can be lost from the field without being lost from the screen: an
+     * `addView` that threw after attaching, or a removal the platform refused
+     * whose retries have run out. Nothing else would ever look at a window like
+     * that again, and a window nobody looks at is a window nobody can close. This
+     * is the last net, and it is why the tracked set is worth keeping at all: what
+     * the service is holding and not using is exactly what must not be on the
+     * screen.
+     */
+    private static final long SWEEP_MS = 5000L;
+
+    private final Runnable gateSweep = new Runnable() {
+        @Override
+        public void run() {
+            for (View view : new ArrayList<>(drawnGates)) {
+                if (view != gate) takeDown(view);
+            }
+            handler.postDelayed(this, SWEEP_MS);
         }
     };
 
@@ -239,6 +381,43 @@ public class FocusAccessibilityService extends AccessibilityService {
     };
 
     /**
+     * The reader leaving for the home screen (or the overview) by the system's
+     * own controls.
+     *
+     * This is the one exit that does not come back as a window change. Pressing
+     * Home brings the launcher to the front *behind* the gate — the overlay is
+     * above it — and the launcher was already visible there, so the framework
+     * reports no window state change for it at all. The gate therefore never
+     * heard about the one thing the reader did, and sat there over the home
+     * screen with a dead-looking Home button behind it: the reader is home, and
+     * the screen still says an app is locked. Measured on a device, the launcher
+     * really is the resumed activity while the gate keeps the input focus.
+     *
+     * Android does say so, once, on its way: ACTION_CLOSE_SYSTEM_DIALOGS with
+     * `reason` "homekey" (or "recentapps" for the overview). Taking the gate down
+     * on it is the same leave as any other, keyed to the app it was drawn for, so
+     * the app's own window change a moment later is not mistaken for a launch.
+     */
+    private final BroadcastReceiver systemUiReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || gate == null) return;
+            String reason = intent.getStringExtra("reason");
+            Log.d(TAG, "system took the screen: " + reason + "; taking the gate down");
+            if (reason == null || "homekey".equals(reason) || "recentapps".equals(reason)) {
+                recordLeave(gatePackage);
+                // The reader is not in the held app any more, and no window change
+                // is coming to say so: remembering it as the app in front would let
+                // a wake, a fold, or a sync draw the gate over the home screen
+                // later (see appPackage).
+                lastPackage = null;
+                appPackage = null;
+                hideGate();
+            }
+        }
+    };
+
+    /**
      * Put the gate back after the screen has been away, if it belongs there.
      *
      * The reader has unlocked by now (or there is no lock screen to unlock), and
@@ -278,8 +457,23 @@ public class FocusAccessibilityService extends AccessibilityService {
             } else {
                 registerReceiver(wakeReceiver, filter);
             }
+
+            // The system's own leave for Home and the overview; see
+            // systemUiReceiver. Not exported either: nothing outside the platform
+            // sends this, and the gate is not something another app gets to drop.
+            IntentFilter systemUi = new IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(systemUiReceiver, systemUi, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(systemUiReceiver, systemUi);
+            }
             listening = true;
         }
+
+        // The sweep is re-armed rather than started twice: onServiceConnected can
+        // run again for a service that was already connected.
+        handler.removeCallbacks(gateSweep);
+        handler.postDelayed(gateSweep, SWEEP_MS);
     }
 
     @Override
@@ -457,6 +651,11 @@ public class FocusAccessibilityService extends AccessibilityService {
             } catch (Exception ignored) {
                 // Already gone with the context; nothing is listening either way.
             }
+            try {
+                unregisterReceiver(systemUiReceiver);
+            } catch (Exception ignored) {
+                // As above.
+            }
             listening = false;
         }
         windowManager = null;
@@ -560,7 +759,18 @@ public class FocusAccessibilityService extends AccessibilityService {
             return;
         }
 
-        hideGate();
+        // A window over the app rather than a screen the reader went to — the
+        // notification shade, a system dialog, the keyboard, the lock screen — is
+        // not somewhere to leave the app from, and the gate stays exactly where it
+        // is under it. Taking it down for these made the gate blink off and back on
+        // whenever the system put a window over the held app, which was visible
+        // and, for the length of the blink, a held app that could be tapped. The
+        // guard still takes the gate down if the reader has actually gone
+        // somewhere: its package would be launchable, or the home screen (which
+        // returned above). The timers below still run, so a bypass that expires
+        // under the shade is enforced when it lifts.
+        boolean overTheApp = gate != null && !isLaunchableApp(pkg);
+        if (!overTheApp) hideGate();
 
         // A bypass is still running over a held app: the gate has to arrive when
         // the minutes are up even if the reader never leaves the app.
@@ -583,14 +793,23 @@ public class FocusAccessibilityService extends AccessibilityService {
             return;
         }
 
+        // The home screen is never gated either, whatever asked for it. evaluate()
+        // already says so, but this is the one place a window is actually added,
+        // and a gate drawn over the launcher is the state the reader cannot get
+        // out of without a gate on top of it.
+        if (isHome(pkg)) {
+            hideGate();
+            return;
+        }
+
         // A window the system has taken away (a display change under it, or a
         // service restart it did not report) is not a gate that is up. Left
         // standing, the field below would say the gate is drawn for ever, and
         // every later evaluate() for the same app would return here without
-        // drawing anything — which is what a fold left behind.
+        // drawing anything — which is what a fold left behind. hideGate takes the
+        // window itself down too, in case it is only the field that has lost it.
         if (gate != null && !gate.isAttachedToWindow()) {
-            gate = null;
-            gatePackage = null;
+            hideGate();
         }
 
         if (gate != null) {
@@ -602,38 +821,34 @@ public class FocusAccessibilityService extends AccessibilityService {
         // screen's own edges. Laid out over the system bars it takes away the
         // home button, the home gesture and the status bar — which is the trap
         // this window has to be incapable of: a gate over an app is a nudge, a
-        // gate over the way out of the phone is a brick. Fitting the system-bar
-        // insets leaves both bars, and the gesture area around them, to the
-        // system, so going home works whatever state the gate is in.
+        // gate over the way out of the phone is a brick. The frame is measured
+        // between the bars (betweenBars) so going home works whatever state the
+        // gate is in.
         View view = buildGate(pkg);
+
+        // NOT_TOUCH_MODAL is half of the same promise as the frame being short of
+        // the bars: a focusable window without it takes every pointer event on the
+        // display, including the ones outside its own frame — so the gate ended at
+        // the navigation bar and still swallowed the taps on it, and the home
+        // button was drawn, visible, and dead. With it, the bars are the system's
+        // both to see and to touch.
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         );
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            params.gravity = Gravity.TOP | Gravity.START;
-            // Explicit rather than inherited: this used to be 0, which filled the
-            // display to its corners and covered the navigation bar with it.
-            params.setFitInsetsTypes(WindowInsets.Type.systemBars());
-            params.setFitInsetsSides(WindowInsets.Side.all());
-        } else {
-            // Fit insets arrived with API 30, and before them an overlay has no way
-            // to say "end at the bars" — while this window type is drawn above the
-            // navigation bar (layer 31 against its 24), so over them it goes. The
-            // bars are measured out of the window instead, with a band wide enough
-            // for one on any edge, and the gate is centred inside what is left.
-            int bar = Math.max(
-                systemBarSize("navigation_bar_height"), systemBarSize("navigation_bar_width"));
-            int status = systemBarSize("status_bar_height");
-            params.gravity = Gravity.CENTER;
-            params.width = Math.max(dp(280), getResources().getDisplayMetrics().widthPixels - bar);
-            params.height = Math.max(dp(360),
-                getResources().getDisplayMetrics().heightPixels - status - bar);
-        }
+        betweenBars(params);
 
+        // Tracked before it is added, not after: `addView` can throw *after* the
+        // window has been attached (a display change, a token the platform takes
+        // away in the middle of it), and a gate that is on the screen with nothing
+        // holding it is the one thing this class must never produce. Tracking
+        // first means the catch below, the guard, and the app all still have a way
+        // to it (takeDown).
+        drawnGates.add(view);
         try {
             windowManager.addView(view, params);
         } catch (Exception e) {
@@ -642,6 +857,7 @@ public class FocusAccessibilityService extends AccessibilityService {
             // rather than given up on — but only so many times, so a phone that
             // will never allow it is not asked in a loop.
             Log.w(TAG, "Could not draw the gate over " + pkg, e);
+            takeDown(view);
             gate = null;
             gatePackage = null;
             if (gateAttempts < GATE_ATTEMPTS) {
@@ -655,6 +871,8 @@ public class FocusAccessibilityService extends AccessibilityService {
         gate = view;
         gatePackage = pkg;
         gateAttempts = 0;
+        gateFocused = false;
+        gateUnfocused = 0;
         // Asked once the window is attached: a view that requested focus before
         // it had a window can miss it, and the Back key is handled by this view
         // (GateRoot). It cannot fail a drawn window, and it is outside the try
@@ -672,15 +890,153 @@ public class FocusAccessibilityService extends AccessibilityService {
         handler.removeCallbacks(gateGuard);
         handler.removeCallbacks(gateRetry);
 
-        View view = gate;
         gate = null;
         gatePackage = null;
-        if (view == null || windowManager == null) return;
+        gateFocused = false;
+        gateUnfocused = 0;
+        // Everything this process has drawn, not just the view the field still
+        // holds: a removal that failed earlier can leave a window behind, and this
+        // is the moment the reader has asked for the screen back.
+        takeDownAll();
+    }
+
+    /**
+     * Take every gate window down, whoever is asking.
+     *
+     * The app calls this when it comes to the front (MainActivity.onResume):
+     * Gospel Focus is the screen that ends the lock, so a gate still on the screen
+     * while this app is being looked at is a gate over the one place that can open
+     * it. It is also the way a gate is cleared when the service that drew it has
+     * since stopped — the window belongs to this process, and the app is the part
+     * of it that the reader can reliably reach.
+     */
+    static void dismissAnyGate() {
+        cleanup.post(new Runnable() {
+            @Override
+            public void run() {
+                FocusAccessibilityService service = instance;
+                if (service != null) {
+                    service.hideGate();
+                } else {
+                    takeDownAll();
+                }
+            }
+        });
+    }
+
+    /** Every tracked gate window, taken down. */
+    private static void takeDownAll() {
+        for (View view : new ArrayList<>(drawnGates)) {
+            if (!takeDown(view)) retryTakeDown(view, 0);
+        }
+    }
+
+    /**
+     * Take one gate window off the screen, or leave it incapable of covering it.
+     *
+     * The order matters. The window is made harmless first (neutralise), so that
+     * whatever happens in the removal that follows, the reader is not left with a
+     * sheet over the screen. Then it is removed — `removeViewImmediate` as the
+     * ordinary path, `removeView` when that refuses, and the view's own attachment
+     * as the last word on whether it is actually gone.
+     *
+     * Returns whether the window is known to be gone. A view that is still
+     * attached is kept in the tracked set so the next attempt, or the next time a
+     * gate is dismissed, can try again (retryTakeDown).
+     */
+    private static boolean takeDown(View view) {
+        if (view == null) return true;
+        neutralise(view);
+
+        WindowManager manager = managerFor(view.getContext());
+        boolean removed = false;
+        if (manager != null) {
+            try {
+                manager.removeViewImmediate(view);
+                removed = true;
+            } catch (Exception immediate) {
+                try {
+                    manager.removeView(view);
+                    removed = true;
+                } catch (Exception plain) {
+                    // Left for the attachment check below: a view the platform no
+                    // longer knows about has already left the screen.
+                }
+            }
+        }
+
+        if (removed || !view.isAttachedToWindow()) {
+            drawnGates.remove(view);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Make a gate window harmless, whether or not it can be taken off the screen.
+     *
+     * This is the half of dismissal that has to hold even when the platform will
+     * not give the window back: one pixel of nothing, drawing nothing, taking no
+     * taps and no keys. A gate that cannot be removed must never also be a gate
+     * that cannot be got past — the reader's phone stays usable either way.
+     */
+    private static void neutralise(View view) {
         try {
-            windowManager.removeViewImmediate(view);
+            view.setAlpha(0f);
+            view.setVisibility(View.GONE);
         } catch (Exception ignored) {
-            // Already detached (the service is going away, or the window was
-            // removed with the process). Nothing left to do.
+            // No window to talk to any more; nothing is being drawn either way.
+        }
+
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (!(params instanceof WindowManager.LayoutParams)) return;
+        WindowManager.LayoutParams overlay = (WindowManager.LayoutParams) params;
+        overlay.width = 1;
+        overlay.height = 1;
+        overlay.flags |= WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        WindowManager manager = managerFor(view.getContext());
+        if (manager == null) return;
+        try {
+            manager.updateViewLayout(view, overlay);
+        } catch (Exception ignored) {
+            // Already gone, or no longer ours to resize. Either way it is not
+            // covering the screen in the meantime.
+        }
+    }
+
+    /**
+     * Keep asking the platform for a window that would not be given back.
+     *
+     * A removal can be refused while the display is changing under the window, or
+     * while the window manager is still holding the token of a service that has
+     * been stopped. The window is harmless by then (neutralise), so this is only
+     * about not leaving a dead window on the display for the rest of the phone's
+     * uptime. A few attempts at a quarter-second, then the view is forgotten: it
+     * covers nothing, so there is nothing left to ask for.
+     */
+    private static void retryTakeDown(final View view, final int attempt) {
+        cleanup.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (takeDown(view)) return;
+                if (attempt < 12) {
+                    retryTakeDown(view, attempt + 1);
+                } else {
+                    drawnGates.remove(view);
+                }
+            }
+        }, 250L);
+    }
+
+    /** The window manager this process' overlay windows belong to. */
+    private static WindowManager managerFor(Context context) {
+        if (context == null) return null;
+        try {
+            return (WindowManager) context.getApplicationContext()
+                .getSystemService(Context.WINDOW_SERVICE);
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -706,6 +1062,11 @@ public class FocusAccessibilityService extends AccessibilityService {
      * Nothing else is asked for in small type: the reader is looking at the one
      * screen they did not choose to open, so it says the one thing that opens it
      * and the one thing that leaves, and stops.
+     *
+     * The corner close is the exception, and it is there on purpose: it is the
+     * smallest thing on the gate and the one that has to work when nothing else
+     * does. A screen that has to be got past by a reader who cannot get past it is
+     * a reboot, and there is no version of this window worth that (see takeDown).
      */
     private View buildGate(String pkg) {
         Palette palette = palette();
@@ -724,12 +1085,43 @@ public class FocusAccessibilityService extends AccessibilityService {
         card.setBackground(rounded(palette.surface, 28, palette.border, 1));
         card.setElevation(dp(2));
 
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView tile = new TextView(this);
         tile.setText("🔒");
         tile.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
         tile.setGravity(Gravity.CENTER);
         tile.setBackground(rounded(palette.surface2, 18, 0, 0));
-        card.addView(tile, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        header.addView(tile, new LinearLayout.LayoutParams(dp(56), dp(56)));
+
+        View gap = new View(this);
+        header.addView(gap, new LinearLayout.LayoutParams(0, 1, 1f));
+
+        // The corner close: the reader's way out that does not depend on any other
+        // part of this window working, and the first thing a stuck gate needs.
+        // It leaves the held app for the home screen, exactly as the "Close"
+        // button below does — the lock is not dissolved, only this screen.
+        TextView dismiss = new TextView(this);
+        dismiss.setText("✕");
+        dismiss.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        dismiss.setTextColor(palette.foreground);
+        dismiss.setGravity(Gravity.CENTER);
+        dismiss.setBackground(rounded(palette.surface2, 999, palette.border, 1));
+        dismiss.setContentDescription("Close and go home");
+        dismiss.setFocusable(true);
+        dismiss.setClickable(true);
+        dismiss.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                goHome();
+            }
+        });
+        header.addView(dismiss, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+        card.addView(header, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         TextView eyebrow = label("FOCUS LOCK", 11, palette.accentStrong,
             Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
@@ -1026,6 +1418,10 @@ public class FocusAccessibilityService extends AccessibilityService {
         // the framework reports that as the app arriving. Without this, the gate
         // went straight back up — over the Gospel Focus screen the button had
         // just opened, which is a button that looks like it does nothing.
+        //
+        // The window is taken down, made harmless and forgotten before anything
+        // is started, so a launch that fails leaves the reader on a usable screen
+        // rather than on a gate whose button looks dead.
         recordLeave(gatePackage);
         lastPackage = getPackageName();
         appPackage = getPackageName();
@@ -1036,8 +1432,8 @@ public class FocusAccessibilityService extends AccessibilityService {
         try {
             startActivity(intent);
         } catch (Exception ignored) {
-            // If the activity cannot be started there is nowhere better to send
-            // the reader than the gate they are already looking at.
+            // The gate is already down and harmless, so a failed launch leaves
+            // the reader where they were rather than on a button that looks dead.
         }
     }
 
@@ -1050,10 +1446,14 @@ public class FocusAccessibilityService extends AccessibilityService {
      * for a moment — which the system reports as that app's window change (see
      * leftPackage). Without both halves, the gate goes back up over the home
      * screen with nothing left in front to take it down.
+     *
+     * The window is made harmless before the home action is asked for (see
+     * takeDown): the reader pressed a button that says it goes home, so whether
+     * the action succeeds, is refused, or the window will not come off the screen,
+     * the screen behind it is theirs again.
      */
     private void goHome() {
-        String held = gatePackage;
-        recordLeave(held);
+        recordLeave(gatePackage);
         lastPackage = null;
         appPackage = null;
         handler.removeCallbacks(bypassCheck);
@@ -1080,10 +1480,11 @@ public class FocusAccessibilityService extends AccessibilityService {
         try {
             startActivity(intent);
         } catch (Exception ignored) {
-            // Nowhere to send the reader, so the close did not happen: the gate
-            // goes back rather than leaving the app open behind it.
-            leftPackage = null;
-            evaluate(held);
+            // Nowhere to send the reader. The gate stays down rather than coming
+            // back: a Close that cannot close is the button that leaves the
+            // reader with no way out, and an app left in front with no gate is
+            // the far better failure. The next window change asks again whether
+            // the gate belongs on it.
         }
     }
 
@@ -1105,6 +1506,76 @@ public class FocusAccessibilityService extends AccessibilityService {
     }
 
     /**
+     * Keep the gate's frame between the system bars — measured, not asked for.
+     *
+     * `setFitInsetsTypes(systemBars())` is the documented way to say "end at the
+     * bars", and this window used to say it — but it does not do what it says for
+     * this window type on every platform. Measured on Android 14, a
+     * `TYPE_ACCESSIBILITY_OVERLAY` whose height was `MATCH_PARENT` with those fit
+     * insets set was laid out from just under the status bar to the very bottom of
+     * the display: the status bar inset was applied and the navigation bar's was
+     * not. Over the navigation bar is over the home button and the home gesture, so
+     * the reader's way out of the phone was covered by the window that is there to
+     * be a nuisance — the exact state this class must not be able to produce (see
+     * the class comment, and `takeDown`).
+     *
+     * So the frame is computed here instead, from the display's bounds and the
+     * bars' current insets, and the window is told to lay itself out against the
+     * whole screen (`FLAG_LAYOUT_IN_SCREEN`) so those numbers mean what they say
+     * rather than being relative to the status bar. Gesture navigation, button
+     * navigation, cutouts and a fold are all the platform's own insets, asked of
+     * the display this window is going on; nothing is guessed at in dp.
+     *
+     * The measured figures ignore the bars' visibility on purpose: a bar that is
+     * hidden right now is still the system's to bring back, and a gate over it
+     * would be over it when it came back.
+     */
+    private void betweenBars(WindowManager.LayoutParams params) {
+        // The resource sizes, for the platforms with no better answer (see below)
+        // and as the fallback if the display will not be asked.
+        int bar = Math.max(
+            systemBarSize("navigation_bar_height"), systemBarSize("navigation_bar_width"));
+        int status = systemBarSize("status_bar_height");
+        int width = getResources().getDisplayMetrics().widthPixels;
+        int height = getResources().getDisplayMetrics().heightPixels;
+
+        params.gravity = Gravity.TOP | Gravity.START;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Laid out against the whole screen, so x/y below are display
+            // coordinates rather than offsets inside the app area the window
+            // manager would otherwise place this window in.
+            params.flags |= WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
+            try {
+                WindowMetrics metrics = windowManager.getCurrentWindowMetrics();
+                Rect bounds = metrics.getBounds();
+                android.graphics.Insets bars = metrics.getWindowInsets().getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                width = bounds.width();
+                height = bounds.height();
+                params.x = bars.left;
+                params.y = bars.top;
+                params.width = Math.max(dp(280), width - bars.left - bars.right);
+                params.height = Math.max(dp(360), height - bars.top - bars.bottom);
+                return;
+            } catch (Exception e) {
+                // Measured against the resources instead; the frame is still short
+                // of both bars, which is the half that matters.
+                Log.w(TAG, "Could not measure the system bars", e);
+            }
+        } else {
+            // Fit insets arrived with API 30, and before them an overlay has no way
+            // to say "end at the bars" — while this window type is drawn above the
+            // navigation bar (layer 31 against its 24), so over them it goes. The
+            // bars are measured out of the window instead, with a band wide enough
+            // for one on any edge, and it is centred inside what is left.
+            params.gravity = Gravity.CENTER;
+        }
+
+        params.width = Math.max(dp(280), width - bar);
+        params.height = Math.max(dp(360), height - status - bar);
+    }
+
+    /**
      * The overlay's root, which claims Back.
      *
      * A focusable window normally hands Back to nobody, so without this the key
@@ -1118,7 +1589,16 @@ public class FocusAccessibilityService extends AccessibilityService {
 
         @Override
         public boolean dispatchKeyEvent(KeyEvent event) {
-            if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            int key = event.getKeyCode();
+            if (key == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_UP) goHome();
+                return true;
+            }
+            // Home reaches the focused window, which is this one, and left
+            // unhandled it is the system's to act on behind a gate that stays
+            // where it is. Handled here, the gate comes down on the way — the
+            // same leave as the buttons, through the same call.
+            if (key == KeyEvent.KEYCODE_HOME) {
                 if (event.getAction() == KeyEvent.ACTION_UP) goHome();
                 return true;
             }

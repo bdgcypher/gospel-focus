@@ -250,6 +250,26 @@ content, so it learns which app is in front and nothing else. The system starts
 and keeps the service, so the lock is armed again after a reboot with no
 foreground service and no notification.
 
+**Getting out is guaranteed, and not just by the buttons.** A gate that cannot be
+closed is worse than no lock at all, so dismissal is written to survive the
+window rather than to trust it. The frame is measured between the system bars
+rather than taken from fit insets — on Android 14 the inset-controlled window was
+still laid out over the navigation bar, with the home button drawn but dead — and
+the window is not touch-modal, so the bars stay the system's both to see and to
+touch. Home is the one exit the framework does not report as a window change (the
+launcher comes up behind the gate), so the service listens for the platform's own
+`ACTION_CLOSE_SYSTEM_DIALOGS` with reason `homekey`/`recentapps` and takes the gate
+down on it. The gate carries a ✕ in its corner as well as "Close <app>", and both
+go home whether or not the home action is accepted. Every window the service draws
+is registered process-wide and only forgotten once its removal is confirmed; each
+is made harmless — one pixel, drawing nothing, taking no taps or keys — *before*
+it is removed, so a removal the platform refuses still leaves the screen usable.
+The guard also takes a gate down when its window is no longer attached, when the
+app in front is not the one it was drawn for, or when it has lost the input focus
+it needs, and the app itself clears anything left on every `onResume` — so opening
+Gospel Focus is a way out even if the service that drew the gate has since been
+stopped.
+
 `FocusLockPlugin` lists the launcher apps, reports whether access is on, opens
 Android's accessibility settings, and writes the lock's state — set up, the day
 the goal was met, the day it was re-armed, the chosen packages, the bypass
