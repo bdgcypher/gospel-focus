@@ -286,6 +286,31 @@ async function conferenceDoc(title: string, conferenceId?: string): Promise<Read
   return null;
 }
 
+/**
+ * Chapters already opened to be drawn ahead of the reader, by what they say.
+ *
+ * A swipe previews a chapter before it is opened, and then the page opens it
+ * for real — one read of the library, kept for the next pass of the thumb. The
+ * cache belongs to the preview only: the reader's own open is deliberately
+ * uncached, because a chapter re-opened from the same citation has to be a new
+ * document, not the one that was already scrolled through.
+ */
+const previewed = new Map<string, Promise<ReaderDoc | null>>();
+
+const citationKey = (citation: ReaderCitation) =>
+  `${citation.kind}:${citation.book}:${citation.chapter}:${citation.conferenceId ?? ""}`;
+
+/** Open a chapter to show it before the reader has chosen it. */
+export function previewReaderDoc(citation: ReaderCitation): Promise<ReaderDoc | null> {
+  const key = citationKey(citation);
+  let pending = previewed.get(key);
+  if (!pending) {
+    pending = openReaderDoc(citation);
+    previewed.set(key, pending);
+  }
+  return pending;
+}
+
 /** Open a chapter or talk, or null when this library doesn't hold it. */
 export async function openReaderDoc(citation: ReaderCitation): Promise<ReaderDoc | null> {
   if (citation.kind === "conference") {
@@ -379,6 +404,24 @@ export function versePassage(doc: ReaderDoc, verse: number): Passage {
     book: doc.book,
     chapter: doc.chapter,
     section: found.number,
+  };
+}
+
+/**
+ * A neighbouring chapter, as the citation that opens it.
+ *
+ * The document's own kind decides how the neighbour is addressed — a talk is
+ * only found by its session *and* its title, and a chapter by its book — so the
+ * two are always built the same way rather than by each control that offers a
+ * step to the next one. The foot of the reader and a horizontal swipe are the
+ * same promise: here is the chapter beside this one.
+ */
+export function neighbourCitation(doc: ReaderDoc, neighbour: ReaderNeighbour): ReaderCitation {
+  return {
+    kind: doc.kind,
+    book: neighbour.book,
+    chapter: neighbour.chapter,
+    conferenceId: neighbour.conferenceId,
   };
 }
 

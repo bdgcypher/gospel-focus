@@ -49,6 +49,78 @@ const pressWords = async (page, verse, word, times = 1) => {
 };
 
 /**
+ * A finger across the page: press, carry it sideways, and only then let go.
+ *
+ * The moves are the browser's own pointer events, spaced like frames, because
+ * the reader reads the speed of the last movement to tell a page turn from a
+ * drag through the words. They are dispatched before the release so a scenario
+ * can look at what is on screen mid-gesture — the chapter leaning, the preview
+ * riding in — and then finish the swipe.
+ */
+const carry = async (page, { from = 300, to = 120, y = 480, steps = 6, pause = 12 } = {}) => {
+  await page.evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const fire = (type, x) => document.body.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: x,
+      clientY: ${y},
+    }));
+    fire("pointerdown", ${from});
+    await sleep(4);
+    for (let step = 1; step <= ${steps}; step += 1) {
+      fire("pointermove", ${from} + ((${to} - ${from}) * step) / ${steps});
+      await sleep(${pause});
+    }
+    return true;
+  })()`);
+};
+
+/** Lift the finger where the carry ended. */
+const letGo = async (page, { to, y = 480 } = {}) => {
+  await page.evaluate(`(() => {
+    document.body.dispatchEvent(new PointerEvent("pointerup", {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: ${to},
+      clientY: ${y},
+    }));
+    return true;
+  })()`);
+};
+
+/** A whole swipe: carry, then lift. */
+const swipe = async (page, options = {}) => {
+  await carry(page, options);
+  await letGo(page, options);
+};
+
+/** What the reader is showing, for the swipe's assertions. */
+const swipeState = (page) =>
+  page.evaluate(`(() => {
+    const root = document.documentElement;
+    const page = document.querySelector("[data-app-page]");
+    const preview = document.querySelector("[data-reader-preview]");
+    const box = page?.getBoundingClientRect();
+    return {
+      heading: document.querySelector("main h1")?.textContent ?? "",
+      url: location.search,
+      dragging: root.hasAttribute("data-nav-dragging"),
+      slide: root.style.getPropertyValue("--nav-slide"),
+      shift: box ? Math.round(box.left) : null,
+      preview: Boolean(preview),
+      previewText: preview ? (preview.textContent ?? "").slice(0, 120) : "",
+      previewVerses: preview ? preview.querySelectorAll("[data-verse]").length : 0,
+    };
+  })()`);
+
+/**
  * The reader as a reader uses it: open a chapter at a verse, mark words, write a
  * note, come back to it, and walk on to the next chapter. Everything is asserted
  * through the rendered page — computed colours included — because a mark that is
@@ -487,6 +559,48 @@ export async function run({ page, check, base }) {
   check("the next chapter opens", nextHeading.includes("Jeremiah 4"), nextHeading);
   check("a new chapter starts at its top", (await page.evaluate(`window.scrollY`)) < 40);
 
+  // --- swiping between chapters --------------------------------------------
+  // A finger across the page turns to the chapter beside it, the way the same
+  // gesture turns between the sections: the page goes with the finger, the next
+  // chapter is already drawn off the side, and the release lands on it.
+  await carry(page, { from: 320, to: 130, y: 480 });
+  await page.sleep(160);
+  const midSwipe = await swipeState(page);
+  check("a swipe carries the page with the finger", midSwipe.dragging && midSwipe.shift < -40, JSON.stringify(midSwipe));
+  check("the chapter being turned to is drawn beside it", midSwipe.preview, JSON.stringify(midSwipe));
+  check(
+    "the preview is the chapter itself, not a sketch of it",
+    midSwipe.previewText.includes("Jeremiah 5") && midSwipe.previewVerses > 10,
+    `${midSwipe.previewVerses} verses: ${midSwipe.previewText}`
+  );
+  await letGo(page, { to: 130, y: 480 });
+  await page.sleep(1700);
+  const afterSwipe = await swipeState(page);
+  check("letting go opens the next chapter", afterSwipe.heading.includes("Jeremiah 5") && afterSwipe.url.includes("chapter=5"), JSON.stringify(afterSwipe));
+  check("the preview is taken away once the chapter lands", !afterSwipe.preview && !afterSwipe.dragging, JSON.stringify(afterSwipe));
+  check("the turn leaves no trace on the page", afterSwipe.slide === "" && afterSwipe.shift === 0, JSON.stringify(afterSwipe));
+  check("a swiped chapter starts at its top", (await page.evaluate(`window.scrollY`)) < 40);
+
+  await swipe(page, { from: 120, to: 320, y: 480 });
+  await page.sleep(1700);
+  const sweptBack = await swipeState(page);
+  check(
+    "a swipe the other way opens the chapter before it",
+    sweptBack.heading.includes("Jeremiah 4") && sweptBack.url.includes("chapter=4"),
+    JSON.stringify(sweptBack)
+  );
+
+  // Dragging across the words is how the reader marks them, so a slow drag is
+  // the words' gesture and the chapter stays where it is.
+  await swipe(page, { from: 320, to: 140, y: 480, pause: 180 });
+  await page.sleep(900);
+  const marked = await swipeState(page);
+  check(
+    "a slow drag through the words does not turn the page",
+    marked.heading.includes("Jeremiah 4") && marked.url.includes("chapter=4"),
+    JSON.stringify(marked)
+  );
+
   // --- the chapter grid ----------------------------------------------------
   // The chapter's own name is the door: it opens beside the heading, the book
   // at its top drills into its chapters, and a number is a chapter to go to.
@@ -513,6 +627,35 @@ export async function run({ page, check, base }) {
   await page.sleep(1800);
   const tenth = await page.evaluate(`document.querySelector("main h1")?.textContent ?? ""`);
   check("the chapter grid opens a chapter", tenth.includes("Jeremiah 10"), tenth);
+
+  // --- the ends of the volume ----------------------------------------------
+  // The first chapter has nothing before it: the page leans and is given back,
+  // which is how the row says there is nothing that way.
+  await openChapter(page, base, "book=Genesis&chapter=1", 2600);
+  await carry(page, { from: 200, to: 340, y: 480 });
+  await page.sleep(120);
+  const leaning = await swipeState(page);
+  check("a swipe past the first chapter leans the page", leaning.dragging && leaning.shift > 0 && !leaning.preview, JSON.stringify(leaning));
+  await letGo(page, { to: 340, y: 480 });
+  await page.sleep(900);
+  const rebounded = await swipeState(page);
+  check(
+    "and gives it back without changing the chapter",
+    rebounded.heading.includes("Genesis 1") && rebounded.shift === 0 && !rebounded.dragging,
+    JSON.stringify(rebounded)
+  );
+
+  // The last chapter of a book has the next book after it, so a swipe crosses
+  // into the next book rather than stopping at the end of this one.
+  await openChapter(page, base, "book=Genesis&chapter=50", 2600);
+  await swipe(page, { from: 320, to: 130, y: 480 });
+  await page.sleep(1800);
+  const crossed = await swipeState(page);
+  check(
+    "a swipe at the end of a book opens the next book",
+    crossed.heading.includes("Exodus 1"),
+    JSON.stringify(crossed)
+  );
 
   // --- bookmarks -----------------------------------------------------------
   // A place the reader names and comes back to: saved from the bar, opened from

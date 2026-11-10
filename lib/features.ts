@@ -126,6 +126,7 @@ export const FEATURES: Feature[] = [
     status: "ready",
     capabilities: [
       "Every chapter and general conference talk, with the one before and after at the edge",
+      "A swipe left or right turns to the chapter beside this one, the page following the thumb and the next chapter already drawn beside it",
       "Highlight or underline any run of words — yellow, red, green, blue and more",
       "A note or a link on a mark, opened by the mark itself",
       "A handle on each end of a mark — or of words just selected — to drag it a word at a time, in a target a thumb can find",
