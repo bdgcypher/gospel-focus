@@ -309,8 +309,8 @@ export function PassagePicker() {
                       A verse, set the way the app's other verse straplines are:
                       the words in the serif italic they are read in, the
                       citation after them and kept whole — and, like the ones on
-                      the quiz and memorize pages, a way into the verse it
-                      names rather than a label. It goes to the reader, which is
+                      the study hub and the memorize page, a way into the verse
+                      it names rather than a label. It goes to the reader, which is
                       where a passage is read: the citation rides in the query
                       string and /read resolves it, opening the chapter at the
                       verse instead of drawing it here. */}

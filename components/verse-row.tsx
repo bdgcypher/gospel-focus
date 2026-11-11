@@ -33,6 +33,7 @@ export function VerseRow({
   doc,
   verse,
   annotations,
+  backlinked,
   preview,
   selected,
   focused,
@@ -43,6 +44,12 @@ export function VerseRow({
   doc: ReaderDoc;
   verse: { number: number; text: string };
   annotations: Annotation[];
+  /**
+   * Whether a mark elsewhere in the library links to this verse. The mark is
+   * not here — only the way back to it is — so the margin speaks for it, and
+   * the panel behind it names the passage the reader came from.
+   */
+  backlinked?: boolean;
   /** The extent a dragged edge is showing, which paints over the stored mark. */
   preview: { groupId: string; from: WordPoint; to: WordPoint; color: MarkColor; style: MarkStyle } | null;
   /**
@@ -101,11 +108,15 @@ export function VerseRow({
    * the words, so a thought about a verse is found at the verse's edge however
    * far into the prose the marked words began. One margin mark speaks for all
    * three, because one panel holds them: the verse has something to say, or it
-   * does not.
+   * does not. A backlink counts too, though its mark lives in another chapter:
+   * a linked verse has a way back to where it was linked from, and the margin
+   * is how that way is found.
    */
-  const carried = marks.some(
-    (mark) => noteText(mark.note).length > 0 || Boolean(mark.links?.length) || mark.tags.length > 0
-  );
+  const carried =
+    Boolean(backlinked) ||
+    marks.some(
+      (mark) => noteText(mark.note).length > 0 || Boolean(mark.links?.length) || mark.tags.length > 0
+    );
 
   // A dragged edge paints the run it is showing, over whatever is stored.
   if (preview && preview.color !== "clear") {

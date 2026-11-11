@@ -32,6 +32,11 @@ import { NavPreview, prefetchSection } from "./nav-preview";
  * springs the page back, and a drag at the first or last tab leans the page and
  * gives it back, which is how the row says there is nothing that way.
  *
+ * The side belongs to the finger, not to the gesture. A finger that crosses
+ * back through where it began is turning the other way, so the page peeking
+ * changes with it — and a drag brought back to its starting point turns
+ * nothing when it lets go.
+ *
  * Three decisions hold the whole gesture together:
  *
  * 1. **The finger writes CSS, not React.** Every move sets one custom property
@@ -266,10 +271,16 @@ export function NavSwipe() {
     };
 
     /**
-     * Pick up the gesture: point the stylesheet at the page that is coming in,
-     * and hang it off the side of the screen.
+     * Point the turn at a direction: work out which section is coming in and
+     * hang it off the side of the screen the finger is coming from.
+     *
+     * Called when the drag starts and again whenever the finger crosses back
+     * through where it began. The direction belongs to the finger rather than
+     * to the gesture: a reader who changes their mind is turning the other way,
+     * so the page peeking — and the mark travelling towards it — has to be the
+     * one that way leads to.
      */
-    const begin = (way: NavDirection) => {
+    const aim = (way: NavDirection) => {
       direction = way;
       const step = PRIMARY_NAV[here + (way === "forward" ? 1 : -1)];
       target = step ? withoutSlash(step.href) : null;
@@ -283,14 +294,22 @@ export function NavSwipe() {
       // screen would be the colour of the page instead of the page that is
       // arriving on it. One synchronous render at the start of a turn costs
       // nothing the finger can feel; a blank peek costs the illusion.
-      if (target) flushSync(() => setPull(target));
+      flushSync(() => setPull(target));
       root.dataset.navDir = way;
-      root.dataset.navDragging = "";
       root.style.setProperty("--nav-lead", `${pageTop()}px`);
-      // One clock for the whole turn, written where the stylesheet reads it and
-      // read back by the mark's own animation (see TURN_MS).
-      root.style.setProperty("--nav-settle", `${TURN_MS}ms`);
+      // The bar's mark re-anchors on the side the finger is now heading for.
       turnStarted(target);
+    };
+
+    /** Take the gesture: from here on the page is in the finger's hand. */
+    const begin = (way: NavDirection) => {
+      if (!motionReduced()) {
+        root.dataset.navDragging = "";
+        // One clock for the whole turn, written where the stylesheet reads it
+        // and read back by the mark's own animation (see TURN_MS).
+        root.style.setProperty("--nav-settle", `${TURN_MS}ms`);
+      }
+      aim(way);
     };
 
     /** Carry the page with the thumb, within the width of the screen. */
@@ -350,6 +369,13 @@ export function NavSwipe() {
         begin(dx < 0 ? "forward" : "back");
       }
 
+      // The finger can turn back before it lets go. The page follows the side
+      // of the start the finger is on, so the page peeking has to change with
+      // it — otherwise a change of mind would still turn the page the reader
+      // first reached for.
+      const heading = dx < 0 ? "forward" : "back";
+      if (direction !== heading) aim(heading);
+
       // The page has no horizontal scroll, so this movement is only the
       // gesture. Keeping it from the browser also keeps it from selecting text
       // under the finger while the swipe is in progress.
@@ -365,7 +391,11 @@ export function NavSwipe() {
       const elapsed = Math.max(1, performance.now() - startedAt);
       const wasHorizontal = horizontal;
       const way = direction;
-      const href = target;
+      // The finger's last position decides which way the turn goes. A release
+      // on the other side of where the drag began — without a movement in
+      // between — is not a turn at all.
+      const changedMind = way !== null && way !== (dx < 0 ? "forward" : "back");
+      const href = changedMind ? null : target;
       const travelled = Math.abs(dx);
       forget();
 

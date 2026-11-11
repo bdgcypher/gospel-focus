@@ -24,6 +24,7 @@ export type GlyphName =
   | "more"
   | "grip"
   | "close"
+  | "chevron"
   | "contents"
   | "link"
   | "tag"
@@ -170,10 +171,6 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   cards: { art: "/emoji/brain.png" },
   map: "🗺️",
   sparkles: "✨",
-  // The quiz card and page wear the white ornament rather than the red mark:
-  // the card's tile is already a warm cream, and the red emoji shouted beside
-  // it. The hollow mark sits at the weight of the other tiles' pictures.
-  quiz: "❔️",
   puzzle: { art: "/emoji/puzzle.png" },
   letters: "🔠",
   grid: "🔳",
@@ -218,6 +215,10 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   contents: null,
   clock: "⏰",
   close: null,
+  // The dropdown's own mark: which way a folded section will go when it is
+  // pressed. A chevron is a control rather than a picture, so it is drawn in
+  // every style — a device's emoji would read as decoration beside the label.
+  chevron: null,
   trash: "🗑️",
   // The annotation bar's own controls: a cross-reference, a tag, the mark that
   // means "a note or a link", and a copy. All actions rather than pictures, so
@@ -275,23 +276,6 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
     <>
       <path d="M11 4.6l1.5 4 4 1.5-4 1.5L11 15.6l-1.5-4-4-1.5 4-1.5z" />
       <path d="M18 14.6l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" />
-    </>
-  ),
-  // An open book with the question on one page: rules on the left, a question
-  // mark on the right. The point of the feature is that the words and their
-  // reference are two halves of one thing, so the mark is the book rather than
-  // a question floating in a circle. The book itself is drawn at its own size
-  // and scaled up to the box, so it fills the tile and the two pages stay the
-  // subject; the question is drawn after the scale, kept small on its page.
-  quiz: (
-    <>
-      <g transform="translate(12 12) scale(1.07) translate(-12 -12)">
-        <path d="M12 7.4C10.2 6.2 7.7 5.4 4.6 5.4A1.6 1.6 0 0 0 3 7v10.8a1.6 1.6 0 0 0 1.6 1.6c2.4 0 5.4.6 7.4 1.8 1.8-1.2 4.4-1.8 7.4-1.8a1.6 1.6 0 0 0 1.6-1.6V7a1.6 1.6 0 0 0-1.6-1.6c-2.9 0-5.2.8-7 2Z" />
-        <path d="M12 7.4V21.2" />
-        <path d="M4.7 10.6h5.2M4.7 13.3h5.2M4.7 16h5.2" strokeWidth={1.4} />
-      </g>
-      <path d="M15.7 10.5a1.8 1.8 0 1 1 2.4 1.55c-.55.3-.8.8-.8 1.35v.25" />
-      <path d="M17.3 16.7h.01" />
     </>
   ),
   // A piece of a jigsaw, for the section of play: a rounded body with a knob
@@ -440,6 +424,9 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
     </>
   ),
   check: <path d="m5.5 12.6 4.4 4.4 8.6-9.5" />,
+  // Points down, the way a folded section opens; a caller that has it open
+  // turns it over. One arm of a chevron, so it stays crisp at 14px.
+  chevron: <path d="m6 9.5 6 6 6-6" />,
   // Three rows of a contents list: a dot for the entry, a rule for its name.
   // The dots are zero-length paths, so the round cap draws them at the same
   // weight as the rules rather than as a separate filled circle.
@@ -626,8 +613,8 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M15.5 4.3 12 8.4 8.5 4.3M8.5 19.7 12 15.6l3.5 4.1" />
     </>
   ),
-  // A question mark in a ring, for the hint control that opens the hint sheet
-  // on the reference quiz (components/reference-quiz-page.tsx).
+  // A question mark in a ring, for the control that opens an explanation —
+  // the marks panel's "How to download your data" (components/marks-panel.tsx).
   help: (
     <>
       <circle cx="12" cy="12" r="8.6" />

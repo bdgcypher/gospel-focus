@@ -19,7 +19,7 @@ interface Props {
   /**
    * The line under the heading. A string is the usual case — the catalog's own
    * blurb, or `""` to say nothing — while a node is for a page whose strapline
-   * needs its own shape, such as the reference quiz's verse and citation.
+   * needs its own shape, such as a section hub's verse and citation.
    */
   subtitle?: ReactNode;
   /**

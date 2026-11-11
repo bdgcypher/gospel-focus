@@ -85,7 +85,7 @@ const TILES: Tile[] = [
   fromFeature("journal", "Journal", "journal"),
   // The one game worth a door of its own: the daily puzzle is the reason to
   // open the app on a day with no time to read, so it takes the fourth square
-  // rather than sitting one tap deeper in the games hub. The other games are
+  // rather than sitting one tap deeper in the games hub. The word search is
   // still there, behind the Games tab.
   fromFeature("wordle", "Daily Puzzle", "word"),
 ];

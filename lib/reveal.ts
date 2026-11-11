@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
  *
  * Every game ends with a move the reader should be allowed to see — the word
  * search draws its last cross-out, the daily puzzle turns its last row of
- * letters, the quiz marks the guess that missed. The result card used to open on
+ * letters. The result card used to open on
  * the same frame as that move and cover it, so the one moment the game had been
  * building to went past behind a dialog. This holds the card back for the length
  * of the animation, and its own haptics with it, since both are hung off the card

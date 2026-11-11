@@ -22,7 +22,6 @@ export type IconName =
   | "search"
   | "map"
   | "sparkles"
-  | "quiz"
   | "puzzle"
   | "letters"
   | "word"
@@ -238,20 +237,6 @@ export const FEATURES: Feature[] = [
     ],
   },
   {
-    id: "reference-quiz",
-    group: "games",
-    href: "/games/reference-quiz",
-    title: "What's That Verse?",
-    blurb: "Recognize or guess a verses reference",
-    icon: "quiz",
-    status: "ready",
-    capabilities: [
-      "Four hint stages: volume, then book, then chapter, then the verse itself",
-      "Hints cost gems, from one for the volume to fifteen for the verse",
-      "Searchable dropdowns to answer without typing",
-    ],
-  },
-  {
     id: "wordle",
     group: "games",
     href: "/games/puzzle",
@@ -456,7 +441,7 @@ export function isStudyPath(pathname: string): boolean {
 /**
  * Whether a nav entry should look current for this path.
  *
- * A section owns everything beneath it, so /games/reference-quiz keeps "Games"
+ * A section owns everything beneath it, so /games/word-search keeps "Games"
  * lit — and it also owns the pages it gathers, which are not beneath its own
  * path: /memorize belongs to Study even though it is not /study/memorize. Which
  * pages those are comes from the catalog, so a tab lights for what it really

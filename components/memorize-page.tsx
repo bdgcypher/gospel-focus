@@ -162,8 +162,8 @@ export function MemorizePage() {
     // to its corner (see `.memorize-add-fab`).
     <>
       {/* The strapline is a verse rather than the catalog's line, set the same
-          way as the reference quiz's: the words in the serif italic they are
-          read in, the citation after them and kept whole. */}
+          way as the study hub's: the words in the serif italic they are read
+          in, the citation after them and kept whole. */}
       <FeaturePage
         featureId="memorize"
         // A subpage names itself: the deck, the card being learned, the run of

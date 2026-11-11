@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  backlinksForDoc,
   markGroup,
   markGroupId,
   marksAt,
@@ -283,5 +284,82 @@ describe("searchMarks", () => {
 
   it("finds nothing for a query that isn't there", () => {
     expect(searchMarks(marks, "tithing")).toEqual([]);
+  });
+});
+
+describe("backlinksForDoc", () => {
+  // 1 Nephi 3:7, linked onward to D&C 6:36 — the mark lives in the verse it was
+  // written on, and the link is the only record of the passage it points at.
+  const outward = mark({
+    id: "nefi",
+    doc: "bom/1-ne/3",
+    book: "1 Nephi",
+    chapter: "3",
+    verse: 7,
+    links: [{ book: "D&C", chapter: "6", section: 36, label: "D&C 6:36" }],
+  });
+
+  const dc = { kind: "scripture" as const, book: "D&C", chapter: "6" };
+
+  it("finds the mark that links to a chapter's verse", () => {
+    const found = backlinksForDoc([outward], dc);
+    expect(found.get(36)?.map((entry) => entry.mark.id)).toEqual(["nefi"]);
+  });
+
+  it("leaves verses nobody linked to empty", () => {
+    expect(backlinksForDoc([outward], dc).get(30)).toBeUndefined();
+  });
+
+  it("does not answer for a chapter the link does not name", () => {
+    expect(backlinksForDoc([outward], { ...dc, chapter: "7" }).size).toBe(0);
+  });
+
+  it("reads a book's name however it was spaced in the link", () => {
+    const spaced = mark({
+      id: "spaced",
+      links: [{ book: " 1  nephi ", chapter: "3", section: 7, label: "1 Nephi 3:7" }],
+    });
+    const found = backlinksForDoc([spaced], { kind: "scripture", book: "1 Nephi", chapter: "3" });
+    expect(found.get(7)?.map((entry) => entry.mark.id)).toEqual(["spaced"]);
+  });
+
+  it("puts the way back on every verse of a range", () => {
+    const ranged = mark({
+      id: "ranged",
+      links: [{ book: "D&C", chapter: "6", section: 36, sections: [36, 37], label: "D&C 6:36-37" }],
+    });
+    const found = backlinksForDoc([ranged], dc);
+    expect([...found.keys()].sort()).toEqual([36, 37]);
+  });
+
+  it("answers for a talk by its session and title", () => {
+    const talk = mark({
+      id: "talk",
+      doc: "c/2015-04/3",
+      book: "General Conference",
+      chapter: "The Gift of Grace",
+      verse: 4,
+      links: [
+        {
+          book: "General Conference",
+          chapter: "The Gift of Grace",
+          section: 2,
+          conferenceId: "2015-04",
+          label: "“The Gift of Grace” ¶ 2",
+        },
+      ],
+    });
+    const found = backlinksForDoc([talk], {
+      kind: "conference",
+      book: "General Conference",
+      chapter: "The Gift of Grace",
+      conferenceId: "2015-04",
+    });
+    expect(found.get(2)?.map((entry) => entry.mark.id)).toEqual(["talk"]);
+  });
+
+  it("shows one way back when the same record is reached twice", () => {
+    const found = backlinksForDoc([outward, outward], dc);
+    expect(found.get(36)).toHaveLength(1);
   });
 });

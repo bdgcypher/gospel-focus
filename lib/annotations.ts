@@ -559,6 +559,89 @@ export function annotationsFor(annotations: Annotation[], doc: string, verse?: n
   return annotations.filter((a) => a.doc === doc && (verse === undefined || a.verse === verse));
 }
 
+/** The place a link can name, told the way a document tells it about itself. */
+export interface LinkPlace {
+  kind: "scripture" | "conference";
+  book: string;
+  chapter: string;
+  conferenceId?: string;
+}
+
+/** A mark elsewhere in the library whose link names a place in this one. */
+export interface Backlink {
+  /** The mark carrying the outward link. */
+  mark: Annotation;
+  /** That mark's own link — the one that points here. */
+  link: AnnotationLink;
+}
+
+/**
+ * A name as it is compared: case and spacing are the reader's business, not
+ * the record's — "1 Nephi" and "1  nephi" are the same book.
+ */
+const sameName = (a: string, b: string) =>
+  a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Whether a link names a place: its book and chapter, or a talk's session and
+ * title.
+ *
+ * A link stores the library's own words for where it points rather than a
+ * document id — that is what it was written with, and what an imported one
+ * says — so matching it to the document on screen is a comparison of names.
+ * Chapter and session ids are compared exactly; book names are compared the way
+ * the reader reads them, since two records naming "1 Nephi" are the same book
+ * however they were spaced.
+ */
+function linkNamesPlace(link: AnnotationLink, place: LinkPlace): boolean {
+  if (link.conferenceId || place.kind === "conference") {
+    return (
+      place.kind === "conference" &&
+      Boolean(link.conferenceId) &&
+      link.conferenceId === place.conferenceId &&
+      sameName(link.chapter, place.chapter)
+    );
+  }
+  return (
+    place.kind === "scripture" &&
+    sameName(link.book, place.book) &&
+    sameName(link.chapter, place.chapter)
+  );
+}
+
+/**
+ * The backlinks of a document, by verse: every mark somewhere else in the
+ * library whose link names a verse of this one.
+ *
+ * A link is written once, on the mark it belongs to, and is read from both
+ * ends: linking 1 Nephi 3:7 to D&C 6:36 means opening D&C 6:36 shows the way
+ * back to 1 Nephi 3:7 without a second link ever being stored. Nothing has to
+ * be kept in step, so removing the link removes the backlink with it, and an
+ * imported mark brings its own backlinks along.
+ *
+ * A link that names a run of verses is a backlink on every verse of the run:
+ * whichever one the reader opens, the passage they came from is there.
+ */
+export function backlinksForDoc(annotations: Annotation[], place: LinkPlace): Map<number, Backlink[]> {
+  const found = new Map<number, Backlink[]>();
+
+  for (const mark of annotations) {
+    for (const link of mark.links ?? []) {
+      if (!linkNamesPlace(link, place)) continue;
+      const verses = new Set(link.sections?.length ? link.sections : [link.section]);
+      for (const verse of verses) {
+        const list = found.get(verse) ?? [];
+        // The same record cannot be the way back twice, however many of its
+        // links name this verse; one entry is what the reader reads.
+        if (!list.some((entry) => entry.mark.id === mark.id)) list.push({ mark, link });
+        found.set(verse, list);
+      }
+    }
+  }
+
+  return found;
+}
+
 /**
  * One mark's identity, across the verses it covers.
  *

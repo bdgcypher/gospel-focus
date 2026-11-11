@@ -52,10 +52,11 @@ const pressWords = async (page, verse, word, times = 1) => {
  * A finger across the page: press, carry it sideways, and only then let go.
  *
  * The moves are the browser's own pointer events, spaced like frames, because
- * the reader reads the speed of the last movement to tell a page turn from a
- * drag through the words. They are dispatched before the release so a scenario
- * can look at what is on screen mid-gesture — the chapter leaning, the preview
- * riding in — and then finish the swipe.
+ * the reader reads the gesture as it arrives — how far it has travelled, which
+ * side of the start the finger is on, and whether it began with a rest. They
+ * are dispatched before the release so a scenario can look at what is on
+ * screen mid-gesture — the chapter leaning, the preview riding in — and then
+ * finish the swipe.
  */
 const carry = async (page, { from = 300, to = 120, y = 480, steps = 6, pause = 12 } = {}) => {
   await page.evaluate(`(async () => {
@@ -73,6 +74,27 @@ const carry = async (page, { from = 300, to = 120, y = 480, steps = 6, pause = 1
     await sleep(4);
     for (let step = 1; step <= ${steps}; step += 1) {
       fire("pointermove", ${from} + ((${to} - ${from}) * step) / ${steps});
+      await sleep(${pause});
+    }
+    return true;
+  })()`);
+};
+
+/** Carry a finger that is already down on to another point. */
+const carryOn = async (page, { from, to, y = 480, steps = 6, pause = 12 } = {}) => {
+  await page.evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const fire = (x) => document.body.dispatchEvent(new PointerEvent("pointermove", {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: x,
+      clientY: ${y},
+    }));
+    for (let step = 1; step <= ${steps}; step += 1) {
+      fire(${from} + ((${to} - ${from}) * step) / ${steps});
       await sleep(${pause});
     }
     return true;
@@ -590,15 +612,82 @@ export async function run({ page, check, base }) {
     JSON.stringify(sweptBack)
   );
 
-  // Dragging across the words is how the reader marks them, so a slow drag is
-  // the words' gesture and the chapter stays where it is.
+  // A slow swipe is still a swipe: the turn is read from the distance the
+  // finger has gone, not from how fast it went.
   await swipe(page, { from: 320, to: 140, y: 480, pause: 180 });
-  await page.sleep(900);
-  const marked = await swipeState(page);
+  await page.sleep(1700);
+  const slow = await swipeState(page);
   check(
-    "a slow drag through the words does not turn the page",
-    marked.heading.includes("Jeremiah 4") && marked.url.includes("chapter=4"),
-    JSON.stringify(marked)
+    "a slow swipe still turns the page",
+    slow.heading.includes("Jeremiah 5") && slow.url.includes("chapter=5"),
+    JSON.stringify(slow)
+  );
+
+  // The finger decides the direction, not the first movement of the gesture:
+  // starting forward and crossing back through the start turns the other way.
+  await carry(page, { from: 320, to: 160, y: 480 });
+  await page.sleep(120);
+  await carryOn(page, { from: 160, to: 400, y: 480, pause: 30 });
+  const flipped = await swipeState(page);
+  check(
+    "changing direction swaps the chapter being turned to",
+    flipped.preview && flipped.previewText.includes("Jeremiah 4"),
+    JSON.stringify(flipped).slice(0, 200)
+  );
+  await letGo(page, { to: 400, y: 480 });
+  await page.sleep(1700);
+  const reversed = await swipeState(page);
+  check(
+    "and letting go turns the way the finger ended up going",
+    reversed.heading.includes("Jeremiah 4") && reversed.url.includes("chapter=4"),
+    JSON.stringify(reversed)
+  );
+
+  // Brought back to where it began and let go there, the gesture asked for
+  // nothing: the page returns without turning.
+  await carry(page, { from: 320, to: 160, y: 480 });
+  await page.sleep(120);
+  await carryOn(page, { from: 160, to: 320, y: 480, pause: 30 });
+  await letGo(page, { to: 320, y: 480 });
+  await page.sleep(900);
+  const restored = await swipeState(page);
+  check(
+    "a swipe brought back to where it began turns nothing",
+    restored.heading.includes("Jeremiah 4") &&
+      restored.url.includes("chapter=4") &&
+      !restored.dragging &&
+      restored.shift === 0,
+    JSON.stringify(restored)
+  );
+
+  // A press that rests before it moves is how the browser begins a selection,
+  // so a drag that starts that way belongs to the words and the chapter stays.
+  await page.evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const fire = (type, x) => document.body.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: x,
+      clientY: 480,
+    }));
+    fire("pointerdown", 320);
+    await sleep(520);
+    for (let step = 1; step <= 6; step += 1) {
+      fire("pointermove", 320 - (180 * step) / 6);
+      await sleep(30);
+    }
+    fire("pointerup", 140);
+    return true;
+  })()`);
+  await page.sleep(900);
+  const held = await swipeState(page);
+  check(
+    "a drag that rested first belongs to the words, not the chapter",
+    held.heading.includes("Jeremiah 4") && held.url.includes("chapter=4"),
+    JSON.stringify(held)
   );
 
   // --- the chapter grid ----------------------------------------------------
@@ -1416,6 +1505,29 @@ export async function run({ page, check, base }) {
 
   await page.evaluate(`document.querySelector('[aria-label="Open the notes, links, and tags on verse 15"]')?.click()`);
   await page.sleep(1400);
+  const collapsedLink = await page.evaluate(`(() => {
+    const panel = document.querySelector('[role="dialog"][aria-label^="Notes and links on"]');
+    if (!panel) return null;
+    return {
+      text: panel.textContent,
+      folded: panel.querySelector('[aria-label="Show the text of Alma 32:21-22"]')?.getAttribute("aria-expanded") === "false",
+    };
+  })()`);
+  check(
+    "the link's mark names the range it points at, folded to the reference",
+    Boolean(collapsedLink) &&
+      collapsedLink.text.includes("Alma 32:21-22") &&
+      collapsedLink.folded &&
+      !collapsedLink.text.includes("faith is not to have a perfect knowledge"),
+    collapsedLink ? collapsedLink.text.slice(-70) : "no panel"
+  );
+
+  // The chevron beside the reference unfolds the verses it names.
+  await page.evaluate(`document.querySelector('[aria-label="Show the text of Alma 32:21-22"]')?.click()`);
+  await waitFor(
+    page,
+    `Boolean(document.querySelector('[role="dialog"][aria-label^="Notes and links on"]')?.textContent.includes("faith is not to have a perfect knowledge"))`
+  );
   const linkPanel = await page.evaluate(`(() => {
     const panel = document.querySelector('[role="dialog"][aria-label^="Notes and links on"]');
     if (!panel) return null;
@@ -1424,11 +1536,6 @@ export async function run({ page, check, base }) {
       href: [...panel.querySelectorAll("a")].map((anchor) => anchor.getAttribute("href") ?? ""),
     };
   })()`);
-  check(
-    "the link's mark names the range it points at",
-    Boolean(linkPanel) && linkPanel.text.includes("Alma 32:21-22"),
-    linkPanel ? linkPanel.text.slice(0, 70) : "no panel"
-  );
   check(
     "reading both verses, in the library's own words",
     Boolean(linkPanel) &&

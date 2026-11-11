@@ -83,7 +83,6 @@ it, so a day's study becomes a streak.
 
 **Play**
 
-- *What's That Verse?* — name the reference, with hints you buy with gems.
 - A daily word puzzle hidden in this week's reading.
 - A ten-by-ten word search built from the week's own words.
 

@@ -29,13 +29,18 @@ import { ReaderPreview } from "./reader-preview";
  *
  * 1. **Not every sideways drag is a turn.** Dragging across words is how this
  *    app marks them, and a gesture that took that drag for a page turn would
- *    quietly break the reader's most-used tool. So a drag announced itself as a
- *    turn one of two ways: it began in the margin at the edge of the screen,
- *    where there are no words to drag through, or it moved quickly enough to be
- *    a flick (the speed of the last movement, not of the whole press, so a
- *    thumb that rests before it flicks still turns the page). Anything slower
- *    that begins on the words is left entirely to the browser, which is what
- *    makes the selection, and the marks that follow it, still work.
+ *    quietly break the reader's most-used tool. So a drag that begins on the
+ *    words is left to the browser when it begins with a rest — that pause is
+ *    how the browser starts a selection — and a drag from the margin at the
+ *    edge of the screen, where there are no words, is a turn from the first
+ *    sideways movement. Otherwise the finger may travel as slowly as it likes:
+ *    the turn is read from the distance gone and the side the finger is on,
+ *    never from its speed.
+ *
+ *    Nor is a side fixed once the drag has begun. A finger that crosses back
+ *    through where it started is turning the other way, so the chapter peeking
+ *    changes with it — and a release that lands on the starting point turns
+ *    nothing at all.
  *
  * 2. **The tick is the turn's own.** The bar's section mark has a hand-off to
  *    ring when a tab is left behind (components/nav-bar.tsx); a chapter has no
@@ -71,16 +76,26 @@ const FLICK = 0.4;
 const FLICK_MIN = 26;
 
 /**
- * How far a drag must move, and how fast, before a press that began on the
- * words is read as a turn rather than as a selection.
+ * How far a drag must move before a press that began on the words is read as a
+ * turn rather than as a selection.
  *
- * A drag from the screen's edge needs neither: the margin has no words in it,
+ * A drag from the screen's edge does not wait: the margin has no words in it,
  * so the gesture is a turn from the moment it is sideways.
  */
 const EDGE = 28;
 const CLAIM = 24;
-const CLAIM_SPEED = 0.5;
-const CLAIM_MOVES = 2;
+
+/**
+ * How long a finger may rest before it moves and still be read as a swipe.
+ *
+ * Marking words begins with a press that does not move: the browser needs the
+ * pause to start its selection, and the drag that follows extends it. A
+ * sideways movement that only begins after that pause is the reader marking,
+ * not turning, so it is left to the browser. A swipe — however slowly it is
+ * made — starts moving at once, and that is what lets a slow swipe turn the
+ * page.
+ */
+const HOLD = 350;
 
 /** How far a page leans when there is nothing on that side to turn to. */
 const EDGE_GIVE = 0.3;
@@ -237,17 +252,14 @@ export function ReaderSwipe({
     let startX = 0;
     let startY = 0;
     let startedAt = 0;
-    /** Where the finger was at the previous move, for the flick's speed. */
-    let lastX = 0;
-    let lastAt = 0;
     let horizontal = false;
     let way: NavDirection | null = null;
     /** The neighbour to open, or null at the ends of the volume. */
     let target: ReaderCitation | null = null;
     /** Whether this drag has been taken as a turn, rather than left to the words. */
     let claimed = false;
-    /** How many moves in a row have been fast enough to be a flick. */
-    let fastMoves = 0;
+    /** Whether the gesture began with a rest, which makes it the words'. */
+    let selecting = false;
     /** Whether the turn has already been felt. */
     let ticked = false;
     let guardUntil = 0;
@@ -258,8 +270,8 @@ export function ReaderSwipe({
       way = null;
       target = null;
       claimed = false;
+      selecting = false;
       ticked = false;
-      fastMoves = 0;
     };
 
     const slide = (px: number) => {
@@ -276,17 +288,23 @@ export function ReaderSwipe({
     };
 
     /**
-     * Take the gesture: work out which chapter is coming in, point the
-     * stylesheet at it, and hang it off the side of the screen.
+     * Point the turn at a direction: work out which chapter is coming in and
+     * hang it off the side of the screen the finger is coming from.
+     *
+     * Called when the drag starts and again whenever the finger crosses back
+     * through where it began. The direction belongs to the finger rather than
+     * to the gesture: a reader who changes their mind is turning the other
+     * way, so the chapter peeking has to be the one that way leads to.
      */
-    const begin = (direction: NavDirection) => {
+    const aim = (direction: NavDirection) => {
       const current = latest.current.doc;
       if (!current) return;
 
       way = direction;
       const neighbour = direction === "forward" ? current.next : current.prev;
       target = neighbour ? neighbourCitation(current, neighbour) : null;
-      claimed = true;
+      // A new side has its own commit point to be felt at.
+      ticked = false;
 
       // Nothing is drawn when motion is off. The turn itself still happens:
       // that is navigation, not decoration.
@@ -297,11 +315,20 @@ export function ReaderSwipe({
       // screen would be the colour of the page instead of the chapter arriving
       // on it. One synchronous render at the start of a turn costs nothing the
       // finger can feel; a blank peek costs the illusion.
-      if (target) flushSync(() => setPull(target));
+      flushSync(() => setPull(target));
       root.dataset.navDir = direction;
-      root.dataset.navDragging = "";
       root.style.setProperty("--nav-lead", `${pageTop()}px`);
-      root.style.setProperty("--nav-settle", `${TURN_MS}ms`);
+    };
+
+    /** Take the gesture: from here on the page is in the finger's hand. */
+    const begin = (direction: NavDirection) => {
+      if (!latest.current.doc) return;
+      claimed = true;
+      if (!motionReduced()) {
+        root.dataset.navDragging = "";
+        root.style.setProperty("--nav-settle", `${TURN_MS}ms`);
+      }
+      aim(direction);
     };
 
     /** Carry the page with the thumb, within the width of the screen. */
@@ -348,14 +375,12 @@ export function ReaderSwipe({
       startX = event.clientX;
       startY = event.clientY;
       startedAt = performance.now();
-      lastX = event.clientX;
-      lastAt = startedAt;
       horizontal = false;
       way = null;
       target = null;
       claimed = false;
+      selecting = false;
       ticked = false;
-      fastMoves = 0;
     };
 
     const onMove = (event: PointerEvent) => {
@@ -363,14 +388,8 @@ export function ReaderSwipe({
 
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
-      // The speed of the movement just made, rather than of the whole press: a
-      // thumb that rests before it flicks is still flicking.
-      const now = performance.now();
-      const speed = Math.abs(event.clientX - lastX) / Math.max(1, now - lastAt);
-      lastX = event.clientX;
-      lastAt = now;
 
-      if (!claimed) {
+      if (!claimed && !selecting) {
         // A drag that has begun selecting words is about the words: the reader
         // is marking, and the chapter stays where it is.
         if (!window.getSelection()?.isCollapsed) {
@@ -389,19 +408,31 @@ export function ReaderSwipe({
           // book's pages turn.
           way = dx < 0 ? "forward" : "back";
           if (startX <= EDGE || startX >= window.innerWidth - EDGE) begin(way);
+          // A press that rested before it went sideways is the browser
+          // starting a selection on the words: the drag that follows is the
+          // reader's, not the chapter's, and is left entirely to the browser.
+          else if (performance.now() - startedAt >= HOLD) {
+            selecting = true;
+            return;
+          }
         }
-        // From the words, only a flick is a turn — and one fast movement is
-        // not a flick. A thumb's first movement, or two events that arrive
-        // together after a stall, can cover a whole word in a millisecond; a
-        // real flick keeps moving quickly for more than one movement, and a
-        // slow drag through the words stops being fast straight away.
-        fastMoves = speed >= CLAIM_SPEED ? fastMoves + 1 : 0;
         if (!claimed) {
-          if (Math.abs(dx) < CLAIM || fastMoves < CLAIM_MOVES || !way) return;
+          if (Math.abs(dx) < CLAIM || !way) return;
           begin(way);
           if (!claimed) return;
         }
       }
+
+      // Nothing is the page's until this drag has been taken as a turn; a drag
+      // that is still the words' must reach the browser untouched.
+      if (!claimed) return;
+
+      // The finger can turn back before it lets go. The page follows the side
+      // of the start the finger is on, so the chapter peeking has to change
+      // with it — otherwise a change of mind would still turn the page the
+      // reader first reached for.
+      const heading = dx < 0 ? "forward" : "back";
+      if (way !== heading) aim(heading);
 
       // The page has no horizontal scroll, so this movement is only the
       // gesture. Keeping it from the browser also keeps it from selecting text
@@ -419,7 +450,11 @@ export function ReaderSwipe({
       const wasHorizontal = horizontal;
       const wasClaimed = claimed;
       const direction = way;
-      const citation = target;
+      // The finger's last position decides which way the turn goes. A release
+      // on the other side of where the drag began — without a movement in
+      // between — is not a turn at all.
+      const changedMind = direction !== null && direction !== (dx < 0 ? "forward" : "back");
+      const citation = changedMind ? null : target;
       const felt = ticked;
       const travelled = Math.abs(dx);
       forget();

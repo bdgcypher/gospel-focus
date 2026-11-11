@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Glyph } from "./glyph";
 import { RowMenu } from "./row-menu";
 import {
@@ -13,6 +13,7 @@ import {
   tagKey,
   type Annotation,
   type AnnotationLink,
+  type Backlink,
 } from "@/lib/annotations";
 import { openExternal } from "@/lib/external";
 import { sanitizeBody } from "@/lib/journal";
@@ -42,6 +43,7 @@ export function VerseAside({
   verse,
   marks,
   annotations,
+  backlinks,
   onClose,
   onEdit,
   onRemoveLink,
@@ -56,6 +58,13 @@ export function VerseAside({
   marks: Annotation[];
   /** Every mark in the library, for the list a tag opens. */
   annotations: Annotation[];
+  /**
+   * The marks elsewhere in the library whose links name this verse: the ways
+   * back to the passages this one was linked from. They live on those marks,
+   * not here, so they are read and opened rather than edited or removed —
+   * taking the link off the mark that holds it is what takes the backlink away.
+   */
+  backlinks?: Backlink[];
   onClose: () => void;
   /** Hand a mark back to the reader to be written on. */
   onEdit: (mark: Annotation, mode: "note" | "link") => void;
@@ -92,14 +101,32 @@ export function VerseAside({
    * opens does not immediately shut again over a store that is still settling.
    * A tag's list is a view of the whole library, so it is left alone.
    */
+  /**
+   * The ways back, minus any the verse already shows as a link of its own.
+   *
+   * Two passages linked to each other explicitly would otherwise name the same
+   * passage twice — once as this verse's link, once as the way back to it — and
+   * one line says it. One-directional links, which are the common case, keep
+   * their backlink and gain nothing else.
+   */
+  const linkedFrom = useMemo(() => {
+    /** Whether a link already on this verse names the place a way back comes from. */
+    const names = (link: AnnotationLink, mark: Annotation) =>
+      link.book.trim().toLowerCase() === mark.book.trim().toLowerCase() &&
+      link.chapter.trim().toLowerCase() === mark.chapter.trim().toLowerCase() &&
+      (link.sections?.length ? link.sections : [link.section]).includes(mark.verse);
+    const own = marks.flatMap((mark) => mark.links ?? []);
+    return (backlinks ?? []).filter((entry) => !own.some((link) => names(link, entry.mark)));
+  }, [backlinks, marks]);
+
   const hadMarks = useRef(false);
   useEffect(() => {
-    if (marks.length) {
+    if (marks.length || linkedFrom.length) {
       hadMarks.current = true;
       return;
     }
     if (hadMarks.current && !tag) onClose();
-  }, [marks.length, onClose, tag]);
+  }, [marks.length, linkedFrom.length, onClose, tag]);
 
   const reference =
     doc.kind === "conference" ? `“${doc.chapter}” ¶ ${verse}` : `${doc.book} ${doc.chapter}:${verse}`;
@@ -244,7 +271,7 @@ export function VerseAside({
                   </ul>
                 </section>
 
-                {marks.length === 0 ? (
+                {marks.length === 0 && linkedFrom.length === 0 ? (
                   <p className="mt-4 text-sm text-muted">Nothing here any more.</p>
                 ) : (
                   <>
@@ -269,7 +296,7 @@ export function VerseAside({
                       </section>
                     )}
 
-                    {linked.length > 0 && (
+                    {(linked.length > 0 || linkedFrom.length > 0) && (
                       <section aria-labelledby="aside-links" className="mt-5">
                         <h3 id="aside-links" className="text-xs font-semibold uppercase tracking-wider text-muted">
                           Links
@@ -289,6 +316,21 @@ export function VerseAside({
                                   </li>
                                 ))}
                               </ul>
+                            </li>
+                          ))}
+
+                          {/* The other half of every link: the passages whose
+                              marks point here. They are read after the verse's
+                              own links because that is the order the reader met
+                              them, and drawn as link entries because that is
+                              what they are — a passage, quoted from the library,
+                              with the way into it. They carry no kebab: the link
+                              belongs to the other mark, and it is taken off
+                              there. */}
+                          {linkedFrom.map((entry) => (
+                            <li key={`${entry.mark.id}/${entry.link.label}`}>
+                              <Stamp at={entry.link.addedAt ?? entry.mark.createdAt} />
+                              <LinkedPassage link={linkToMark(entry.mark)} />
                             </li>
                           ))}
                         </ul>
@@ -340,15 +382,37 @@ function referenceOf(group: Annotation[]): string {
     : `${first.book} ${first.chapter}:${span}`;
 }
 
+/**
+ * A mark, read as the passage a link names.
+ *
+ * A way back into this verse is stored on the other end as a link to *this*
+ * verse, so the passage to show is the mark's own — the verse the link was
+ * written on. Written as a link, it is read by the same entry as every other
+ * link, and quoted from the library rather than from the panel's chapter.
+ */
+function linkToMark(mark: Annotation): AnnotationLink {
+  return {
+    book: mark.book,
+    chapter: mark.chapter,
+    section: mark.verse,
+    conferenceId: conferenceIdOf(mark),
+    label: referenceOf([mark]),
+  };
+}
+
+/** The session a mark's talk belongs to, or nothing for a scripture chapter. */
+function conferenceIdOf(mark: Annotation): string | undefined {
+  return mark.doc.startsWith("c/") ? mark.doc.split("/")[1] : undefined;
+}
+
 /** The reader's address for a mark, wherever it is in the library. */
 function hrefOf(group: Annotation[]): string {
   const first = group[0];
-  const conferenceId = first.doc.startsWith("c/") ? first.doc.split("/")[1] : undefined;
   return readerHref({
-    kind: conferenceId ? "conference" : "scripture",
+    kind: conferenceIdOf(first) ? "conference" : "scripture",
     book: first.book,
     chapter: first.chapter,
-    conferenceId,
+    conferenceId: conferenceIdOf(first),
     verse: first.verse,
   });
 }
@@ -445,6 +509,13 @@ function NoteRead({
  * and the library is what knows the words a reference holds. Until the file
  * arrives the entry shows the reference alone, so the panel never implies a
  * passage it hasn't read.
+ *
+ * The entry is folded to its reference by default. A verse can hold several
+ * links and sit in several others' chains, and quoting every passage at once
+ * turns the panel into a wall of text the reader never asked to read — the
+ * reference is what a link is, and the words behind it are there to be opened
+ * when the reader wants them. The chevron does that; the reference itself still
+ * leads into the passage, because opening it is the other thing a link is for.
  */
 function LinkedPassage({
   link,
@@ -452,13 +523,17 @@ function LinkedPassage({
   onRemove,
 }: {
   link: AnnotationLink;
-  /** Open the sheet that writes the mark's links. */
-  onEdit: () => void;
-  /** Take this link out of the mark's chain. */
-  onRemove: () => void;
+  /** Open the sheet that writes the mark's links. A way back has none. */
+  onEdit?: () => void;
+  /** Take this link out of the mark's chain. A way back has none. */
+  onRemove?: () => void;
 }) {
   const [passage, setPassage] = useState<Passage | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing">("loading");
+  /** Whether the passage's words are unfolded under the reference. */
+  const [open, setOpen] = useState(false);
+  /** Names the folded body for the chevron's `aria-controls`. */
+  const bodyId = `aside-link-${useId()}`;
 
   // A link names one verse or a run of them. The reader always reads the
   // chapter, then keeps the verses the link actually covers — a range reads as
@@ -514,9 +589,9 @@ function LinkedPassage({
 
   return (
     <article>
-      {/* The reference is the way into the passage; the kebab beside it holds
-          everything else that can be done with the link — the same control as
-          a bookmark's row. */}
+      {/* The reference is the way into the passage; the chevron beside it
+          unfolds the words it holds; the kebab holds everything else that can
+          be done with the link — the same control as a bookmark's row. */}
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-accent-strong">
           <Glyph name="link" plain className="h-4 w-4" />
@@ -527,39 +602,58 @@ function LinkedPassage({
         >
           {link.label}
         </Link>
-        <RowMenu
-          label={`Options for the link to ${link.label}`}
-          actions={[
-            { label: "Edit", onSelect: onEdit },
-            { label: "Delete", onSelect: onRemove },
-          ]}
-        />
-      </div>
-
-      {state === "loading" && (
-        <p className="mt-2 animate-pulse text-sm text-muted">Reading the passage…</p>
-      )}
-      {state === "missing" && (
-        <p className="mt-2 text-sm text-muted">That passage isn’t in this build of the library.</p>
-      )}
-      {passage && (
-        <>
-          <p className="mt-2 max-h-64 overflow-y-auto border-l-2 border-accent/40 pl-3 font-serif text-sm leading-relaxed text-foreground/85">
-            {passage.text}
-          </p>
-          <p className="mt-1.5 text-[11px] text-muted">{passage.sourceLabel}</p>
-        </>
-      )}
-
-      {passage && (
+        {/* The passage's words, behind the label until they are asked for. */}
         <button
           type="button"
-          onClick={() => void openExternal(passage.url)}
-          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-accent-strong"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls={bodyId}
+          aria-label={`${open ? "Hide" : "Show"} the text of ${link.label}`}
+          title={open ? "Hide the verse text" : "Show the verse text"}
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-accent-strong"
         >
-          <Glyph name="arrow" className="h-3.5 w-3.5" />
-          Gospel Library
+          <Glyph
+            name="chevron"
+            plain
+            className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+          />
         </button>
+        {onEdit && onRemove && (
+          <RowMenu
+            label={`Options for the link to ${link.label}`}
+            actions={[
+              { label: "Edit", onSelect: onEdit },
+              { label: "Delete", onSelect: onRemove },
+            ]}
+          />
+        )}
+      </div>
+
+      {open && (
+        <div id={bodyId}>
+          {state === "loading" && (
+            <p className="mt-2 animate-pulse text-sm text-muted">Reading the passage…</p>
+          )}
+          {state === "missing" && (
+            <p className="mt-2 text-sm text-muted">That passage isn’t in this build of the library.</p>
+          )}
+          {passage && (
+            <>
+              <p className="mt-2 max-h-64 overflow-y-auto border-l-2 border-accent/40 pl-3 font-serif text-sm leading-relaxed text-foreground/85">
+                {passage.text}
+              </p>
+              <p className="mt-1.5 text-[11px] text-muted">{passage.sourceLabel}</p>
+              <button
+                type="button"
+                onClick={() => void openExternal(passage.url)}
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-accent-strong"
+              >
+                <Glyph name="arrow" className="h-3.5 w-3.5" />
+                Gospel Library
+              </button>
+            </>
+          )}
+        </div>
       )}
     </article>
   );

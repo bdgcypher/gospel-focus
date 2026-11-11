@@ -384,24 +384,6 @@ export function getTeaserPool(): string[] {
 
 const resolvedVolumes = new Map<string, VolumeData>();
 
-/**
- * A book's chapters and how many verses each one holds.
- *
- * The quiz's pickers have to know what a book contains before an answer is
- * given, and the manifest only counts chapters and verses per volume — the
- * volume file is the honest source. The read goes through the same cache as
- * every other one, so a second look at the same book costs nothing.
- */
-export async function chapterSizes(
-  volumeId: string,
-  bookName: string
-): Promise<{ chapter: number; verses: number }[]> {
-  const data = await loadVolume(volumeId);
-  const book = data.books.find((b) => b.name === bookName);
-  if (!book) return [];
-  return book.chapters.map((c) => ({ chapter: c.n, verses: c.verses.length }));
-}
-
 /** ---------- Citations ---------- */
 
 const normaliseTitle = (value: string) =>

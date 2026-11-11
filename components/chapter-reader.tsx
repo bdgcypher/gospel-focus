@@ -31,6 +31,7 @@ import {
   addAnnotations,
   allTags,
   annotationsFor,
+  backlinksForDoc,
   cleanTag,
   markGroup,
   markGroupId,
@@ -48,6 +49,7 @@ import {
   wordsOf,
   type Annotation,
   type AnnotationLink,
+  type Backlink,
   type MarkColor,
   type MarkStyle,
   type SelectionRange,
@@ -513,6 +515,22 @@ export function ChapterReader() {
     () => (doc ? annotationsFor(annotations, doc.doc) : []),
     [annotations, doc]
   );
+
+  /**
+   * The ways back into this chapter, by verse: every mark elsewhere in the
+   * library whose link names a verse here. A link is read from both ends, so
+   * linking 1 Nephi 3:7 to D&C 6:36 leaves a way back on D&C 6:36 without a
+   * second link being stored, and removing the link takes it away again.
+   */
+  const docBacklinks = useMemo(() => {
+    if (!doc) return new Map<number, Backlink[]>();
+    return backlinksForDoc(annotations, {
+      kind: doc.kind,
+      book: doc.book,
+      chapter: doc.chapter,
+      conferenceId: doc.conferenceId,
+    });
+  }, [annotations, doc]);
 
   /** How many words a verse of this chapter holds, for the handles' edges. */
   const wordsInVerse = (verse: number) =>
@@ -1352,6 +1370,7 @@ export function ChapterReader() {
                   doc={doc}
                   verse={verse}
                   annotations={docMarks}
+                  backlinked={docBacklinks.has(verse.number)}
                   preview={preview}
                   selected={selection?.ranges ?? null}
                   focused={focus.includes(verse.number)}
@@ -1453,6 +1472,7 @@ export function ChapterReader() {
           verse={aside.verse}
           marks={asideMarks}
           annotations={annotations}
+          backlinks={docBacklinks.get(aside.verse) ?? []}
           onClose={() => setAside(null)}
           onEdit={(mark, mode) => {
             setAside(null);

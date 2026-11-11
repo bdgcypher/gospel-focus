@@ -325,8 +325,8 @@ export function tapGreatWork(after = 0): void {
  * The "Not quite" card: short, then medium.
  *
  * Two beats, and the second one heavier: the shape of a shrug. It is the same
- * card in every game — the daily puzzle's lost round, the quiz's third wrong
- * guess — because a near miss should sound the same wherever it happens.
+ * card in every game, because a near miss should sound the same wherever it
+ * happens.
  */
 export function tapNotQuite(after = 0): void {
   pattern(NOT_QUITE, after);

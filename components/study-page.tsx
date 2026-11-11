@@ -95,7 +95,7 @@ export function StudyPage() {
     <FeaturePage
       title={group?.label ?? "Study"}
       // The strapline is a verse rather than the catalog's line, set the way the
-      // memorizer and the reference quiz set theirs: the words in the serif italic
+      // memorizer and the streak page set theirs: the words in the serif italic
       // they are read in, the citation after them and kept whole. These tools exist
       // to carry the reader into the best books, which is what it says.
       subtitle={
