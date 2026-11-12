@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Glyph } from "./glyph";
 import { RowMenu } from "./row-menu";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/annotations";
 import { openExternal } from "@/lib/external";
 import { sanitizeBody } from "@/lib/journal";
+import { isInternalHref } from "@/lib/journal-links";
 import { openReaderDoc, readerHref, versePassage, type ReaderDoc } from "@/lib/reader";
 import type { Passage } from "@/lib/types";
 
@@ -220,7 +222,7 @@ export function VerseAside({
             </button>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div className="verse-aside-body min-h-0 flex-1 overflow-y-auto px-4 pt-4">
             {tag ? (
               <div aria-label={`Marks tagged ${tag}`}>
                 {tagged.length === 0 ? (
@@ -466,6 +468,7 @@ function NoteRead({
   onEdit: () => void;
   onRemove: () => void;
 }) {
+  const router = useRouter();
   return (
     <article>
       <Stamp at={mark.createdAt} />
@@ -495,6 +498,19 @@ function NoteRead({
           data is not trusted with the page's DOM (as components/favorites-page.tsx). */}
       <div
         className="journal-body mt-2.5 text-sm leading-relaxed text-foreground/90"
+        onClick={(event) => {
+          // The note is stored as HTML, so a link in it is a plain anchor: a
+          // click would load the whole document, and the packaged app answers
+          // a path it does not route with the home page. An in-app link is
+          // followed by the router instead, which is also what keeps the way
+          // back on the verse the note is written on.
+          const anchor = (event.target as Element | null)?.closest?.("a");
+          if (!anchor) return;
+          const href = anchor.getAttribute("href") ?? "";
+          if (!isInternalHref(href)) return;
+          event.preventDefault();
+          router.push(href);
+        }}
         dangerouslySetInnerHTML={{ __html: sanitizeBody(mark.note ?? "") }}
       />
     </article>

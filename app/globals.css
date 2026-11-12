@@ -1844,6 +1844,22 @@ html[data-reduce-motion="true"] .scroll-heart-burst {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
+/* The notes panel's own foot.
+
+   The panel is a sheet over the page, and on a phone the bottom navigation
+   stays at its foot: the last lines of a long note would otherwise scroll to a
+   stop still behind the tabs, with no way to bring them out. Its body reserves
+   the height the bar covers, the same number the page itself reserves, so the
+   end of a note can be scrolled clear. A reader with the bars away has nothing
+   to clear, and a wide screen has no bottom navigation at all. */
+.verse-aside-body {
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
+.app-shell-content[data-immersive="true"] .verse-aside-body {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   /* Back to the two-flank bar: the wrappers are boxes again, the mark takes its
      half of the bar, and the lights hold the other half rather than being spread
@@ -1886,6 +1902,10 @@ html[data-reduce-motion="true"] .scroll-heart-burst {
 
   .app-shell-content {
     padding-bottom: 0;
+  }
+
+  .verse-aside-body {
+    padding-bottom: 1rem;
   }
 }
 

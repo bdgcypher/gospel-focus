@@ -1,4 +1,4 @@
-import { openChapter, reset } from "./helpers.mjs";
+import { openChapter, reset, waitFor, writeNote } from "./helpers.mjs";
 
 export const name = "saved passages";
 
@@ -181,5 +181,47 @@ export async function run({ page, check, base }) {
     "the reader opens a series of verses and marks every one, and only those",
     JSON.stringify(series.marked) === JSON.stringify(["verse-3", "verse-4", "verse-6"]),
     JSON.stringify(series.marked)
+  );
+
+  // --- a link written into the favorite's note -----------------------------
+  // A note is stored HTML, so its link is a plain anchor. Followed as one it
+  // would load a document — the packaged app answers an unrouted path with the
+  // home page — so the card follows an in-app link through the router instead.
+  await page.goto(`${base}/favorites/`, 3000);
+  await page.sleep(900);
+  await page.evaluate(`(() => {
+    const card = [...document.querySelectorAll("li")].find((el) => el.textContent.includes("Jeremiah 3:15"));
+    const button = [...card.querySelectorAll("button")].find((b) => /note/i.test(b.textContent));
+    if (!button) throw new Error("the favorite offers no note action");
+    button.click();
+    return true;
+  })()`);
+  await page.sleep(600);
+  await writeNote(
+    page,
+    '<p>Keep going: <a href="/read?book=Ether&chapter=12&verse=27">Ether 12:27</a>.</p>'
+  );
+  await page.sleep(600);
+  const noteLink = await page.evaluate(`(() => {
+    const anchor = document.querySelector("main .journal-body a");
+    return anchor ? anchor.getAttribute("href") : null;
+  })()`);
+  await page.evaluate(`(() => {
+    window.__stayedInPage = true;
+    document.querySelector("main .journal-body a").click();
+    return true;
+  })()`);
+  check(
+    "a link written into a saved note opens the reader at its verse",
+    noteLink === "/read?book=Ether&chapter=12&verse=27" &&
+      (await waitFor(
+        page,
+        `location.pathname === "/read/" && location.search.includes("book=Ether") && Boolean(document.querySelector('[data-verse="27"]'))`
+      )),
+    await page.evaluate(`location.pathname + location.search`)
+  );
+  check(
+    "and it is followed in the app rather than loading a new page",
+    await page.evaluate(`window.__stayedInPage === true`)
   );
 }

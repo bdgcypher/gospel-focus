@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
@@ -9,6 +10,7 @@ import { NoteDialog } from "./note-dialog";
 import { SaveToDeckDialog } from "./save-to-deck-dialog";
 import { isNative, openExternal } from "@/lib/external";
 import { clearFavorites, removeFavorite, useFavorites, type Favorite } from "@/lib/favorites";
+import { isInternalHref } from "@/lib/journal-links";
 import { itemFromFavorite, useMemory } from "@/lib/memorize";
 import { noteFor, noteHtml, removeNote, saveNote, useNotes } from "@/lib/notes";
 import { storedPassageHref } from "@/lib/reader";
@@ -100,6 +102,7 @@ export function FavoritesPage() {
  * are shown and the rest wait behind an expand toggle.
  */
 function FavoriteCard({ favorite }: { favorite: Favorite }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   /** The deck picker, for taking this passage on as a card. */
@@ -204,6 +207,18 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
               storage is data, and data is not trusted with the page's DOM. */}
           <div
             className="journal-body mt-1 text-sm leading-relaxed text-foreground/85"
+            onClick={(event) => {
+              // A link in the note is part of stored HTML, so following it as an
+              // anchor would load a whole document — and the packaged app
+              // answers an unrouted path with the home page. In-app links are
+              // followed the app's way, as in the notes panel.
+              const anchor = (event.target as Element | null)?.closest?.("a");
+              if (!anchor) return;
+              const href = anchor.getAttribute("href") ?? "";
+              if (!isInternalHref(href)) return;
+              event.preventDefault();
+              router.push(href);
+            }}
             dangerouslySetInnerHTML={{ __html: noteHtml(note.text) }}
           />
         </div>
