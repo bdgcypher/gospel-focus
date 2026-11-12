@@ -149,7 +149,7 @@ export const FEATURES: Feature[] = [
       "Swipe up or down to move one verse at a time, with your place marked down the left",
       "Favorite, read or write notes and links, or share the verse you are on",
       "The reference opens the verse in the reader, and the notes mark shows a dot when the verse carries something",
-      "Opens where the reader left off, and can be opened from any chapter's bar",
+      "Picks up on the verse you stopped at, and can be opened from any chapter's bar",
     ],
   },
   {

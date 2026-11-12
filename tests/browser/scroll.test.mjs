@@ -234,6 +234,16 @@ export async function run({ page, check, base }) {
     second.progress === "2 / 31" && second.current === "2" && second.words.includes("without form"),
     `${second.progress} / ${second.current}`
   );
+  // A flick carries its momentum: without a stop on every page, a hard one
+  // runs through several verses before the snap catches it.
+  const stops = await page.evaluate(
+    `[...document.querySelectorAll("[data-scroll-page]")].map((node) => getComputedStyle(node).scrollSnapStop)`
+  );
+  check(
+    "every page is a stop, so even a hard flick turns one verse",
+    stops.length > 1 && stops.every((stop) => stop === "always"),
+    stops.join(",")
+  );
 
   await scrollToVerse(10);
   check(
@@ -660,7 +670,10 @@ export async function run({ page, check, base }) {
     )
   );
 
-  await writeNote(page, "<p>Written from the scroll.</p>");
+  await writeNote(
+    page,
+    '<p>Written from the scroll. See <a href="/read?book=Alma&chapter=32&verse=21">Alma 32:21</a>.</p>'
+  );
   await page.sleep(700);
 
   await openActions();
@@ -911,6 +924,19 @@ export async function run({ page, check, base }) {
     await page.evaluate(`document.querySelector("[data-scroll-progress]")?.dataset.scrollProgress`)
   );
 
+  // Where the reading stopped is the verse under the eye, not the verse the
+  // visit walked in on: turning a few pages moves the place it comes back to.
+  await scrollToVerse(12);
+  await page.goto(`${base}/scroll/`, 2800);
+  check(
+    "and comes back to the verse the reading stopped on, not just the chapter",
+    await waitFor(
+      page,
+      `document.querySelector("[data-scroll-progress]")?.dataset.scrollProgress === "13 / 31"`
+    ),
+    await page.evaluate(`document.querySelector("[data-scroll-progress]")?.dataset.scrollProgress`)
+  );
+
   // --- the bar's chapter menu ----------------------------------------------
   await page.evaluate(`(() => {
     [...document.querySelectorAll("button")]
@@ -1127,5 +1153,58 @@ export async function run({ page, check, base }) {
       midChapter.head === "Genesis 1:31" &&
       midChapter.page === 5,
     `${midChapter.progress} / ${midChapter.current} / page ${midChapter.page} / ${midChapter.head}`
+  );
+
+  // --- a link written into a note ------------------------------------------
+  // A note is stored HTML, so a link in it is a plain anchor. Followed as one,
+  // it would load a whole document — and the packaged app answers a path it
+  // does not route with the home page. The panel hands an in-app link to the
+  // router, so the reading goes on in the same page and the way back returns to
+  // the verse the note is on.
+  await page.goto(`${base}/scroll/?book=Genesis&chapter=1&verse=2`, 2600);
+  await waitFor(page, `document.querySelector("[data-scroll-current]")?.dataset.scrollVerse === "2"`);
+  await page.evaluate(`(() => {
+    const mark = [...document.querySelectorAll("[data-scroll] button")].find((node) =>
+      (node.getAttribute("aria-label") ?? "").startsWith("Read the notes")
+    );
+    mark.click();
+    return true;
+  })()`);
+  const noteLink = await waitFor(
+    page,
+    `Boolean(document.querySelector('[role="dialog"] .journal-body a[href*="Alma"]'))`
+  );
+  const panelFoot = await page.evaluate(`(() => {
+    const body = document.querySelector(".verse-aside-body");
+    const nav = document.querySelector(".app-nav-bottom");
+    if (!body || !nav) return null;
+    return {
+      pad: Math.round(parseFloat(getComputedStyle(body).paddingBottom)),
+      nav: Math.round(nav.getBoundingClientRect().height),
+    };
+  })()`);
+  check(
+    "the notes panel reserves the bottom bar's height at its foot",
+    Boolean(panelFoot) && panelFoot.pad >= panelFoot.nav,
+    panelFoot ? `${panelFoot.pad}px for a ${panelFoot.nav}px bar` : "no panel body"
+  );
+
+  await page.evaluate(`(() => {
+    window.__stayedInPage = true;
+    document.querySelector('[role="dialog"] .journal-body a').click();
+    return true;
+  })()`);
+  check(
+    "a link written into the note opens the reader at its verse",
+    noteLink &&
+      (await waitFor(
+        page,
+        `location.pathname === "/read/" && location.search.includes("book=Alma") && Boolean(document.querySelector('[data-verse="21"]'))`
+      )),
+    await page.evaluate(`location.pathname + location.search`)
+  );
+  check(
+    "and it is followed in the app rather than loading a new page",
+    await page.evaluate(`window.__stayedInPage === true`)
   );
 }

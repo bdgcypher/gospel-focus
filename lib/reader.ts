@@ -65,7 +65,7 @@ export interface ReaderCitation {
  *
  * The reader and the scroll are two ways of reading the same place, so they
  * share the one record: opening a chapter in either, then opening the other
- * with no address of its own, carries on where the reader left off rather than
+ * with no address of its own, carries on from the verse last read rather than
  * starting over. The older reader wrote this same key with this same shape, so
  * a device that has already read a chapter keeps its place.
  */

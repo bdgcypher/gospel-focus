@@ -165,8 +165,9 @@ interface TagsEditor {
  * The reader gives a chapter its whole width and lets the eye run down it; this
  * gives each verse the middle of a screen and lets the thumb turn them. It is
  * the same place, addressed the same way — `/scroll?book=…&chapter=…&verse=…`,
- * with a bare `/scroll` continuing where the reader left off — so opening the
- * scroll from a chapter's bar starts at the verse the reader was on.
+ * with a bare `/scroll` continuing where the reading left off — so opening the
+ * scroll from a chapter's bar starts at the verse the reader was on, and the
+ * bar's own tab returns to the verse the scroll was last left on.
  *
  * The bar at the top is the reader's own bar, control for control: the way
  * back, the chapter's name (which opens the library on a phone), bookmarks,
@@ -424,13 +425,6 @@ export function ScrollPage() {
         // a chapter opened halfway through never paints its first verse first.
         indexRef.current = startAt;
         setIndex(startAt);
-        writeLastPlace({
-          kind: opened.kind,
-          book: opened.book,
-          chapter: opened.chapter,
-          conferenceId: opened.conferenceId,
-          verse: start,
-        });
       } catch (cause) {
         if (!live) return;
         setError(cause instanceof Error ? cause.message : "The chapter couldn't be opened.");
@@ -468,6 +462,27 @@ export function ScrollPage() {
     indexRef.current = at;
     setIndex(at);
   }, [doc, startVerse, edges]);
+
+  /**
+   * Keep the place the reading has reached, as the pages turn.
+   *
+   * The record carries the verse under the eye rather than only the chapter the
+   * visit opened on, so a bare `/scroll` — the bar's own tab — comes back to
+   * where the reading stopped. The reader keeps the same record, so it too
+   * opens on the verse the scroll was last left on.
+   */
+  useEffect(() => {
+    if (!doc) return;
+    const here = doc.verses[index];
+    if (!here) return;
+    writeLastPlace({
+      kind: doc.kind,
+      book: doc.book,
+      chapter: doc.chapter,
+      conferenceId: doc.conferenceId,
+      verse: here.number,
+    });
+  }, [doc, index]);
 
   /**
    * Keep the place-in-the-chapter mark on the verse under the reader's eye, and
@@ -1463,6 +1478,10 @@ export function ScrollPage() {
  * arriving under the thumb is exactly the page that chapter will open on. They
  * are kept out of the chapter's own count (no `data-scroll-verse`, no place on
  * the rail) because they belong to the chapter beside this one.
+ *
+ * Each page is also a stop the scroll may not pass: `snap-always` means a hard
+ * flick comes to rest on the very next page rather than carrying its momentum
+ * through two or three verses. One swipe, one page, however fast it was made.
  */
 function VerseScreen({
   doc,
@@ -1484,7 +1503,7 @@ function VerseScreen({
       data-scroll-edge={edge}
       data-scroll-current={current ? "true" : undefined}
       aria-label={reference}
-      className="flex h-full w-full snap-start flex-col items-center justify-center pb-24 pl-11 pr-11 pt-4 text-center sm:px-24"
+      className="flex h-full w-full snap-start snap-always flex-col items-center justify-center pb-24 pl-11 pr-11 pt-4 text-center sm:px-24"
     >
       <div className="max-h-full w-full overflow-y-auto">
         <p className={`mx-auto max-w-[36rem] font-serif text-balance text-foreground ${verseType(verse.text)}`}>
