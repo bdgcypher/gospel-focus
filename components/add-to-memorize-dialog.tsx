@@ -43,8 +43,8 @@ import type { Filters, Passage } from "@/lib/types";
  *
  * Passages come from three places, because those are the three the reader
  * already has: the library's search (the same index the search page reads), the
- * passages they have starred, and the draw — today's verse, or one at random.
- * A starred passage is added as it was saved, a run of verses at a time; a
+ * passages they have favorited, and the draw — today's verse, or one at random.
+ * A favorited passage is added as it was saved, a run of verses at a time; a
  * search hit is read back out of the library before it can be a card.
  */
 
@@ -140,7 +140,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
   };
 
   /**
-   * A starred passage, brought in with its chapter read back out of the library.
+   * A favorited passage, brought in with its chapter read back out of the library.
    *
    * The card itself is the favorite's own words; the chapter is only for the
    * verses either side of it, so a favorite whose chapter no longer resolves
@@ -493,7 +493,7 @@ export function AddToMemorizeDialog({ open, onClose, deck, deckItems }: Props) {
                         onClick={() => setFavoritesOpen((open) => !open)}
                         className={QUIET}
                       >
-                        <Glyph name="star" className="h-4 w-4" />
+                        <Glyph name="heart" className="h-4 w-4" />
                         From favorites
                         {availableFavorites.length > 0 && (
                           <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-accent-strong">

@@ -45,7 +45,7 @@ const LOADERS: Record<string, () => Promise<SectionPage>> = {
   "/": () => import("./home-page").then((module) => module.HomePage),
   "/study": () => import("./study-page").then((module) => module.StudyPage),
   "/games": () => import("./games-page").then((module) => module.GamesPage),
-  "/focus": () => import("./focus-page").then((module) => module.FocusPage),
+  "/scroll": () => import("./scroll-page").then((module) => module.ScrollPage),
 };
 
 /** Pages already in hand, by section. */

@@ -894,8 +894,8 @@ export async function run({ page, check, base }) {
   // back. It is a reading gesture, so nothing about the words may come of it.
   const bars = await chromeOf(page);
   check(
-    "the app's bars are on the page",
-    bars.header !== "none" && bars.bar === "flex",
+    "the reader keeps the app bar off the page from the first frame",
+    bars.header === "none" && bars.bar === "flex",
     `${bars.header}/${bars.bar}`
   );
 
@@ -974,14 +974,15 @@ export async function run({ page, check, base }) {
     `${nextChapter.header}/${nextChapter.bar}`
   );
 
-  // And it never outlives the page: a fresh load puts the bars back, so nobody
-  // can be stranded on a screen with no navigation.
+  // The room the reader asked for never outlives the page, and the app bar is
+  // out of the reader whether the reader has touched it or not — the chapter's
+  // own bar is the way back.
   await page.send("Page.reload");
   await page.sleep(2400);
   const fresh = await chromeOf(page);
   check(
-    "a fresh load starts with the bars showing",
-    fresh.header !== "none" && fresh.bar === "flex",
+    "a fresh load gives the room back and still keeps the app bar away",
+    fresh.header === "none" && fresh.bar === "flex",
     `${fresh.header}/${fresh.bar}`
   );
 
@@ -1295,51 +1296,43 @@ export async function run({ page, check, base }) {
   });
   await page.sleep(400);
 
-  // --- the reader's chrome on the way down ---------------------------------
-  // A chapter is read, not navigated: the app bar — the streak, the gems, the
-  // lock — leaves as the reader goes down it, and comes straight back when they
-  // scroll up. The chapter's own bar is the one that stays, pinned at the top of
-  // the screen, so a bookmark or a search is always within reach.
+  // --- the reader's chrome --------------------------------------------------
+  // A chapter is read, not navigated: the app bar — the mark, the section links,
+  // the streak and the gems — is out of the page for the whole visit, from the
+  // first frame, and the chapter's own bar is the one at the top of the screen,
+  // so a bookmark or a search is always within reach.
   await openChapter(page, base, "book=Genesis&chapter=2");
-  await page.evaluate(`window.scrollTo({ top: 700, behavior: "instant" })`);
-  await page.sleep(600);
-  const down = await page.evaluate(`(() => {
+  const bare = await page.evaluate(`(() => {
     const header = document.querySelector("header.app-header");
     const bar = document.querySelector("main [data-reader-bar]");
     return {
-      away: document.documentElement.dataset.chrome === "away",
-      header: Math.round(header.getBoundingClientRect().bottom),
+      bare: document.documentElement.dataset.bare === "true",
+      header: getComputedStyle(header).display,
+      height: Math.round(header.getBoundingClientRect().height),
       bar: Math.round(bar.getBoundingClientRect().top),
       sticky: getComputedStyle(bar).position,
       background: getComputedStyle(bar).backgroundColor,
       rail: Math.round(document.querySelector('aside[aria-label="Chapter navigation"] > div').getBoundingClientRect().top),
     };
   })()`);
-  check("going down the page, the app bar leaves", down.away && down.header <= 0, `${down.away} / ${down.header}`);
-  check("and the chapter's bar stays at the top", down.bar === 0 && down.sticky === "sticky", `${down.bar} / ${down.sticky}`);
-  check("over the reader's own paper, not the words", down.background === "rgb(255, 253, 247)", down.background);
-  check("the rail comes up with it", down.rail > 0 && down.rail < 40, `${down.rail}px`);
+  check("the reader puts the app bar away for the visit", bare.bare && bare.header === "none", `${bare.bare} / ${bare.header}`);
+  check("and gives its height to the page", bare.height === 0, `${bare.height}px`);
+  check("with the chapter's bar at the top", bare.bar === 0 && bare.sticky === "sticky", `${bare.bar} / ${bare.sticky}`);
+  check("over the reader's own paper, not the words", bare.background === "rgb(255, 253, 247)", bare.background);
+  check("the rail comes up with it", bare.rail > 0 && bare.rail < 40, `${bare.rail}px`);
 
-  await page.evaluate(`window.scrollTo({ top: 400, behavior: "instant" })`);
-  await page.sleep(600);
-  const up = await page.evaluate(`(() => {
-    const header = document.querySelector("header.app-header");
-    const bar = document.querySelector("main [data-reader-bar]");
-    return {
-      away: document.documentElement.dataset.chrome === "away",
-      header: Math.round(header.getBoundingClientRect().top),
-      bar: Math.round(bar.getBoundingClientRect().top),
-      height: Math.round(header.getBoundingClientRect().height),
-    };
-  })()`);
-  check("coming back up brings the app bar straight back", !up.away && up.header === 0, `${up.away} / ${up.header}`);
-  check("with the chapter's bar parked under it", up.bar === up.height, `${up.bar} vs ${up.height}`);
-
-  await page.evaluate(`window.scrollTo({ top: 0, behavior: "instant" })`);
+  // Scrolling is just reading now: the chrome is the same at the top of the
+  // chapter and deep down it.
+  await page.evaluate(`window.scrollTo({ top: 700, behavior: "instant" })`);
   await page.sleep(500);
+  const deep = await page.evaluate(`(() => ({
+    header: getComputedStyle(document.querySelector("header.app-header")).display,
+    bar: Math.round(document.querySelector("main [data-reader-bar]").getBoundingClientRect().top),
+  }))()`);
   check(
-    "and the top of a chapter is the bar's own place",
-    (await page.evaluate(`document.documentElement.dataset.chrome ?? "shown"`)) === "shown"
+    "down the page the chapter bar is still the top of the screen",
+    deep.header === "none" && deep.bar === 0,
+    `${deep.header} / ${deep.bar}`
   );
 
   // --- a verse's margin: notes, links, and tags ----------------------------

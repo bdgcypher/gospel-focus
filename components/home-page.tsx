@@ -18,7 +18,7 @@ import type { Passage } from "@/lib/types";
  *
  * Down the page: the focus banner (while there is a gate to arm), the day's own
  * heading, the way in (the goal hero), the words themselves (the verse of the
- * day), and four tiles for everything else.
+ * day), and five tiles for everything else.
  *
  * The order is the point. A reader opening the app meets something to *do*
  * before anything to choose, and the scripture is above the fold rather than
@@ -33,7 +33,7 @@ import type { Passage } from "@/lib/types";
  * page. It is gone from the page and not from the app: the section pages it led
  * to still exist and still list themselves out of the same catalog, the menu
  * still holds the shelf, and the destinations readers actually start from are
- * the four tiles now (see components/quick-activities.tsx for why the hub
+ * the five tiles now (see components/quick-activities.tsx for why the hub
  * stopped mapping everything, and components/menu-panel.tsx for what is in the
  * menu instead).
  *

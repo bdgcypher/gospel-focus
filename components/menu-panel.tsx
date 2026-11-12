@@ -4,7 +4,6 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import { Glyph } from "./glyph";
-import { StarIcon } from "./star-icon";
 import { useFavorites } from "@/lib/favorites";
 import { featureById } from "@/lib/features";
 
@@ -82,9 +81,9 @@ export function MenuPanel({ open, onClose }: Props) {
               <MenuLink
                 href="/favorites"
                 onClick={onClose}
-                // The star is only filled in once something is saved, so the
+                // The heart is only filled in once something is saved, so the
                 // menu itself says whether the shelf is empty.
-                icon={<StarIcon filled={favorites.length > 0} />}
+                icon={<Glyph name="heart" filled={favorites.length > 0} />}
                 label="Favorites"
                 hint={
                   favorites.length === 0

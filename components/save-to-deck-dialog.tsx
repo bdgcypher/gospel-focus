@@ -30,7 +30,7 @@ import {
  *
  * The draft it is handed is the card as it would be saved (`itemFromPassage`,
  * `itemFromFavorite`), which is what lets the same sheet serve a drawn passage,
- * a starred one and a run of verses from the reader.
+ * a favorited one and a run of verses from the reader.
  */
 export function SaveToDeckDialog({
   open,

@@ -110,7 +110,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
       <GateAppearanceSync />
 
       {/* A finger across the page, or across the bar, steps to the section
-          beside this one. Silent everywhere except the four section pages
+          beside this one. Silent everywhere except the bar's four tabs
           themselves. */}
       <NavSwipe />
 

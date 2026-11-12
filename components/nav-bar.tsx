@@ -55,9 +55,14 @@ interface BottomNavProps {
  * `lift`).
  *
  * In the bottom bar the pill is drawn round the words rather than round the
- * whole tab, so it matches the mark the top bar has always had: the icon and
- * the emoji above the label are left out of it. The tab is still the target —
- * the whole cell is tappable — but the mark answers the words.
+ * whole tab, so it matches the mark the top bar has always had: the glyph above
+ * the label is left out of it. The tab is still the target — the whole cell is
+ * tappable — but the mark answers the words.
+ *
+ * A tab's glyph is the drawn one in both styles, playful included: the bar is
+ * the app's frame rather than a signpost, so it keeps the app's own hand while
+ * the emoji stay on the cards and tiles the reader lands on (see the bottom bar
+ * rules under "Glyph faces" in globals.css).
  *
  * The bars live in the layout (components/app-chrome.tsx), so they are still on
  * screen when the new page arrives and the pill has somewhere to travel from.

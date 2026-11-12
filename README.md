@@ -29,8 +29,8 @@ but I missed the novelty of the "open to a random page" approach.
 _**Gospel Focus**_ pulls passages from all LDS standard works and general
 conference talks, rifles through virtual pages, and lands on one. You can read the
 whole chapter, open it in the Church's Gospel Library, hide the words and recite
-them, write a note, or star it for later — and the app counts the time spent doing
-it, so a day's study becomes a streak.
+them, write a note, or keep it as a favorite — and the app counts the time spent
+doing it, so a day's study becomes a streak.
 
 ## What you can do
 
@@ -40,6 +40,9 @@ it, so a day's study becomes a streak.
 - Filter by volume and book, by conference, or with one-tap presets.
 - Riffle through pages as the passage is chosen; *Reduce motion* skips it.
 - Expand to the whole chapter or talk, with the drawn verse marked.
+- Read the chapter as a scroll: one verse a screen, swiped up or down, with a
+  rail down the left that names your place and can be dragged through the
+  chapter, and the verse's own actions within reach.
 - Browse the standard works by volume, book, and chapter, or pick up where you
   left off.
 - Select any words — a phrase, a sentence, a run across verses — and mark them
@@ -56,8 +59,8 @@ it, so a day's study becomes a streak.
 - A verse that carries a note, a link, or a tag keeps one mark in its margin;
   it opens a panel with the tags, notes, and links together, each stamped with
   when it was made. A tag gathers every passage that wears it.
-- Double-tap the words — double-click with a mouse — to read without the app's
-  bars; do it again to bring them back.
+- Double-tap the words — double-click with a mouse — to read without the bottom
+  bar; do it again to bring it back.
 - Tap verses to share them as images, favorite them, memorize them, or take a
   note.
 - Open any passage in the Gospel Library app on Android.

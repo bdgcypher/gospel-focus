@@ -8,7 +8,7 @@ import { bodyText, sanitizeBody } from "./journal";
  * The notes a reader writes on the passages they have kept.
  *
  * A note hangs off a favorite rather than off a passage: what is written is
- * about *this* saved thing — the verse the reader starred, the talk they set
+ * about *this* saved thing — the verse the reader favorited, the talk they set
  * aside — and a paragraph re-drawn from the library tomorrow is a different
  * card. Keying to the favorite's own id also means the two can never disagree
  * about what is being annotated: the note's key *is* the favorite, and deleting

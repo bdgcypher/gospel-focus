@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Passage } from "@/lib/types";
 import { isNative, openExternal } from "@/lib/external";
-import { StarIcon } from "./star-icon";
 import { Glyph } from "./glyph";
 import { NoteDialog } from "./note-dialog";
 import { SaveToDeckDialog } from "./save-to-deck-dialog";
@@ -87,8 +86,8 @@ export function PassageCard({ passage, drawKey }: Props) {
         })
       : null;
 
-  const starLabel = saved ? "Remove from favorites" : "Save to favorites";
-  const toggleStar = () => toggleFavorite(passage);
+  const favoriteLabel = saved ? "Remove from favorites" : "Save to favorites";
+  const toggleFavoritePassage = () => toggleFavorite(passage);
 
   /** The drawn passage, as the image the share sheet is built from. */
   const shareSpec = useMemo<ShareCard>(() => {
@@ -144,9 +143,9 @@ export function PassageCard({ passage, drawKey }: Props) {
     },
     {
       id: "favorite",
-      label: starLabel,
-      icon: <StarIcon filled={saved} />,
-      onSelect: toggleStar,
+      label: favoriteLabel,
+      icon: <Glyph name="heart" filled={saved} />,
+      onSelect: toggleFavoritePassage,
       active: saved,
     },
     {
@@ -352,7 +351,7 @@ interface CardAction {
   label: string;
   icon: ReactNode;
   onSelect: () => void;
-  /** True of this passage as it stands — a note already written, a star set. */
+  /** True of this passage as it stands — a note already written, a heart set. */
   active?: boolean;
 }
 

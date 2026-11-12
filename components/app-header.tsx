@@ -36,14 +36,20 @@ interface Props {
  * pointer the same way. Menu is never the page you are on, so it has only the
  * hover and focus states — which is why it keeps a transparent border of its own
  * rather than borrowing the nav's active one.
+ *
+ * On the two pages that are read rather than navigated — the reader and the
+ * scroll — the bar puts itself away for the whole visit. Those pages carry their
+ * own bar (the chapter's name, its bookmark, its search) and their own way
+ * back, and the words are what the reader came for; the status lights and the
+ * section links are not wanted there. The stylesheet hides it and the page's
+ * own bars take the top of the screen (see "The reader's chrome" in
+ * globals.css), and the flag is put on the document rather than passed down
+ * because the reader's rail and the scroll's height follow it there.
  */
 export function AppHeader({ onOpenMenu }: Props) {
   const pathname = usePathname();
-  // The reader is the one page where the bar is not furniture: a reader deep in
-  // a chapter wants the width and the height for the words, so the bar leaves as
-  // they go down and returns the moment they come back up. Everywhere else it
-  // stays where it has always been.
-  const reading = /^\/read\/?$/.test(pathname);
+  /** A page that is read: it keeps the screen, and the app bar stays out of it. */
+  const bare = /^\/(read|scroll)\/?$/.test(pathname);
   const header = useRef<HTMLElement>(null);
 
   // The height is measured rather than guessed: the rail and the chapter's own
@@ -61,44 +67,18 @@ export function AppHeader({ onOpenMenu }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  // Down the page the bar is away; up the page it is back. The flag lives on the
-  // document so the reader's rail and chapter bar, which are a page's own
-  // markup, can follow it in the stylesheet (see "The reader's chrome" in
-  // globals.css) without a second copy of the scroll position in React.
+  // The reader and the scroll read the document's flag in the stylesheet, so the
+  // bar writes it rather than rendering a second copy of the route into their
+  // own markup. It goes when the page does; no page is ever left without its
+  // own way back.
   useEffect(() => {
     const root = document.documentElement;
-    const show = () => {
-      delete root.dataset.chrome;
-    };
-    if (!reading) {
-      show();
-      return;
-    }
-    let last = window.scrollY;
-    let frame = 0;
-    const settle = () => {
-      frame = 0;
-      const y = window.scrollY;
-      const height = header.current?.offsetHeight ?? 56;
-      // The bar has nowhere to hide until it is past its own height, and the top
-      // of a chapter is always the bar's own place. The threshold keeps a
-      // jittery thumb or a trackpad's momentum from flickering it.
-      if (y <= height) show();
-      else if (y > last + 6) root.dataset.chrome = "away";
-      else if (y < last - 6) show();
-      last = y;
-    };
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(settle);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    if (bare) root.dataset.bare = "true";
+    else delete root.dataset.bare;
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) cancelAnimationFrame(frame);
-      show();
+      delete root.dataset.bare;
     };
-  }, [reading]);
+  }, [bare]);
 
   return (
     <header

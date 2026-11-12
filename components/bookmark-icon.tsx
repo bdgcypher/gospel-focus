@@ -1,13 +1,15 @@
 /**
- * The mark of a saved passage: a bookmark, filled once it is on the shelf.
+ * The mark of a place the reader wants to come back to: a bookmark, filled once
+ * the place is kept.
  *
- * One drawing for the whole app rather than a copy per screen. A passage is
- * saved from the card, counted in the menu, and collected on the favorites
- * page, and the reader has to recognise it as the same action in all three —
- * so the shape lives here and everything else imports it.
+ * One drawing for the app's places rather than a copy per screen: the reader's
+ * bar, the scroll's bar, and the bookmarks sheet all open the same list, and the
+ * reader has to recognise it as the same control in each — so the shape lives
+ * here and everything else imports it. A passage the reader keeps is a different
+ * thing, and wears the heart (components/glyph.tsx).
  *
  * The filled state is the same path painted in rather than a second drawing:
- * the difference between "on the shelf" and "not" is a press that has already
+ * the difference between "kept" and "not" is a press that has already
  * happened, and two different outlines would make the reader compare shapes
  * instead of reading a state. It is still the same bookmark either way.
  */
@@ -15,7 +17,7 @@ export function BookmarkIcon({
   filled = false,
   className = "h-5 w-5",
 }: {
-  /** Saved: the ribbon is solid, where "not saved" is an outline. */
+  /** Kept: the ribbon is solid, where "not kept" is an outline. */
   filled?: boolean;
   className?: string;
 }) {

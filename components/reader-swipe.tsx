@@ -17,7 +17,7 @@ import { ReaderPreview } from "./reader-preview";
  * A finger across the chapter turns to the chapter beside it — and the page
  * goes with the finger.
  *
- * It is the same gesture the four section pages have (components/nav-swipe.tsx),
+ * It is the same gesture the bar's four tabs have (components/nav-swipe.tsx),
  * drawn by the same stylesheet: the chapter the reader is on is carried along
  * with the thumb, the next chapter rides in from the edge already drawn
  * (components/reader-preview.tsx), and a release past the commit point finishes

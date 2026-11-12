@@ -311,7 +311,6 @@
   --accent-top: #ffd05e;
   --accent-edge: #b96a05;
   --bubble-top: #ffe9b5;
-  --nav-top: #fff6e2;
 }
 
 /* --- Playful type --------------------------------------------------------
@@ -408,7 +407,6 @@ html.playful .font-serif {
   --accent-top: #ffd06a;
   --accent-edge: #b06a04;
   --bubble-top: #3d3d3d;
-  --nav-top: #262626;
 }
 
 @theme inline {
@@ -511,91 +509,44 @@ html[data-nav-swipe="on"] {
 
 /* The reader's chrome.
 
-   A chapter is the one page where the bar is not furniture. Going down it the
-   app bar leaves — the reader is reading, not navigating — and coming back up
-   it returns at once, because that is when a reader reaches for it. The flag is
-   `data-chrome="away"` on the document, written by the bar itself (see
-   components/app-header.tsx); the bar stays sticky and slides, so the words
-   take the top of the screen rather than the page jumping.
+   The reader and the scroll are read, not navigated. For the whole visit the app
+   bar — the mark, the section links and the status lights — puts itself away:
+   both pages carry their own bar (the chapter's name, its bookmark, its search)
+   and their own way back, and the words are what the screen is for. The route
+   marks the document (see components/app-header.tsx) and the stylesheet hides
+   the bar, and the measured header height falls to zero with it, so the
+   chapter's rail and the scroll's own height follow without a second number to
+   keep in step.
 
-   The reader's own two sticky things follow the flag. Its rail and the chapter
-   bar park under the app bar while it is there, and move up to the top of the
-   screen when it is gone: the bar the reader wants while deep in a passage —
-   the chapter's name, its bookmark and its search — is the one that stays. */
-.app-header {
-  transition: transform 200ms ease;
+   The reader's two sticky things move up to the top of the screen with it. The
+   bar the reader wants while deep in a passage — the chapter's name, its
+   bookmark and its search — is the one that stays. */
+html[data-bare="true"] .app-header {
+  display: none;
 }
 
-html[data-reduce-motion="true"] .app-header {
-  transition: none;
-}
-
-html[data-chrome="away"] .app-header {
-  transform: translateY(-100%);
-}
-
-/* The two travel together. The app bar slides; the chapter bar's own `top` has
-   to arrive where the bar has arrived, or for a fifth of a second the words
-   show in the sliver between them. Given the same distance and the same 200ms,
-   the two move as one piece of chrome. */
-[data-reader-bar] {
-  transition: top 200ms ease;
-}
-
-html[data-reduce-motion="true"] [data-reader-bar] {
-  transition: none;
-}
-
-/* The strip between the app bar and the chapter bar is the chapter's paper.
-
-   The two bars are given the same distance and the same 200ms, but they are not
-   moved by the same hands: the app bar's slide is a `transform`, which the
-   compositor runs on its own, while the chapter bar's is `top`, laid out on the
-   main thread — the one already busy with the words a thumb is scrolling. Come
-   back up the page and the app bar can arrive while the chapter bar is still on
-   its way, and the passage shows in the band between them for a frame or two:
-   a line of text sliding past just under the app bar's edge, which reads as a
-   gap in the chrome rather than as a bar that is moving. The same sliver opens
-   at rest anywhere the measured height is a fraction short of the painted one.
-
-   So the bar stands on an apron of its own paper, as tall as the app bar, which
-   fills that band whatever the two are doing. It is painted inside this bar's
-   stacking level, and the app bar is above that and opaque on the reader, so at
-   rest it is invisible; where the two edges part it is the strip's colour
-   instead of the words. Its height is the header's own, since a whole bar's
-   worth of lag is the most the two can be apart. */
-[data-reader-bar]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  height: var(--app-header-height);
-  background-color: var(--reader-page);
-  pointer-events: none;
-}
-
-/* On the reader the app bar is opaque: at 80% the chapter's own lines ghosted
-   through it as it passed over them, which at the bar's bottom edge read as a
-   line of text under the bar. */
-html:has([data-reader-bar]) .app-header {
-  background-color: var(--background);
-}
-
-html[data-chrome="away"] {
+html[data-bare="true"] {
   --reader-bar-top: 0px;
   --reader-rail-top: 0.9rem;
+}
+
+/* The chapter's bar is the top of the screen now, so the page's own top
+   padding — the air it kept under the app bar — goes with the bar. */
+html[data-bare="true"] [data-reader-page] {
+  padding-top: 0;
 }
 
 /* On the Android shell the app bar is what absorbs the status bar's inset. With
    it gone, the chapter bar is the top of the screen and has to take that room
    itself — its own paper runs up under the clock, as the app bar's does — and
-   the rail parks below the inset rather than under it. */
-html[data-chrome="away"][data-capacitor="android"] {
+   the rail parks below the inset rather than under it. The scroll's own bar takes
+   the same room at the top of the scroll. */
+html[data-bare="true"][data-capacitor="android"] {
   --reader-rail-top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
 }
 
-html[data-chrome="away"][data-capacitor="android"] [data-reader-bar] {
+html[data-bare="true"][data-capacitor="android"] [data-reader-bar],
+html[data-bare="true"][data-capacitor="android"] [data-scroll] > div:first-child {
   padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
 }
 
@@ -1174,18 +1125,11 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
   color: var(--loss-card);
 }
 
-/* The two bars: a light top edge on the tab bar and a soft lift under the
-   header, so both read as surfaces rather than as bands of colour. */
-.playful .app-nav-bottom {
-  background-image: linear-gradient(180deg, var(--nav-top), var(--surface));
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    0 -10px 26px -20px var(--card-shadow);
-}
-
-.playful header {
-  box-shadow: 0 8px 22px -20px var(--card-shadow);
-}
+/* The two bars keep the focused style's treatment in this skin too: the page's
+   own colour behind a blur, the hairline, and nothing else. The raised, lit
+   face belongs to the things a reader can press; a bar is furniture, and a
+   second surface at the top and foot of every page made the playful skin look
+   as if the whole screen were sitting on a card. */
 
 /* --- Glyph faces ---------------------------------------------------------
    components/glyph.tsx draws both a stroke and an emoji and lets the style
@@ -1232,17 +1176,39 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
 /* The swap is for illustrations, not for controls. Inside a control the emoji
    sits beside a label and reads as decoration — a picture of a padlock next to
    the word "Lock" — so buttons and button-like links keep the drawn face, the
-   same as the focused style. Three kinds of control are left with their
-   picture: the bottom bar, where each tab is a single mark and the emoji is the
-   tab; the status lights in the header, where the mark stands alone beside a
-   number rather than labelling a word; and the hub's tiles, which are cards the
-   reader lands on rather than buttons the reader presses (their glyph and label
-   stack vertically, `.flex-col`, while every button sits on one line). */
+   same as the focused style. Two kinds of control are left with their picture:
+   the status lights in the header, where the mark stands alone beside a number
+   rather than labelling a word; and the hub's tiles, which are cards the reader
+   lands on rather than buttons the reader presses (their glyph and label stack
+   vertically, `.flex-col`, while every button sits on one line). The bottom bar
+   is not one of them: it keeps the drawing in both styles (see below). */
 .playful :is(button, a):not(.flex-col):not(.app-nav-bottom *):not(.app-status-tray *) .glyph-has-emoji .glyph-emoji {
   display: none;
 }
 
 .playful :is(button, a):not(.flex-col):not(.app-nav-bottom *):not(.app-status-tray *) .glyph-has-emoji .glyph-vector {
+  display: block;
+}
+
+/* The bottom bar keeps the drawn face in both styles.
+
+   A tab is one mark over its own word, with nothing beside the mark for a
+   picture to decorate, so the playful skin used to give the bar its emoji. But
+   the bar is the app's frame rather than a signpost: it stands under every page
+   and is read on the way to somewhere, and five emoji there made the same five
+   destinations look like five different pictures from one screen to the next.
+   The stroke drawing is the app's own hand — the same mark the focused skin
+   wears — so the bar wears it in both skins. Only the marks change: the pill,
+   the colours and the type around them still answer to the skin.
+
+   The control rule above cannot do this on its own, because it deliberately
+   leaves the bar out and because a tab is `.flex-col` besides. So the swap is
+   turned back over here, with enough classes to out-weigh the two lines above. */
+.playful .app-nav-bottom .glyph-has-emoji .glyph-emoji {
+  display: none;
+}
+
+.playful .app-nav-bottom .glyph-has-emoji .glyph-vector {
   display: block;
 }
 
@@ -1651,6 +1617,121 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
    somewhere up behind its own content. */
 .app-shell-content {
   padding-bottom: var(--bottom-nav-height);
+}
+
+/* --- The scroll ------------------------------------------------------------
+   One verse a screen, swiped through the way a reel is.
+
+   A scroll is the one page that is exactly the screen: there is no page under
+   the words to scroll to, because every scroll of the finger is a turn of the
+   verse. So the page is given the height left between the app's two bars —
+   the header above it and the bottom navigation below — and the footer, which
+   belongs to the scrolling page, leaves with the page's own scroll. The strip
+   the shell reserves for the navigation goes with it, or the scroll would stop a
+   bar's worth short of the bar it already ends above.
+
+   The height is written here rather than in utilities because the wide rule
+   that takes the bottom bar off the page is a media query with a landscape
+   half, and a `lg:` class would not see the tablet held sideways. The bar's
+   own height is the reserved token plus the gesture inset; the header's is
+   measured from the bar itself, so this follows a reader's text size and safe
+   area without a second number to keep in step. */
+html:has([data-scroll]) .app-shell-content {
+  padding-bottom: 0;
+}
+
+html:has([data-scroll]) footer {
+  display: none;
+}
+
+/*
+   Two heights on purpose, like the swipe preview's: the first is for a WebView
+   old enough not to know the dynamic viewport unit, and the second takes over
+   wherever it does. This one cannot be skipped — without a definite height the
+   stage below sizes itself to its verses, and a chapter of thirty verses makes
+   each row as tall as all of them, which puts every verse's words thousands of
+   pixels below the screen and leaves the rail alone on an empty page.
+*/
+.scroll-page {
+  height: calc(
+    100vh - var(--app-header-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px)
+  );
+  height: calc(
+    100dvh - var(--app-header-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px)
+  );
+}
+
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  .scroll-page {
+    height: calc(100vh - var(--app-header-height));
+    height: calc(100dvh - var(--app-header-height));
+  }
+}
+
+/* The stage's own scrollbar is a desktop's scrollbar, and a scroll is not a
+   document to be measured: the mark down the left already says how far
+   through the chapter the reader is. Its height is capped at the viewport as a
+   second line of defence: even if the page's height is ever indefinite, the
+   stage stays one screen and its rows cannot grow with the chapter. */
+[data-scroll-stage] {
+  scrollbar-width: none;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+[data-scroll-stage]::-webkit-scrollbar {
+  display: none;
+}
+
+/* The heart a double tap leaves in the middle of the screen.
+
+   The gesture is the scroll's own way of keeping a verse, and a gallery that
+   simply appears is too quiet for it: the heart grows out of the point the
+   thumb touched, leans a little to the right as it arrives, comes back upright,
+   holds for a beat, and then shrinks and fades. The colour is the app's gold,
+   not a red: a favorite in this app is a kept thing, and the accent is what the
+   rest of the shelf is made of. The shadow is the same gold, wide and soft, so
+   the shape lifts off the verse without a disc behind it.
+
+   It is drawn over the whole stage rather than over the verse, because the
+   stage is the screen: the centre of it is where the eye already is. The
+   animation is `both`, so the element stays out of the way once it has played,
+   and the component only mounts it for readers who have motion on. */
+@keyframes scroll-heart-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-2deg);
+  }
+  16% {
+    opacity: 1;
+    transform: scale(1.16) rotate(10deg);
+  }
+  /* Back upright before the hold, so the beat the eye rests on is the heart
+     at its own angle rather than mid-turn. */
+  34% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  68% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.72) rotate(0deg);
+  }
+}
+
+.scroll-heart-burst {
+  color: var(--accent);
+  animation: scroll-heart-burst 900ms linear both;
+  filter: drop-shadow(0 0 1.1rem rgb(0 0 0 / 0.25));
+  will-change: transform, opacity;
+}
+
+/* A reader who turns motion off mid-burst does not get the rest of it. */
+html[data-reduce-motion="true"] .scroll-heart-burst {
+  display: none;
 }
 
 /* --- Marks on the words --------------------------------------------------

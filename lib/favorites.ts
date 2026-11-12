@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { Passage } from "./types";
 
-/** A starred passage, with everything the favorites page needs to render it. */
+/** A favorited passage, with everything the favorites page needs to render it. */
 export interface Favorite {
   id: string;
   kind: Passage["kind"];
@@ -259,12 +259,12 @@ export function toggleFavorite(passage: Passage): boolean {
 }
 
 /**
- * Star a passage if it isn't already, and hand back the saved row either way.
+ * Favorite a passage if it isn't already, and hand back the saved row either way.
  *
  * This is what lets an action that *needs* a favorite — writing a note, which
- * hangs off one — take the star itself, rather than asking the reader to star
- * the passage first and then come back. Starring twice is not an error here, so
- * the returned row is the one that is stored, not a second copy.
+ * hangs off one — take the favorite itself, rather than asking the reader to
+ * favorite the passage first and then come back. Favoriting twice is not an
+ * error here, so the returned row is the one that is stored, not a second copy.
  */
 export function ensureFavorite(passage: Passage): Favorite {
   const id = favoriteId(passage);

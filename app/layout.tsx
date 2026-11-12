@@ -60,7 +60,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             page entrances are animations in the stylesheet (see the "Changing
             pages" rules in globals.css), so a reader who has turned motion off
             has to have that on the document before the first page arrives.
-            Unset preferences follow the device, as lib/preferences.ts does. */}
+            Unset preferences follow the device, as lib/preferences.ts does.
+
+            It also marks the reader and the scroll before the first frame, so a
+            hard load of either never paints the app bar and then takes it
+            away. Client navigation keeps the same mark (components/app-header.tsx). */}
         <script
           dangerouslySetInnerHTML={{
             __html: `try{
@@ -75,6 +79,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   }
   var q=JSON.parse(localStorage.getItem(k)||"{}");
   if(q.style==="playful")document.documentElement.classList.add("playful");
+  var p=location.pathname;
+  if(p.charAt(p.length-1)==="/")p=p.slice(0,-1);
+  if(p==="/read"||p==="/scroll")document.documentElement.dataset.bare="true";
   var reduce=typeof q.reduceMotion==="boolean"?q.reduceMotion:matchMedia("(prefers-reduced-motion: reduce)").matches;
   document.documentElement.dataset.reduceMotion=reduce?"true":"false";
 }catch(e){}`,

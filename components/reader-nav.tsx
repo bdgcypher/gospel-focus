@@ -482,17 +482,25 @@ function DownCaret({ open }: { open: boolean }) {
   );
 }
 
-/** The chapter's name: a menu on a phone, a plain title on a wide page. */
+/**
+ * The chapter's name: a menu on a phone, a plain title on a wide page.
+ *
+ * The scroll asks for the menu at every width (`menuAlways`): it has no rail
+ * down the side, so the name is its only way into the rest of the library.
+ */
 export function ReaderPlaceButton({
   doc,
   fromDaily,
   open,
   onToggle,
+  menuAlways = false,
 }: {
   doc: ReaderDoc;
   fromDaily: boolean;
   open: boolean;
   onToggle: () => void;
+  /** Keep the name a button on a wide page, for a page with no library rail. */
+  menuAlways?: boolean;
 }) {
   // The volume only: a verse count under the chapter's name answered a question
   // nobody was asking at the top of the page.
@@ -515,7 +523,7 @@ export function ReaderPlaceButton({
         onClick={onToggle}
         aria-expanded={open}
         aria-label={`Where you are: ${doc.title}. Open the chapter menu`}
-        className="group inline-flex max-w-full min-w-0 items-start gap-1 rounded-lg text-left lg:hidden"
+        className={`group inline-flex max-w-full min-w-0 items-start gap-1 rounded-lg text-left ${menuAlways ? "" : "lg:hidden"}`}
       >
         <span className="min-w-0">
           <span className="block truncate font-serif text-base font-semibold leading-tight text-foreground transition-colors group-hover:text-accent-strong">
@@ -534,7 +542,7 @@ export function ReaderPlaceButton({
         </span>
       </button>
 
-      <span className="hidden min-w-0 lg:block">
+      <span className={menuAlways ? "hidden" : "hidden min-w-0 lg:block"}>
         <span className="block truncate font-serif text-base font-semibold leading-tight text-foreground">
           {title}
         </span>

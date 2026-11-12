@@ -3,7 +3,7 @@ import { Glyph, type GlyphName } from "./glyph";
 import { featureById } from "@/lib/features";
 
 /**
- * The hub's launcher: one heading, four square tiles, one tap each.
+ * The hub's launcher: one heading, five square tiles, one tap each.
  *
  * This replaced the page's map of the whole catalog — four headed sections of
  * compact rows, with a blurb under each heading and a "See all" link on the two
@@ -11,13 +11,13 @@ import { featureById } from "@/lib/features";
  * it was dead: every row led to a real page. It was simply a page you *read*,
  * and it asked the reader to take in four headings, four blurbs and a dozen
  * rows of names before it offered the one thing they had come for. The tiles
- * say the same thing the other way round: the four doors a day actually starts
+ * say the same thing the other way round: the five doors a day actually starts
  * from, sized to be tapped, and the rest of the app one level in — /study and
  * /games list their own sections, the menu holds the shelf (favorites, stats,
  * settings, the widgets), the daily draw is the verse card's own button, and
- * the Focus tab is the gate. Every destination the old map carried is still one
- * tap from somewhere (see lib/features.ts, which is where they are all still
- * described).
+ * the Focus Lock banner is the gate. Every destination the old map carried is
+ * still one tap from somewhere (see lib/features.ts, which is where they are
+ * all still described).
  *
  * One heading, and the row it names. What the old map got wrong was not that it
  * had headings but that it had four of them with a paragraph under each: this
@@ -28,14 +28,14 @@ import { featureById } from "@/lib/features";
  * like every other block on the hub, because it belongs to the tiles under it
  * and a desktop would otherwise leave it stranded a few hundred pixels away.
  *
- * Two across a phone, four from `sm`. A square is about 139px across two
- * columns at 320px — a home-screen mark with room for its name — where four
- * across that width leaves each about 67px, which is where the old grid cut
- * names in half (see components/feature-card.tsx). Four across is what a
+ * Two across a phone, five from `sm`. A square is about 139px across two
+ * columns at 320px — a home-screen mark with room for its name — where five
+ * across that width leaves each about 55px, which is where the old grid cut
+ * names in half (see components/feature-card.tsx). Five across is what a
  * desktop has room for, which is the other half of the same arithmetic.
  *
  * The row runs the whole width of the page's column, like the cards above it.
- * It used to be capped and centred at 32rem, which on a desktop left four
+ * It used to be capped and centred at 32rem, which on a desktop left a few
  * small squares floating in the middle of a thousand-pixel column, with their
  * heading starting somewhere else entirely. Left-aligned and filling the
  * column, the row ends where every other card on the page ends, and each tile
@@ -77,6 +77,9 @@ function fromFeature(id: string, label: string, icon: GlyphName): Tile {
 }
 
 const TILES: Tile[] = [
+  // Reading a chapter a verse at a time sits beside the draw: both are ways
+  // into the words without choosing one first.
+  fromFeature("scroll", "Scroll", "scroll"),
   // The open book, which is the same mark the catalog gives this page and the
   // one /study leads with: the tile opens a passage, so it wears the book rather
   // than the sparkle that used to stand for "something new".
@@ -103,7 +106,10 @@ export function QuickActivities() {
         Quick Activities
       </h2>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      {/* Five doors, not four: the scroll joined the row, so a wide screen holds
+          all five across. A phone keeps two columns, and the fifth tile takes
+          the first cell of the last row — a square cannot halve itself. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {TILES.map((tile) => (
           <QuickTile key={tile.href} tile={tile} />
         ))}
@@ -118,8 +124,8 @@ export function QuickActivities() {
  *
  * The mark is a home-screen mark, not a caption: 48px across a phone and 56
  * from `sm`, drawn straight on the card with the name set under it and both
- * centred in the square, so the row is read at a glance as four doors rather
- * than as four labels with something small beside them.
+ * centred in the square, so the row is read at a glance as five doors rather
+ * than as five labels with something small beside them.
  *
  * It wears the theme's own accent, and nothing behind it. The mark used to sit
  * in a swatch of its own — a fixed dark chocolate square with a gold figure on

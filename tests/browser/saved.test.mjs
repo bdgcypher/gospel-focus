@@ -3,7 +3,7 @@ import { openChapter, reset } from "./helpers.mjs";
 export const name = "saved passages";
 
 /**
- * A passage the reader kept — starred as a favorite, then filed into a deck —
+ * A passage the reader kept — favorited, then filed into a deck —
  * and the way each card leads back to the words: its own name, and its Read
  * action, open the reader at the verses it holds, marked down the chapter.
  *
@@ -49,7 +49,7 @@ export async function run({ page, check, base }) {
   await reset(page, base);
   await openChapter(page, base, "book=Jeremiah&chapter=3&verse=15", 3000);
 
-  // Star the verse from its own sheet, the way a reader keeps a passage.
+  // Favorite the verse from its own sheet, the way a reader keeps a passage.
   await page.evaluate(`(() => {
     const button = [...document.querySelectorAll("button")]
       .find((b) => b.getAttribute("aria-label") === "Verse 15: actions");
@@ -59,10 +59,10 @@ export async function run({ page, check, base }) {
   })()`);
   await page.sleep(500);
   await page.evaluate(`(() => {
-    const star = [...document.querySelectorAll('[role="dialog"] button')]
-      .find((b) => b.textContent.includes("Star"));
-    if (!star) throw new Error("the verse sheet has no star");
-    star.click();
+    const favorite = [...document.querySelectorAll('[role="dialog"] button')]
+      .find((b) => b.textContent.includes("Favorite"));
+    if (!favorite) throw new Error("the verse sheet has no favorite action");
+    favorite.click();
     return true;
   })()`);
   await page.sleep(700);

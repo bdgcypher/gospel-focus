@@ -5,6 +5,7 @@ import { connect, checker, freePort, launch } from "./cdp.mjs";
 import { startServer } from "./server.mjs";
 import * as annotations from "./annotations.test.mjs";
 import * as backlinks from "./backlinks.test.mjs";
+import * as scroll from "./scroll.test.mjs";
 import * as handles from "./handles.test.mjs";
 import * as links from "./links.test.mjs";
 import * as nav from "./nav.test.mjs";
@@ -42,7 +43,7 @@ const page = await connect(browser.base);
 const { check, failures } = checker();
 const base = `http://127.0.0.1:${server.port}`;
 
-const scenarios = [reader, nav, annotations, handles, notes, links, backlinks, saved, tags];
+const scenarios = [reader, nav, annotations, handles, notes, links, backlinks, saved, tags, scroll];
 
 console.log(`Testing ${base} in ${process.env.CHROME_BIN ?? "the found Chromium"}\n`);
 

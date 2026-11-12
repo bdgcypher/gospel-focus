@@ -18,6 +18,7 @@ import type { Metadata } from "next";
 export type IconName =
   | "home"
   | "book"
+  | "scroll"
   | "cards"
   | "search"
   | "map"
@@ -32,7 +33,7 @@ export type IconName =
   | "journal"
   | "widget"
   | "bookmark"
-  | "star"
+  | "heart"
   | "gear"
   | "chart"
   | "flame";
@@ -132,6 +133,23 @@ export const FEATURES: Feature[] = [
       "Double tap the words to read without the app's bars, and double tap again to bring them back",
       "Marks kept per word, in Gospel Library's own shape, so they import and export cleanly",
       "Marks list for the chapter, and a jump straight to any verse",
+    ],
+  },
+  {
+    id: "scroll",
+    group: "read",
+    href: "/scroll",
+    title: "Scroll",
+    blurb: "One verse a screen, swiped through like a reel",
+    tileBlurb: "Read a chapter a verse at a time",
+    icon: "scroll",
+    status: "ready",
+    capabilities: [
+      "Every verse of the chapter on its own screen, in the reader's serif",
+      "Swipe up or down to move one verse at a time, with your place marked down the left",
+      "Favorite, read or write notes and links, or share the verse you are on",
+      "The reference opens the verse in the reader, and the notes mark shows a dot when the verse carries something",
+      "Opens where the reader left off, and can be opened from any chapter's bar",
     ],
   },
   {
@@ -290,8 +308,8 @@ export const FEATURES: Feature[] = [
     group: "shelf",
     href: "/favorites",
     title: "Favorites",
-    blurb: "Every passage you have starred",
-    icon: "star",
+    blurb: "Every passage you have kept",
+    icon: "heart",
     status: "ready",
     capabilities: [
       "Bookmark any passage, or a whole run of verses",
@@ -326,7 +344,7 @@ export const FEATURES: Feature[] = [
     status: "ready",
     capabilities: [
       "The current run of days, the best one, and every day counted",
-      "Passages read, daily word puzzles solved, flashcards recited, and passages starred",
+      "Passages read, daily word puzzles solved, flashcards recited, and passages favorited",
       "Minutes studied today against the daily goal, and the days it was met",
     ],
   },
@@ -376,19 +394,21 @@ export function featureMetadata(id: string): Metadata {
 /**
  * The destinations in the bottom bar and the top bar, in tab order.
  *
- * Four sections, and each label is the section's own heading read back out of
- * FEATURE_GROUPS rather than written again here — a tab and the page it opens
- * onto say the same thing by construction, which is not true of two lists that
- * only look alike.
+ * Each section's label is its own heading read back out of FEATURE_GROUPS
+ * rather than written again here — a tab and the page it opens onto say the
+ * same thing by construction, which is not true of two lists that only look
+ * alike. Home and Scroll name themselves because they are places rather than
+ * shelves: the hub is where the app opens, and the scroll is a way of reading a
+ * chapter rather than a section that gathers tools.
  *
- * Four sections is the ceiling, not a coincidence: the bottom bar is a row of
- * equal targets across a phone, and each one added squeezes every label. Reading
- * is deliberately not a tab — it is what the app opens onto, so the hub's verse
- * of the day and the Study page both lead there, and the bar is left to the
- * sections a reader moves between. On a phone the bar carries exactly one entry
- * beyond those four, and it is not a section at all: "More", which opens the
- * menu (see components/nav-bar.tsx). Everything else lives on the hub's four
- * tiles, on the section pages they and the tabs open onto, and in that menu.
+ * Four tabs is the ceiling, not a coincidence: the bottom bar is a row of equal
+ * targets across a phone, and each one added squeezes every label. The scroll
+ * takes the last tab, where Focus used to sit; Focus is still a page, reached
+ * from the hub and the menu, but a tab is for somewhere a reader moves between
+ * while reading. On a phone the bar carries exactly one entry beyond those
+ * four, and it is not a tab at all: "More", which opens the menu (see
+ * components/nav-bar.tsx). Everything else lives on the hub's tiles, on the
+ * section pages they and the tabs open onto, and in that menu.
  */
 export interface NavItem {
   href: string;
@@ -403,7 +423,9 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/study", label: sectionLabel("study"), icon: "book" },
   { href: "/games", label: sectionLabel("games"), icon: "puzzle" },
-  { href: "/focus", label: sectionLabel("focus"), icon: "lock" },
+  // The scroll is a page rather than a section, so it carries its own name where
+  // Focus used to stand. Reading is what the tab is for now.
+  { href: "/scroll", label: "Scroll", icon: "scroll" },
 ];
 
 /** A path without its trailing slash, so "/memorize/" and "/memorize" agree. */
@@ -463,13 +485,13 @@ export function isNavActive(pathname: string, href: string): boolean {
 }
 
 /**
- * Whether this path is one of the four sections themselves.
+ * Whether this path is one of the bar's own destinations.
  *
  * Narrower than `isNavActive` on purpose. A tool under a tab — /memorize under
  * Study, a game under Games — still lights that tab up, but it is its own page
  * reached from a card, not a place the bar can take you. Only the bar's own
  * destinations slide between each other; everything else arrives with the
- * quieter fade (see components/app-shell.tsx and the "Changing pages" rules in
+ * quieter rise (see components/app-shell.tsx and the "Changing pages" rules in
  * app/globals.css).
  */
 export function isNavPage(pathname: string): boolean {

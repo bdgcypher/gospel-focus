@@ -141,14 +141,14 @@ export function StatsPage() {
           }
         />
         <StatTile
-          icon="bookmark"
-          // The shelf's own drawn mark, whatever the skin: a bookmark that is
-          // a label here, not a picture of something on sale.
+          icon="heart"
+          // The shelf's own drawn mark, whatever the skin: a heart that is a
+          // label here, not a picture of something on sale.
           plain
           label="Favorites"
           value={String(favorites.length)}
           hint={
-            favorites.length === 0 ? "Nothing bookmarked yet." : "Passages kept on this device"
+            favorites.length === 0 ? "Nothing favorited yet." : "Passages kept on this device"
           }
         />
         <StatTile

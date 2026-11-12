@@ -64,18 +64,20 @@ import { itemFromPassage, type MemoryItem } from "@/lib/memorize";
 import { loadManifest, pickDailyPassage } from "@/lib/picker";
 import { usePreferences } from "@/lib/preferences";
 import {
+  docCitation,
+  scrollHref,
   neighbourCitation,
   openReaderDoc,
   parseVerseList,
+  readLastPlace,
   readerHref,
   versePassage,
+  writeLastPlace,
   type ReaderCitation,
   type ReaderDoc,
 } from "@/lib/reader";
 import type { ShareCard } from "@/lib/share-image";
 import type { Passage } from "@/lib/types";
-
-const LAST_KEY = "gospel-focus:reader:v1";
 
 /**
  * How quick, and how still, a second tap has to be to be one gesture with the
@@ -84,34 +86,6 @@ const LAST_KEY = "gospel-focus:reader:v1";
  */
 const DOUBLE_TAP_MS = 320;
 const DOUBLE_TAP_PX = 28;
-
-interface LastRead extends ReaderCitation {
-  verse?: number;
-}
-
-function readLast(): LastRead | null {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(LAST_KEY) ?? "null") as Partial<LastRead> | null;
-    if (!value || typeof value.book !== "string" || typeof value.chapter !== "string") return null;
-    return {
-      kind: value.kind === "conference" ? "conference" : "scripture",
-      book: value.book,
-      chapter: value.chapter,
-      conferenceId: typeof value.conferenceId === "string" ? value.conferenceId : undefined,
-      verse: typeof value.verse === "number" ? value.verse : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function writeLast(citation: ReaderCitation & { verse?: number }): void {
-  try {
-    window.localStorage.setItem(LAST_KEY, JSON.stringify(citation));
-  } catch {
-    // Storage can be unavailable; the reader still works for this visit.
-  }
-}
 
 interface SelectionState {
   ranges: SelectionRange[];
@@ -287,7 +261,7 @@ export function ChapterReader() {
           verses = parseVerseList(raw);
         }
 
-        if (action === "daily" || (!citation && !readLast())) {
+        if (action === "daily" || (!citation && !readLastPlace())) {
           const manifest = await loadManifest();
           const passage = await pickDailyPassage(manifest, prefs.filters, dayKey());
           const passageBook = passage.book ?? "General Conference";
@@ -299,7 +273,7 @@ export function ChapterReader() {
           verses = passage.highlightVerse ? [passage.highlightVerse] : [];
           daily = true;
         } else if (!citation) {
-          const last = readLast();
+          const last = readLastPlace();
           if (last) {
             citation = {
               kind: last.kind,
@@ -325,7 +299,7 @@ export function ChapterReader() {
         setDoc(opened);
         setFocus(verses);
         setFromDaily(daily);
-        writeLast({
+        writeLastPlace({
           kind: opened.kind,
           book: opened.book,
           chapter: opened.chapter,
@@ -1273,7 +1247,10 @@ export function ChapterReader() {
           band and the words behind it are one colour (see `--reader-page`).
           The wrapper spans the page; the column inside keeps the words narrow. */}
       <div className="flex flex-1 flex-col bg-reader-page">
-        <div className="mx-auto flex w-full max-w-[80rem] flex-1 justify-center gap-10 px-5 pb-16 pt-4 sm:px-8 sm:pt-6">
+        <div
+          data-reader-page
+          className="mx-auto flex w-full max-w-[80rem] flex-1 justify-center gap-10 px-5 pb-16 pt-4 sm:px-8 sm:pt-6"
+        >
           {doc && <ChapterRail doc={doc} onGo={go} />}
         <main className="min-w-0 w-full max-w-[46rem] flex-1">
           {/* The bar a reader gets instead of a page header: the way back, the
@@ -1303,6 +1280,18 @@ export function ChapterReader() {
                 <div className="h-7 w-40 animate-pulse rounded-full bg-surface-2" aria-hidden="true" />
               )}
             </div>
+            {/* The same chapter, one verse a screen: the scroll starts on the
+                verse this address opened, so a reader can hand the chapter to
+                their thumb without losing their place. */}
+            <Link
+              href={doc ? scrollHref({ ...docCitation(doc), verse: focus[0] }) : "/scroll"}
+              onClick={() => setPlaceOpen(false)}
+              aria-label="Read this chapter as a scroll"
+              title="Scroll"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:text-accent-strong"
+            >
+              <Glyph name="scroll" className="h-4 w-4" />
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -1521,11 +1510,12 @@ export function ChapterReader() {
         />
       )}
 
+      {/* Nothing is drawn for what just happened: the mark, the note or the
+          favorite is its own confirmation, and a pill over the words only says
+          what the page already shows. The words are still spoken, so a reader
+          who cannot see the change is told about it. */}
       {notice && (
-        <p
-          role="status"
-          className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+4.25rem)] z-[60] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background shadow-lg"
-        >
+        <p role="status" className="sr-only">
           {notice}
         </p>
       )}
@@ -1561,7 +1551,7 @@ export function ChapterReader() {
             setVerseSheet(null);
             announce("Copied");
           }}
-          onStar={() => {
+          onFavorite={() => {
             toggleFavorite(versePassage(doc, verseSheet));
             setVerseSheet(null);
           }}
@@ -1618,7 +1608,7 @@ function VerseSheet({
   saved,
   onClose,
   onCopy,
-  onStar,
+  onFavorite,
   onShare,
   onMemorize,
   onLibrary,
@@ -1628,7 +1618,7 @@ function VerseSheet({
   saved: boolean;
   onClose: () => void;
   onCopy: () => void;
-  onStar: () => void;
+  onFavorite: () => void;
   onShare: () => void;
   onMemorize: () => void;
   onLibrary: () => void;
@@ -1639,7 +1629,7 @@ function VerseSheet({
       <p className="border-l-2 border-accent/40 pl-3 font-serif text-sm leading-relaxed text-foreground/80">{passage.text}</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Action label="Copy" icon="copy" onClick={onCopy} />
-        <Action label={saved ? "Unstar" : "Star"} icon="bookmark" onClick={onStar} />
+        <Action label={saved ? "Unfavorite" : "Favorite"} icon="heart" onClick={onFavorite} />
         <Action label="Share image" icon="sparkles" onClick={onShare} />
         <Action label="Memorize" icon="cards" onClick={onMemorize} />
         <Action label="Gospel Library" icon="book" onClick={onLibrary} />
@@ -1654,7 +1644,7 @@ function Action({
   onClick,
 }: {
   label: string;
-  icon: "copy" | "bookmark" | "sparkles" | "cards" | "book";
+  icon: "copy" | "heart" | "sparkles" | "cards" | "book";
   onClick: () => void;
 }) {
   return (

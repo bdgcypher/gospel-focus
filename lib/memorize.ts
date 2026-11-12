@@ -329,7 +329,7 @@ export function addPassage(
 }
 
 /**
- * A starred passage, taken on as it was saved: a run of verses stays a run,
+ * A favorited passage, taken on as it was saved: a run of verses stays a run,
  * one part per verse, so the hiding works across the whole thing. As with the
  * draw, this hands back the card rather than storing it — the deck builder
  * saves a whole deck's worth at once.

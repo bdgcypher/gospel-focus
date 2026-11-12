@@ -60,6 +60,48 @@ export interface ReaderCitation {
   conferenceId?: string;
 }
 
+/**
+ * Where the reader last stood, kept on the device.
+ *
+ * The reader and the scroll are two ways of reading the same place, so they
+ * share the one record: opening a chapter in either, then opening the other
+ * with no address of its own, carries on where the reader left off rather than
+ * starting over. The older reader wrote this same key with this same shape, so
+ * a device that has already read a chapter keeps its place.
+ */
+export const LAST_PLACE_KEY = "gospel-focus:reader:v1";
+
+export interface LastPlace extends ReaderCitation {
+  /** The verse the reader opened, when the address named one. */
+  verse?: number;
+}
+
+export function readLastPlace(): LastPlace | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = JSON.parse(window.localStorage.getItem(LAST_PLACE_KEY) ?? "null") as Partial<LastPlace> | null;
+    if (!value || typeof value.book !== "string" || typeof value.chapter !== "string") return null;
+    return {
+      kind: value.kind === "conference" ? "conference" : "scripture",
+      book: value.book,
+      chapter: value.chapter,
+      conferenceId: typeof value.conferenceId === "string" ? value.conferenceId : undefined,
+      verse: typeof value.verse === "number" ? value.verse : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastPlace(place: ReaderCitation & { verse?: number }): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LAST_PLACE_KEY, JSON.stringify(place));
+  } catch {
+    // Storage can be unavailable; the page still reads for this visit.
+  }
+}
+
 const normalise = (value: string) => value.trim().toLowerCase();
 
 /**
@@ -117,14 +159,19 @@ export function formatVerseList(verses: number[]): string {
 }
 
 /**
- * The reader's address for a place in the library.
+ * A place in the library, as the address of the page that shows it.
+ *
+ * The reader and the scroll take the same address; only the page it opens
+ * differs. So the query is built once and the path is the one thing a caller
+ * chooses.
  *
  * `verses` names a series to open and mark (a range, a scattered pick); `verse`
  * is the single place every shorter link writes, and the two are not meant to
  * be given together — a list wins.
  */
-export function readerHref(
-  citation: ReaderCitation & { verse?: number; verses?: number[] }
+function placeHref(
+  path: string,
+  citation: ReaderCitation & { verse?: number; verses?: number[]; last?: boolean }
 ): string {
   const params = new URLSearchParams();
   if (citation.kind === "conference") {
@@ -139,8 +186,26 @@ export function readerHref(
     : citation.verse && citation.verse > 0
       ? [citation.verse]
       : [];
-  if (list.length) params.set("verse", formatVerseList(list));
-  return `/read?${params.toString()}`;
+  // `last` is the foot of the chapter without knowing how many verses it holds:
+  // a gesture that turns back a chapter opens it at its end, and the page that
+  // opens resolves the word once it has the chapter in hand.
+  if (citation.last) params.set("verse", "last");
+  else if (list.length) params.set("verse", formatVerseList(list));
+  return `${path}?${params.toString()}`;
+}
+
+/** The reader's address for a place in the library. */
+export function readerHref(
+  citation: ReaderCitation & { verse?: number; verses?: number[]; last?: boolean }
+): string {
+  return placeHref("/read", citation);
+}
+
+/** The scroll's address for the same place: one verse a screen, swiped through. */
+export function scrollHref(
+  citation: ReaderCitation & { verse?: number; verses?: number[]; last?: boolean }
+): string {
+  return placeHref("/scroll", citation);
 }
 
 /** The conference a talk's Gospel Library address belongs to, as `2015-04`. */
@@ -382,7 +447,7 @@ export function browseIndex(manifest: Manifest): BrowseVolume[] {
 
 /**
  * One verse of the open document as a `Passage`, so the reader's verse menu can
- * star it, share it, memorize it and open it in Gospel Library with the same
+ * favorite it, share it, memorize it and open it in Gospel Library with the same
  * code the picker's card uses.
  */
 export function versePassage(doc: ReaderDoc, verse: number): Passage {

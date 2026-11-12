@@ -18,6 +18,8 @@ export type GlyphName =
   | "clock"
   | "trash"
   | "flip"
+  | "scroll"
+  | "heart"
   | "lock-open"
   | "pencil"
   | "menu"
@@ -34,11 +36,7 @@ export type GlyphName =
   | "backspace"
   | "gem"
   | "ice"
-  | "help"
-  // Not a feature's icon any more — the shelf wears a bookmark — but the decks
-  // sheet still marks its "Soon" row with it, where the star means "featured"
-  // rather than "saved".
-  | "star";
+  | "help";
 
 interface Props {
   name: GlyphName;
@@ -50,8 +48,12 @@ interface Props {
    * For a button whose whole job is the action — the primary "Study more", the
    * two controls on the focus page — a picture beside the words reads as
    * decoration and pulls the eye off the label. The emoji stays the playful
-   * styles' face everywhere the glyph is a signpost (a tab, a card, a chip);
+   * styles' face everywhere the glyph is a signpost (a card, a chip, a tile);
    * this is for the handful of places that need the same crisp mark in both.
+   *
+   * The bottom bar does not need it: the stylesheet keeps that bar's drawings
+   * in both skins for the whole bar at once (see "Glyph faces" in
+   * app/globals.css), so its tabs ask for nothing here.
    *
    * It covers a search field's lens too: the mark inside an input is labelling
    * what the reader is typing, and the emoji belongs to the signposts — the
@@ -67,6 +69,15 @@ interface Props {
    * so it may ask for the playful styles' picture anyway.
    */
   emoji?: boolean;
+  /**
+   * Fill the drawing rather than only stroking it.
+   *
+   * For a mark that has two states rather than two faces — the scroll's heart,
+   * which is solid once the verse is kept and drawn once it is not. Every other
+   * glyph is a sign or a control, where a filled shape would say the wrong
+   * thing.
+   */
+  filled?: boolean;
 }
 
 /**
@@ -93,7 +104,13 @@ interface Props {
  * surrounding text happens to be in — the same glyph can sit in an 11px tab
  * label and a 56px tile and come out the right size in both.
  */
-export function Glyph({ name, className = "h-5 w-5", plain = false, emoji: forceEmoji = false }: Props) {
+export function Glyph({
+  name,
+  className = "h-5 w-5",
+  plain = false,
+  emoji: forceEmoji = false,
+  filled = false,
+}: Props) {
   const emoji = plain ? null : EMOJI[name];
   return (
     <span
@@ -102,7 +119,7 @@ export function Glyph({ name, className = "h-5 w-5", plain = false, emoji: force
       <svg
         viewBox="0 0 24 24"
         className="glyph-vector"
-        fill="none"
+        fill={filled ? "currentColor" : "none"}
         stroke="currentColor"
         strokeWidth={1.8}
         strokeLinecap="round"
@@ -180,11 +197,9 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   "lock-open": "🔓",
   journal: "📔",
   widget: "📱",
-  // The shelf's own mark. The star stays for the one place that means
-  // "featured" rather than "saved" (the ready-made decks in the memorize
-  // sheet), so a reader never sees the same picture for two different things.
+  // The favorite's mark is the heart below, and a heart is a state, so it has
+  // only the drawn face.
   bookmark: "🔖",
-  star: "⭐",
   chart: "📊",
   gear: "⚙️",
   flame: "🔥",
@@ -233,6 +248,14 @@ const EMOJI: Record<GlyphName, string | EmojiArt | null> = {
   // "frozen" without reaching for a coloured picture.
   ice: { art: "/emoji/ice-cube.png" },
   help: "💡",
+  // The scroll's door: a sheet of paper with its two ends rolled, because the
+  // page turns a chapter one verse at a time. A signpost, so it may wear a
+  // picture.
+  scroll: "📜",
+  // A heart is a state, not a signpost: solid when the verse is kept, drawn
+  // when it is not. The emoji has only one face and cannot show both, so the
+  // drawn heart is the one that stays.
+  heart: null,
 };
 
 const PATHS: Record<GlyphName, React.ReactNode> = {
@@ -379,14 +402,11 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M12 18.4h.01" />
     </>
   ),
-  // The shelf's mark: the ribbon a reader puts in the place they want to come
-  // back to. It pairs with components/bookmark-icon.tsx, which is the same
-  // drawing writ large — and fillable — for the controls that keep a passage.
+  // The ribbon a reader sets in a place they want to come back to. It pairs
+  // with components/bookmark-icon.tsx, the same drawing writ large and
+  // fillable.
   bookmark: (
     <path d="M6.75 4.6A1.6 1.6 0 0 1 8.35 3h7.3a1.6 1.6 0 0 1 1.6 1.6V21l-5.25-3.65L6.75 21V4.6Z" />
-  ),
-  star: (
-    <path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z" />
   ),
   // Three bars off a baseline, for the stats page: the shape of "how it is
   // going" rather than another number.
@@ -621,5 +641,26 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M9.6 9.4a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2-2.4 3.5" />
       <path d="M12 16.9h.01" />
     </>
+  ),
+  // A scroll of paper: a sheet whose rolled ends curl out at the top-left and
+  // the bottom-right, the two ways the reader turns it. The curls are part of
+  // the one outline rather than separate strokes, so the mark stays as light as
+  // every other glyph at small sizes.
+  //
+  // Inside the sheet sit three rules, the last one short the way a paragraph's
+  // last line is: without them the mark is a plain page, and it has to say
+  // *scroll* — verses read a screen at a time — not just paper. The ink is
+  // drawn thinner than the outline and inset an equal margin from both edges of
+  // the sheet, so a rolled edge and its writing never compete at tab size.
+  scroll: (
+    <>
+      <path d="M8.4 4.2H16.6A2.6 2.6 0 0 1 19.2 6.8V14.8A2.2 2.2 0 0 1 21.4 17A2.2 2.2 0 0 1 19.2 19.2H9.2A2.6 2.6 0 0 1 6.6 16.6V8.6A2.2 2.2 0 0 1 4.4 6.4A2.2 2.2 0 0 1 6.6 4.2H8.4Z" />
+      <path d="M9.2 8.5h7.4M9.2 11.5h7.4M9.2 14.5h4.4" strokeWidth={1.4} />
+    </>
+  ),
+  // The heart the scroll keeps a verse with: two lobes meeting at a point. Filled
+  // once the verse is a favorite (see `filled` above).
+  heart: (
+    <path d="M12 20.3 4.9 13.2a4.7 4.7 0 0 1 0-6.6 4.6 4.6 0 0 1 6.5 0l.6.6.6-.6a4.6 4.6 0 0 1 6.5 0 4.7 4.7 0 0 1 0 6.6Z" />
   ),
 };

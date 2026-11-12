@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./app-shell";
 import { BackLink } from "./back-link";
-import { StarIcon } from "./star-icon";
 import { Glyph } from "./glyph";
 import { NoteDialog } from "./note-dialog";
 import { SaveToDeckDialog } from "./save-to-deck-dialog";
@@ -32,7 +31,7 @@ export function FavoritesPage() {
 
   const subtitle =
     favorites.length === 0
-      ? "Passages you star are kept here"
+      ? "Saved passages are kept here"
       : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`;
 
   return (
@@ -57,11 +56,11 @@ export function FavoritesPage() {
         {favorites.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border px-6 py-16 text-center">
             <span className="mx-auto block text-accent/40">
-              <StarIcon className="mx-auto h-10 w-10" />
+              <Glyph name="heart" className="mx-auto h-10 w-10" />
             </span>
             <p className="mt-4 text-sm font-medium text-foreground">No favorites yet</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-              Tap the star on any passage and it will show up here.
+              Tap the heart on any passage and it will show up here.
             </p>
             <Link
               href="/passage"
@@ -248,7 +247,7 @@ function FavoriteCard({ favorite }: { favorite: Favorite }) {
           </a>
         )}
 
-        {/* The bridge from reading to learning by heart: a starred passage is
+        {/* The bridge from reading to learning by heart: a favorited passage is
             one tap from a deck, which the picker asks for. There is no default
             shelf to inherit — a card belongs to a deck the reader made. The
             picker opens even once the passage is saved, because a card can sit

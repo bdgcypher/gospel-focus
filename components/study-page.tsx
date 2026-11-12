@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FeatureCard, FeatureGrid } from "./feature-card";
 import { FeaturePage } from "./feature-page";
 import { Glyph } from "./glyph";
-import { featureById, featuresInGroup, groupById, type Feature } from "@/lib/features";
+import { featureById, groupById, type Feature } from "@/lib/features";
 import { citationHref } from "@/lib/picker";
 
 const group = groupById("study");
@@ -23,12 +23,16 @@ const reader = featureById("reader");
 const search = featureById("search");
 /**
  * The wall's order, by id. The catalog keeps the study section in the order it
- * grew; the page has its own, which is the order a reader works in: the two
- * things you do with a passage — keep it, then write it down. A missing entry
- * drops out rather than leaving a gap.
+ * grew; the page has its own, which is the order a reader works in: read a
+ * chapter through the scroll, then the two things you do with a passage — keep
+ * it, then write it down. A missing entry drops out rather than leaving a gap.
+ *
+ * Looked up across the whole catalog rather than within the study section: the
+ * scroll is a way of reading, so its entry sits in the Read section beside the
+ * reader and the draw, and the wall here gathers it by name.
  */
-const ORDER = ["memorize", "journal"];
-const rest = ORDER.map((id) => featuresInGroup("study").find((feature) => feature.id === id)).filter(
+const ORDER = ["scroll", "memorize", "journal"];
+const rest = ORDER.map((id) => featureById(id)).filter(
   (feature): feature is Feature => Boolean(feature),
 );
 

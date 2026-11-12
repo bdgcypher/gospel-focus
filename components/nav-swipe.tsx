@@ -57,7 +57,7 @@ import { NavPreview, prefetchSection } from "./nav-preview";
  *    link's step. The pill's own journey between tabs is the bar's way of
  *    saying the same thing the pages are saying.
  *
- * Only the four sections are swept. A tool under a tab — the memorizer, a game,
+ * Only the bar's four tabs are swept. A tool under a tab — the memorizer, a game,
  * settings — is its own page rather than a neighbour in the row, and a swipe
  * there would promise a step that has no next tab. The bar's own links are
  * included: starting the gesture on a tab is natural, and the click that would

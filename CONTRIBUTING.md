@@ -97,7 +97,7 @@ lib/streak.ts             the run of days, its strip, and its freezes
 lib/study.ts              the daily goal and the minutes behind it
 lib/memorize.ts           decks and the recitation log
 lib/wordle.ts             the daily puzzle: marking, word, board
-lib/favorites.ts          starred passages (see also favorites-csv/io)
+lib/favorites.ts          favorited passages (see also favorites-csv/io)
 lib/journal.ts            journal entries and their links
 lib/notes.ts              notes attached to passages
 lib/focus.ts              the Focus lock's state, held apps, and timed bypass
