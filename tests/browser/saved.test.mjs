@@ -183,6 +183,40 @@ export async function run({ page, check, base }) {
     JSON.stringify(series.marked)
   );
 
+  // A run of consecutive verses is one place, so its wash and its rule run on
+  // from verse three into four without a seam; verse six stands alone, with the
+  // page between it and the verse before.
+  const joined = await page.evaluate(`(() => {
+    const box = (id) => document.getElementById(id).getBoundingClientRect();
+    const ink = (id) => {
+      const style = getComputedStyle(document.getElementById(id));
+      return { bg: style.backgroundColor, rule: style.borderLeftWidth };
+    };
+    return {
+      threeBottom: box("verse-3").bottom,
+      fourTop: box("verse-4").top,
+      fourBottom: box("verse-4").bottom,
+      fiveTop: box("verse-5").top,
+      three: ink("verse-3"),
+      four: ink("verse-4"),
+      five: ink("verse-5"),
+    };
+  })()`);
+  check(
+    "consecutive verses in a series share one wash, with no seam between them",
+    Math.abs(joined.threeBottom - joined.fourTop) < 0.5 &&
+      joined.three.bg === joined.four.bg &&
+      joined.three.bg !== joined.five.bg &&
+      joined.three.rule === "2px" &&
+      joined.four.rule === "2px",
+    JSON.stringify(joined)
+  );
+  check(
+    "and a verse outside the run keeps the page between it and the run",
+    joined.fiveTop - joined.fourBottom > 4,
+    JSON.stringify({ gap: joined.fiveTop - joined.fourBottom })
+  );
+
   // --- a link written into the favorite's note -----------------------------
   // A note is stored HTML, so its link is a plain anchor. Followed as one it
   // would load a document — the packaged app answers an unrouted path with the

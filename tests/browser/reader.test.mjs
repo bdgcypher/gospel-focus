@@ -477,13 +477,73 @@ export async function run({ page, check, base }) {
     sweptTitle.includes("Jeremiah 3:20–21"),
     sweptTitle.slice(0, 60)
   );
+  // A tag is written on every verse of a mark, so a run carrying one used to
+  // repeat the margin marker down each of its verses. The marker belongs to the
+  // verse the run begins on, which is where the note is read.
+  await writeNote(page, "<p>One thought, across both verses.</p>");
+  await tapLastWord(page, 20);
+  await pressToolbar(page, "Tags");
   await page.evaluate(`(() => {
-    const cancel = [...document.querySelectorAll('[role="dialog"] button')]
-      .find((b) => b.textContent.trim() === "Cancel");
-    cancel?.click();
+    const box = document.querySelector("#tag-field");
+    if (!box) throw new Error("the tags sheet isn't open");
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    set.call(box, "trust");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
     return true;
   })()`);
-  await page.sleep(400);
+  await page.sleep(180);
+  await page.evaluate(`(() => {
+    const add = document.querySelector('[aria-label="Add the tag"]');
+    if (!add) throw new Error("no add-the-tag button");
+    add.click();
+    return true;
+  })()`);
+  await page.sleep(180);
+  await page.evaluate(`(() => {
+    const save = [...document.querySelectorAll('[role="dialog"] button')]
+      .find((entry) => entry.textContent.trim() === "Save");
+    if (!save) throw new Error("no Save in the tag sheet");
+    save.click();
+    return true;
+  })()`);
+  await page.sleep(700);
+
+  const sweepMarkers = await page.evaluate(`(() => ({
+    lead: document.querySelectorAll('[aria-label="Open the notes, links, and tags on verse 20"]').length,
+    later: document.querySelectorAll('[aria-label="Open the notes, links, and tags on verse 21"]').length,
+  }))()`);
+  check(
+    "a mark across verses keeps one margin marker, on the verse it begins",
+    sweepMarkers.lead === 1 && sweepMarkers.later === 0,
+    JSON.stringify(sweepMarkers)
+  );
+
+  await page.evaluate(
+    `document.querySelector('[aria-label="Open the notes, links, and tags on verse 20"]')?.click()`
+  );
+  await page.sleep(600);
+  const sweepPanel = await page.evaluate(`(() => {
+    const box = document.querySelector('[role="dialog"][aria-label^="Notes and links on"]');
+    return box
+      ? {
+          label: box.getAttribute("aria-label"),
+          notes: box.querySelectorAll('section[aria-labelledby="aside-notes"] li').length,
+          tags: [...box.querySelectorAll("button")].map((button) => button.textContent.trim()),
+        }
+      : null;
+  })()`);
+  check(
+    "and its one marker opens the note and the tag written across the run",
+    Boolean(sweepPanel) &&
+      sweepPanel.label.includes("Jeremiah 3:20") &&
+      sweepPanel.notes === 1 &&
+      sweepPanel.tags.includes("#trust"),
+    JSON.stringify(sweepPanel)
+  );
+  await page.evaluate(
+    `document.querySelector('[role="dialog"][aria-label^="Notes and links on"] [aria-label="Close"]')?.click()`
+  );
+  await page.sleep(500);
   await escape(page);
 
   // --- removing a mark -----------------------------------------------------
@@ -1614,6 +1674,67 @@ export async function run({ page, check, base }) {
     "and it is filed in the deck that was made for it",
     Boolean(card) && Array.isArray(card.deckIds) && card.deckIds.length === 1,
     card ? JSON.stringify(card.deckIds) : ""
+  );
+
+  // --- the same thought kept twice ----------------------------------------
+  // An export from Gospel Library writes a run's note once per verse, so a
+  // highlight over two verses can hold one note as two records. They are one
+  // thought, and the margin says it once, at the verse the run begins on.
+  const seedNotes = (notes) =>
+    page.evaluate(`(async () => {
+      const db = await new Promise((res, rej) => {
+        const request = indexedDB.open("gospel-focus");
+        request.onsuccess = () => res(request.result);
+        request.onerror = () => rej(request.error);
+      });
+      const tx = db.transaction("annotations", "readwrite");
+      const store = tx.objectStore("annotations");
+      for (const [verse, words] of Object.entries(${JSON.stringify(notes)})) {
+        store.put({
+          id: "kept-" + verse,
+          doc: "ot/jer/3",
+          book: "Jeremiah",
+          chapter: "3",
+          verse: Number(verse),
+          startWord: 1,
+          endWord: 99,
+          color: "yellow",
+          style: "fill",
+          note: "<p>" + words + "</p>",
+          tags: [],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+      }
+      await new Promise((res) => { tx.oncomplete = res; });
+      db.close();
+      return true;
+    })()`);
+  const markersOn = () =>
+    page.evaluate(`(() => ({
+      five: document.querySelectorAll('[aria-label="Open the notes, links, and tags on verse 5"]').length,
+      six: document.querySelectorAll('[aria-label="Open the notes, links, and tags on verse 6"]').length,
+    }))()`);
+
+  await page.goto(`${base}/read/?book=jer&chapter=3&verse=5`, 2600);
+  await seedNotes({ 5: "One thought about the run.", 6: "One thought about the run." });
+  await page.send("Page.reload");
+  await page.sleep(2600);
+  const repeatedNote = await markersOn();
+  check(
+    "the same note kept on the next verse reads once, at the verse above",
+    repeatedNote.five === 1 && repeatedNote.six === 0,
+    JSON.stringify(repeatedNote)
+  );
+
+  await seedNotes({ 6: "A thought of its own." });
+  await page.send("Page.reload");
+  await page.sleep(2600);
+  const ownNote = await markersOn();
+  check(
+    "and a note of its own keeps its own marker",
+    ownNote.five === 1 && ownNote.six === 1,
+    JSON.stringify(ownNote)
   );
 
   await page.send("Emulation.clearDeviceMetricsOverride", {});

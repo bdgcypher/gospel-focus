@@ -3,8 +3,11 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   annotationsFor,
+  markCarriesWords,
+  markGroup,
   markGroupId,
-  noteText,
+  markLead,
+  sameWords,
   wordsOf,
   type Annotation,
   type MarkColor,
@@ -37,6 +40,7 @@ export function VerseRow({
   preview,
   selected,
   focused,
+  joinsBelow,
   onVerse,
   onAside,
   onWords,
@@ -63,6 +67,15 @@ export function VerseRow({
    */
   selected: SelectionRange[] | null;
   focused: boolean;
+  /**
+   * Whether the verse after this one is one the address asked for.
+   *
+   * A run of consecutive verses is one place, so its wash runs on through the
+   * gap to the next verse rather than restarting at each one: the shared gap
+   * becomes this verse's own bottom padding, in place of the margin it had, so
+   * the words above and below it do not move — only the ink reaches the join.
+   */
+  joinsBelow?: boolean;
   onVerse: (verse: number) => void;
   /** Read what this verse carries — notes, links, tags — beside the words. */
   onAside: (verse: number) => void;
@@ -111,12 +124,23 @@ export function VerseRow({
    * does not. A backlink counts too, though its mark lives in another chapter:
    * a linked verse has a way back to where it was linked from, and the margin
    * is how that way is found.
+   *
+   * A mark that crosses verses speaks once, at the verse it begins on: the
+   * panel is the mark's, so repeating its marker down every verse it covers
+   * would say the same thing several times and read as several notes. A mark
+   * that repeats the one on the verse above is that same repetition kept as two
+   * records — a run's note written on each verse of it — and is read once too.
    */
   const carried =
     Boolean(backlinked) ||
-    marks.some(
-      (mark) => noteText(mark.note).length > 0 || Boolean(mark.links?.length) || mark.tags.length > 0
-    );
+    marks.some((mark) => {
+      if (!markLead(annotations, mark)) return false;
+      if (!markGroup(annotations, mark).some(markCarriesWords)) return false;
+      return !annotations.some(
+        (above) =>
+          above.doc === mark.doc && above.verse === mark.verse - 1 && sameWords(mark, above)
+      );
+    });
 
   // A dragged edge paints the run it is showing, over whatever is stored.
   if (preview && preview.color !== "clear") {
@@ -229,7 +253,9 @@ export function VerseRow({
     // the whole chapter.
     <p
       id={`verse-${verse.number}`}
-      className={`-mx-1 mb-3 grid grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] items-start gap-x-1.5 border-l-2 px-1 transition-colors sm:-mx-2 sm:gap-x-2 sm:px-2 ${
+      className={`-mx-1 grid grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] items-start gap-x-1.5 border-l-2 px-1 transition-colors sm:-mx-2 sm:gap-x-2 sm:px-2 ${
+        focused && joinsBelow ? "mb-0 pb-3" : "mb-3"
+      } ${
         // The rule is always in the layout and only coloured when the verse is
         // one the address asked for, so opening a chapter never shifts its text
         // by two pixels. Gold down the side says which verses are the place, and
@@ -351,7 +377,9 @@ export function VerseRow({
           onClick={() => onAside(verse.number)}
           aria-label={`Open the notes, links, and tags on verse ${verse.number}`}
           title="Notes, links, and tags"
-          className="grid h-6 w-6 place-items-center rounded-full bg-accent/20 text-accent-strong transition-colors hover:bg-accent/30"
+          // Nudged off the verse's corner: the mark belongs in the margin beside
+          // the words, not on the edge of the wash it speaks for.
+          className="grid h-6 w-6 translate-x-[-0.15rem] translate-y-[0.15rem] place-items-center rounded-full bg-accent/20 text-accent-strong transition-colors hover:bg-accent/30"
         >
           <Glyph name="annotations" className="h-3.5 w-3.5" />
         </button>

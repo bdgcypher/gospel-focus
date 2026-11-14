@@ -56,7 +56,10 @@ export function VerseAside({
   doc: ReaderDoc;
   /** The verse whose margin was pressed. */
   verse: number;
-  /** The marks of this verse that hold a note, a link, or a tag, oldest first. */
+  /**
+   * The marks that begin on this verse and hold a note, a link, or a tag,
+   * oldest first — a run across verses included, read from where it starts.
+   */
   marks: Annotation[];
   /** Every mark in the library, for the list a tag opens. */
   annotations: Annotation[];

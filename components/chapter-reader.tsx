@@ -33,6 +33,8 @@ import {
   annotationsFor,
   backlinksForDoc,
   cleanTag,
+  linkLeads,
+  markCarriesWords,
   markGroup,
   markGroupId,
   marksAt,
@@ -495,6 +497,9 @@ export function ChapterReader() {
    * library whose link names a verse here. A link is read from both ends, so
    * linking 1 Nephi 3:7 to D&C 6:36 leaves a way back on D&C 6:36 without a
    * second link being stored, and removing the link takes it away again.
+   *
+   * The margin offers that way back once for each run of verses a link names,
+   * even when the run is long: one place is one door.
    */
   const docBacklinks = useMemo(() => {
     if (!doc) return new Map<number, Backlink[]>();
@@ -615,17 +620,24 @@ export function ChapterReader() {
   }, [activeId, docMarks]);
 
   /**
-   * The marks of a verse's margin, read back for the panel they open: the ones
-   * that carry a note, a link, or a tag, oldest first, so two thoughts on the
-   * same verse read in the order they were written.
+   * The marks a verse's margin speaks for, read back for the panel they open:
+   * the ones that begin here and carry a note, a link, or a tag, oldest first,
+   * so two thoughts on the same verse read in the order they were written.
+   *
+   * A mark that crosses verses is read from where it begins — the same verse its
+   * margin marker stands beside — so a tag held on a later verse of the run is
+   * still the theme read here, and nothing is repeated down the chapter.
    */
   const asideMarks = useMemo(() => {
     if (!aside) return [];
-    return docMarks
-      .filter((mark) => mark.verse === aside.verse)
-      .filter(
-        (mark) => noteText(mark.note).length > 0 || Boolean(mark.links?.length) || mark.tags.length > 0
-      )
+    const groups = new Map<string, Annotation[]>();
+    for (const mark of docMarks) {
+      const id = markGroupId(mark);
+      if (!groups.has(id)) groups.set(id, markGroup(docMarks, mark));
+    }
+    return [...groups.values()]
+      .filter((group) => group[0]?.verse === aside.verse)
+      .flatMap((group) => group.filter(markCarriesWords))
       .sort((a, b) => a.startWord - b.startWord || a.createdAt.localeCompare(b.createdAt));
   }, [aside, docMarks]);
 
@@ -1359,10 +1371,13 @@ export function ChapterReader() {
                   doc={doc}
                   verse={verse}
                   annotations={docMarks}
-                  backlinked={docBacklinks.has(verse.number)}
+                  backlinked={(docBacklinks.get(verse.number) ?? []).some((entry) =>
+                    linkLeads(entry.link).includes(verse.number)
+                  )}
                   preview={preview}
                   selected={selection?.ranges ?? null}
                   focused={focus.includes(verse.number)}
+                  joinsBelow={focus.includes(verse.number + 1)}
                   onVerse={setVerseSheet}
                   onAside={openAside}
                   onWords={openAt}

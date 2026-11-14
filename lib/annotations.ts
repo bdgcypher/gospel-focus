@@ -619,8 +619,9 @@ function linkNamesPlace(link: AnnotationLink, place: LinkPlace): boolean {
  * be kept in step, so removing the link removes the backlink with it, and an
  * imported mark brings its own backlinks along.
  *
- * A link that names a run of verses is a backlink on every verse of the run:
- * whichever one the reader opens, the passage they came from is there.
+ * A link that names a run of verses is a backlink on every verse of the run, so
+ * a mark on any of them reads the way back. The margin is a different question
+ * and is answered once for each run the link names (see `linkLeads`).
  */
 export function backlinksForDoc(annotations: Annotation[], place: LinkPlace): Map<number, Backlink[]> {
   const found = new Map<number, Backlink[]>();
@@ -643,6 +644,22 @@ export function backlinksForDoc(annotations: Annotation[], place: LinkPlace): Ma
 }
 
 /**
+ * Where the reader is offered the way back a link makes: the first verse of each
+ * run of verses the link names.
+ *
+ * A link pointing at James 1:5-6 is one place to go back to, so its margin mark
+ * stands once, beside verse 5, rather than at every verse it names. A scattered
+ * pick — verse 1 and verse 36 — is two places, and each run keeps its own mark,
+ * because a reader at verse 36 must still find the way back.
+ */
+export function linkLeads(link: AnnotationLink): number[] {
+  const named = [
+    ...new Set(link.sections?.length ? link.sections : [link.section]),
+  ].sort((a, b) => a - b);
+  return named.filter((verse, index) => index === 0 || verse !== named[index - 1] + 1);
+}
+
+/**
  * One mark's identity, across the verses it covers.
  *
  * A run of words that crosses a verse break is stored as one annotation per
@@ -660,6 +677,46 @@ export function markGroup(annotations: Annotation[], annotation: Annotation): An
   return annotations
     .filter((a) => a.doc === annotation.doc && markGroupId(a) === id)
     .sort((a, b) => a.verse - b.verse || a.startWord - b.startWord);
+}
+
+/**
+ * Whether a segment is the one a mark's margin marker belongs beside: the first
+ * verse of the run.
+ *
+ * A run across verses is one mark however many annotations store it, so what it
+ * says — a note, a link, a tag — is read once, at the verse it begins on, rather
+ * than repeated down the margin of every verse the run covers.
+ */
+export function markLead(annotations: Annotation[], annotation: Annotation): boolean {
+  return markGroup(annotations, annotation)[0]?.verse === annotation.verse;
+}
+
+/** Whether a mark says anything beyond its ink: a note, a link, or a tag. */
+export function markCarriesWords(annotation: Annotation): boolean {
+  return (
+    noteText(annotation.note).length > 0 ||
+    Boolean(annotation.links?.length) ||
+    annotation.tags.length > 0
+  );
+}
+
+/**
+ * Whether two marks say the same thing: one note under one title, pointing at
+ * the same passages, wearing the same tags.
+ *
+ * A run of verses can hold the same thought twice — an imported export writes a
+ * record per verse, and a note written down a series lands on each of them. The
+ * words are one thought however many records keep them, so this is how the
+ * margin knows not to say it again on the verse below.
+ */
+export function sameWords(a: Annotation, b: Annotation): boolean {
+  const links = (mark: Annotation) => (mark.links ?? []).map((link) => link.label).join("\u0000");
+  return (
+    (a.note ?? "").trim() === (b.note ?? "").trim() &&
+    (a.title ?? "") === (b.title ?? "") &&
+    links(a) === links(b) &&
+    [...a.tags].sort().join("\u0000") === [...b.tags].sort().join("\u0000")
+  );
 }
 
 /**
