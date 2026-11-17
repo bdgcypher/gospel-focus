@@ -81,7 +81,7 @@ export function NotesPage() {
         </div>
 
         <header className="mt-6">
-          <h1 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">Marks &amp; Notes</h1>
+          <h1 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">Notes &amp; Annotations</h1>
           <p className="mt-1 text-sm text-muted">
             {notes.length === 0
               ? "Nothing written on the words yet."

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anchorFromUri, normaliseColor, recordsFromExport, wordRange } from "../annotations-io";
+import { anchorFromUri, normaliseColor, paragraphPosition, recordsFromExport, wordRange } from "../annotations-io";
 import { wordsOf } from "../annotations";
 import { browseIndex } from "../reader";
 import manifest from "../../public/data/manifest.json";
@@ -75,6 +75,21 @@ describe("recordsFromExport", () => {
   });
 });
 
+describe("paragraphPosition", () => {
+  const talk = { paragraphIds: ["p1", "p3", "p4", "p_yiJBUv"] };
+
+  it("finds the paragraph by the anchor its source gives it", () => {
+    expect(paragraphPosition(talk, "p4")).toBe(3);
+    expect(paragraphPosition(talk, "p_yiJBUv")).toBe(4);
+  });
+
+  it("says so when the anchor isn't there", () => {
+    // A number the page skipped, and a document that carries no anchors at all.
+    expect(paragraphPosition(talk, "p2")).toBe(0);
+    expect(paragraphPosition({}, "p1")).toBe(0);
+  });
+});
+
 describe("normaliseColor", () => {
   it("takes the names the app and the Church both use", () => {
     expect(normaliseColor("yellow")).toBe("yellow");
@@ -100,6 +115,7 @@ describe("anchorFromUri", () => {
       slug: "jer",
       chapter: "3",
       verse: 15,
+      anchorId: "p15",
     });
   });
 
@@ -123,6 +139,7 @@ describe("anchorFromUri", () => {
       chapter: "filling-our-homes-with-light-and-truth",
       conferenceId: "2015-04",
       verse: 3,
+      anchorId: "p3",
     });
   });
 

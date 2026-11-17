@@ -1,4 +1,4 @@
-import { openChapter, pressToolbar, reset, selectWords, writeNote, writeNoteTitle } from "./helpers.mjs";
+import { escape, openChapter, pressToolbar, reset, selectWords, writeNote, writeNoteTitle } from "./helpers.mjs";
 
 export const name = "notes view";
 
@@ -148,7 +148,10 @@ export async function run({ page, check, base }) {
   const noteMarker = await page.evaluate(`document.querySelectorAll('[aria-label^="Open the notes, links, and tags on verse"]').length`);
   check("the note is there to read again", noteMarker >= 1, `${noteMarker} marker(s)`);
 
-  // --- the menu offers the view ------------------------------------------
+  // --- the menu leaves both pages to the Study wall ----------------------
+  // A note and a journal entry are both written into the study, and each has a
+  // card on the Study page, so the menu's copy of either would be a second door
+  // to the same room. Reading left for the same reason.
   const opened = await page.evaluate(`(() => {
     const button = [...document.querySelectorAll("button")]
       .find((b) => (b.getAttribute("aria-label") ?? "").toLowerCase().includes("menu"));
@@ -157,11 +160,48 @@ export async function run({ page, check, base }) {
     return true;
   })()`);
   await page.sleep(700);
-  const links = await page.evaluate(`[...document.querySelectorAll('[role="dialog"] a')].map((a) => a.getAttribute("href"))`);
-  const hasNotes = links.some((href) => href === "/notes/" || href === "/notes");
-  check("the menu carries the notes view", opened && hasNotes, links.join(", "));
-  // Reading is not in here any more: it is a card on the Study wall, and a menu
-  // that also kept a copy of the way in would be a second door to the same room.
-  const hasReader = links.some((href) => (href ?? "").startsWith("/read"));
-  check("and leaves the library to the Study page", !hasReader, links.join(", "));
+  const links = await page.evaluate(`[...document.querySelectorAll('[role="dialog"] a')].map((a) => a.getAttribute("href") ?? "")`);
+  check(
+    "the menu leaves the notes view to the Study page",
+    opened && !links.some((href) => href.startsWith("/notes")),
+    links.join(", ")
+  );
+  check(
+    "and the journal there too",
+    !links.some((href) => href.startsWith("/journal")),
+    links.join(", ")
+  );
+  check(
+    "and the library with them",
+    !links.some((href) => href.startsWith("/read")),
+    links.join(", ")
+  );
+  await escape(page);
+
+  // --- the two pages are cards on the wall --------------------------------
+  await page.goto(`${base}/study/`, 2400);
+  const wall = await page.evaluate(`(() => {
+    const cards = [...document.querySelectorAll("main a")].map((a) => ({
+      href: a.getAttribute("href") ?? "",
+      text: a.textContent.replace(/\\s+/g, " ").trim(),
+    }));
+    return {
+      notes: cards.find((card) => card.text.includes("Notes & Annotations")) ?? null,
+      journal: cards.find((card) => card.text.includes("Journal")) ?? null,
+    };
+  })()`);
+  check(
+    "the Study wall carries Notes & Annotations",
+    Boolean(wall.notes) &&
+      wall.notes.href.startsWith("/notes") &&
+      wall.notes.text.includes("Review marked passages, highlights, and notes"),
+    wall.notes ? `${wall.notes.href} · ${wall.notes.text.slice(0, 90)}` : "no card"
+  );
+  check(
+    "and a Journal card that says only Journal",
+    Boolean(wall.journal) &&
+      wall.journal.href.startsWith("/journal") &&
+      !wall.journal.text.includes("& Notes"),
+    wall.journal ? `${wall.journal.href} · ${wall.journal.text.slice(0, 90)}` : "no card"
+  );
 }

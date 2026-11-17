@@ -38,7 +38,7 @@ export function FavoritesPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10 lg:max-w-[120rem]">
         {/* The way back on its own line, the title under it starting at the
             page's left edge — the shape every page header in the app takes, as
             components/feature-page.tsx sets it out. The arrow's box is drawn

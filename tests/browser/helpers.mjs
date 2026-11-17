@@ -280,11 +280,11 @@ export async function captureExport(page) {
   })()`);
 }
 
-/** Press "Export to file" inside the Marks & notes card. */
+/** Press "Export to file" inside the Notes & Annotations card. */
 export async function pressExport(page) {
   await page.evaluate(`(() => {
-    const title = [...document.querySelectorAll("p")].find((p) => p.textContent.trim() === "Marks & notes");
-    if (!title) throw new Error("the marks panel isn't on this page");
+    const title = [...document.querySelectorAll("p")].find((p) => p.textContent.trim() === "Notes & Annotations");
+    if (!title) throw new Error("the notes panel isn't on this page");
     const card = title.closest("div.rounded-3xl");
     const button = [...card.querySelectorAll("button")].find((b) => b.textContent.includes("Export to file"));
     if (!button) throw new Error("no export button");

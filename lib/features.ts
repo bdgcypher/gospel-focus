@@ -31,6 +31,7 @@ export type IconName =
   | "palette"
   | "lock"
   | "journal"
+  | "pencil"
   | "widget"
   | "bookmark"
   | "heart"
@@ -147,7 +148,7 @@ export const FEATURES: Feature[] = [
     capabilities: [
       "Every verse of the chapter on its own screen, in the reader's serif",
       "Swipe up or down to move one verse at a time, with your place marked down the left",
-      "Favorite, read or write notes and links, or share the verse you are on",
+      "Favorite, read or write notes and links, share the verse you are on, or open it in the Gospel Library",
       "The reference opens the verse in the reader, and the notes mark shows a dot when the verse carries something",
       "Picks up on the verse you stopped at, and can be opened from any chapter's bar",
     ],
@@ -225,11 +226,9 @@ export const FEATURES: Feature[] = [
     id: "marks",
     group: "study",
     href: "/notes",
-    title: "Marks & Notes",
-    tileTitle: "Notes",
-    blurb: "Every note you've written on the words, in one place",
-    tileBlurb: "Search what you've written",
-    icon: "journal",
+    title: "Notes & Annotations",
+    blurb: "Review marked passages, highlights, and notes",
+    icon: "pencil",
     status: "ready",
     capabilities: [
       "Every mark that carries words of your own, grouped by chapter",
@@ -242,7 +241,7 @@ export const FEATURES: Feature[] = [
     id: "journal",
     group: "study",
     href: "/journal",
-    title: "Journal & Notes",
+    title: "Journal",
     blurb: "Your own words, kept beside the verses",
     tileBlurb: "Jot down thoughts and feelings",
     icon: "journal",
@@ -344,7 +343,7 @@ export const FEATURES: Feature[] = [
     status: "ready",
     capabilities: [
       "The current run of days, the best one, and every day counted",
-      "Passages read, daily word puzzles solved, flashcards recited, and passages favorited",
+      "Random verses read, daily puzzles solved, flashcards recited, and passages favorited",
       "Minutes studied today against the daily goal, and the days it was met",
     ],
   },

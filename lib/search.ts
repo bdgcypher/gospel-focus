@@ -25,7 +25,7 @@ import type { Filters, Manifest } from "./types";
  * wrote and runs sample queries through it (`verifySnapshot`), which is the only
  * way drift gets caught before it reaches a reader.
  *
- * What it costs, measured rather than guessed: the snapshot is 11.9 MB of JSON
+ * What it costs, measured rather than guessed: the snapshot is 60.5 MB of JSON
  * and 2.9 MB gzipped, and it is fetched and inflated once per session, on the
  * first query, only on this page. Everything else about the app stays offline
  * and instant; this is the one thing that has to be paid for when it is used.
@@ -233,7 +233,7 @@ async function open(): Promise<SearchLibrary> {
   };
 
   // `loadJS`, not `loadJSON`: the snapshot is already an object here, and
-  // re-stringifying 11.9 MB just to parse it again would be pure waste.
+  // re-stringifying 60.5 MB just to parse it again would be pure waste.
   const mini = MiniSearch.loadJS<SearchDocument>(file.index, {
     fields: file.options.fields,
     storeFields: file.options.storeFields,

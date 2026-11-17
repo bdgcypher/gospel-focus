@@ -2,6 +2,8 @@
 
 import {
   MARK_COLORS,
+  cleanTag,
+  tagKey,
   wordsOf,
   type Annotation,
   type AnnotationLink,
@@ -10,7 +12,8 @@ import {
   newId,
   importAnnotations,
 } from "./annotations";
-import { loadConferenceData } from "./picker";
+import { readNotesCsv, type NotesCsvRead } from "./notes-csv";
+import { loadConferenceData, loadManifest } from "./picker";
 import { openReaderDoc, type ReaderDoc } from "./reader";
 
 /**
@@ -47,7 +50,15 @@ import { openReaderDoc, type ReaderDoc } from "./reader";
 export const ANNOTATIONS_FILE_NAME = "annotations.json";
 
 /** What Android should match when the file comes back through the picker. */
-export const ANNOTATIONS_FILE_TYPES = ["application/json", "text/json", "text/plain", "application/octet-stream"];
+export const ANNOTATIONS_FILE_TYPES = [
+  "application/json",
+  "text/json",
+  "text/csv",
+  "text/comma-separated-values",
+  "application/csv",
+  "text/plain",
+  "application/octet-stream",
+];
 
 /** The envelope's version. Anything newer is read on a best-effort basis. */
 const FORMAT_VERSION = 3;
@@ -93,6 +104,20 @@ const clamp = (value: number, low: number, high: number) => Math.min(high, Math.
 
 const docCache = new Map<string, ReaderDoc | null>();
 
+/**
+ * A conference session's bundle, or null when this build doesn't ship it.
+ *
+ * The bundled talks cover a fixed run of conferences, while a reader's notes go
+ * back to talks from decades ago and forward to the latest one. A session whose
+ * file was never built is an ordinary answer — nothing to place the mark on —
+ * not a reason to fail the import.
+ */
+async function conferenceBundle(id: string) {
+  const manifest = await loadManifest();
+  if (!manifest.conferences.some((conference) => conference.id === id)) return null;
+  return loadConferenceData(id).catch(() => null);
+}
+
 /** A document id (`ot/jer/3`, `c/2015-04/7`) opened in the library. */
 async function openDoc(docId: string): Promise<ReaderDoc | null> {
   const cached = docCache.get(docId);
@@ -102,8 +127,8 @@ async function openDoc(docId: string): Promise<ReaderDoc | null> {
   const conference = /^c\/([^/]+)\/(\d+)$/.exec(docId);
   if (conference) {
     const [, id, index] = conference;
-    const data = await loadConferenceData(id);
-    const talk = data.talks[Number(index)];
+    const data = await conferenceBundle(id);
+    const talk = data?.talks[Number(index)];
     if (talk) {
       opened = await openReaderDoc({
         kind: "conference",
@@ -124,10 +149,17 @@ async function openDoc(docId: string): Promise<ReaderDoc | null> {
   return opened;
 }
 
-/** The chapter's URL at one verse, in the form Gospel Library writes it. */
+/**
+ * The chapter's URL at one verse, in the form Gospel Library writes it.
+ *
+ * A talk names its paragraphs as its own source does — `p7`, or a hash such as
+ * `p_yiJBUv` since October 2024 — so the exported anchor is one Gospel Library
+ * recognises, not our position in the array.
+ */
 function verseUri(doc: ReaderDoc, verse: number): string {
   const base = doc.url.split("?")[0];
-  return `${base}?lang=eng&id=p${verse}#p${verse}`;
+  const anchor = doc.paragraphIds?.[verse - 1] ?? `p${verse}`;
+  return `${base}?lang=eng&id=${anchor}#${anchor}`;
 }
 
 /** A mark's link target as a URL, when the library holds it. */
@@ -313,12 +345,18 @@ interface Anchor {
   chapter: string;
   conferenceId?: string;
   verse: number;
+  /** The paragraph anchor the address names (`p7`, `p_yiJBUv`), if any. */
+  anchorId?: string;
 }
 
 function verseFromQuery(uri: string): number {
   const match = /[?&#]id=p(\d+)/.exec(uri) ?? /[?&#](?:verse|v)=(\d+)/.exec(uri);
   return match ? Number(match[1]) : 1;
 }
+
+/** The raw anchor an address names: a number (`p7`) or a hash (`p_yiJBUv`). */
+const ANCHOR_ID = /[?&#]id=(p(?:\d+|_[A-Za-z0-9]+))/i;
+const anchorIdOf = (uri: string) => ANCHOR_ID.exec(uri)?.[1];
 
 export function anchorFromUri(uri: string): Anchor | null {
   const scripture = /\/scriptures\/([^/?#]+)\/([^/?#]+)\/([^/?#]+)/.exec(uri);
@@ -328,6 +366,7 @@ export function anchorFromUri(uri: string): Anchor | null {
       slug: scripture[2],
       chapter: scripture[3],
       verse: verseFromQuery(uri),
+      anchorId: anchorIdOf(uri),
     };
   }
 
@@ -339,6 +378,7 @@ export function anchorFromUri(uri: string): Anchor | null {
       chapter: talk[3],
       conferenceId: `${talk[1]}-${talk[2].padStart(2, "0")}`,
       verse: verseFromQuery(uri),
+      anchorId: anchorIdOf(uri),
     };
   }
 
@@ -358,12 +398,43 @@ function anchorFromDocId(docId: string): Anchor | null {
   return null;
 }
 
-/** The talk whose URL ends in this slug, for a conference citation. */
-async function talkTitle(conferenceId: string, slug: string): Promise<string | null> {
-  const data = await loadConferenceData(conferenceId);
+/**
+ * The paragraph an anchor names, as this document numbers its verses (1-based),
+ * or 0 when the document doesn't carry that anchor.
+ */
+export function paragraphPosition(doc: Pick<ReaderDoc, "paragraphIds">, anchorId: string): number {
+  const at = doc.paragraphIds?.indexOf(anchorId) ?? -1;
+  return at >= 0 ? at + 1 : 0;
+}
+
+/** Where a numeric paragraph number sits in a document that names its anchors. */
+function numberPosition(doc: ReaderDoc, number: number): number {
+  if (!doc.paragraphIds?.length) return clamp(number, 1, doc.verses.length);
+  return paragraphPosition(doc, `p${number}`);
+}
+
+/** The talk whose URL ends in this slug, opened, when this build holds it. */
+async function openTalk(conferenceId: string, slug: string): Promise<ReaderDoc | null> {
+  const data = await conferenceBundle(conferenceId);
+  if (!data) return null;
   const wanted = slug.toLowerCase();
-  const talk = data.talks.find((entry) => entry.url.toLowerCase().includes(`/${wanted}?`) || entry.url.toLowerCase().endsWith(`/${wanted}`));
-  return talk?.title ?? null;
+  const talk = data.talks.find(
+    (entry) => entry.url.toLowerCase().includes(`/${wanted}?`) || entry.url.toLowerCase().endsWith(`/${wanted}`)
+  );
+  if (!talk) return null;
+  return openReaderDoc({
+    kind: "conference",
+    book: "General Conference",
+    chapter: talk.title,
+    conferenceId,
+  });
+}
+
+/** Why a row couldn't be placed, in the words the import report shows. */
+function skipReason(anchor: Anchor): string {
+  return anchor.kind === "conference"
+    ? "that general conference talk isn't in this build of the library"
+    : "that chapter isn't in this build of the library";
 }
 
 /**
@@ -446,8 +517,183 @@ async function linksOf(record: Record<string, unknown>): Promise<AnnotationLink[
   return out;
 }
 
+/* ------------------------------------------------------------------------- *
+ * In: the notes CSV
+ * ------------------------------------------------------------------------- */
+
+/** Note text as the HTML the note sheet keeps, with its plain text left plain. */
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function noteHtml(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) => escapeHtml(line.trimEnd()))
+    .join("<br>")
+    .trim();
+}
+
+interface NoteBlock {
+  title?: string;
+  text: string;
+}
+
 /**
- * Import a Gospel Library annotations file.
+ * One note out of the rows that share an address.
+ *
+ * A single title becomes the mark's own title, the way it was written; several
+ * titles have nowhere else to go, so each keeps its own heading in the body
+ * rather than being lost.
+ */
+function noteFromBlocks(blocks: NoteBlock[]): { title?: string; note?: string } {
+  const titles = [...new Set(blocks.map((block) => block.title).filter((title): title is string => Boolean(title)))];
+  const title = titles.length === 1 ? titles[0] : undefined;
+  const html = blocks
+    .map((block) => {
+      const heading = title === undefined && block.title ? `<p><strong>${escapeHtml(block.title)}</strong></p>` : "";
+      const body = noteHtml(block.text);
+      return heading + (body ? `<p>${body}</p>` : "");
+    })
+    .join("");
+  return { title, note: html || undefined };
+}
+
+/** A date the file gave, or the moment of import when it can't be read. */
+function isoDate(value: string, fallback: string): string {
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? fallback : new Date(parsed).toISOString();
+}
+
+interface CsvGroup {
+  doc: ReaderDoc;
+  start: number;
+  end: number;
+  /** Whether Gospel Library drew a highlight here, as opposed to a bare reference. */
+  ink: boolean;
+  blocks: NoteBlock[];
+  tags: string[];
+  created: string;
+  updated: string;
+}
+
+/**
+ * Import the notes CSV from the Church's Notes page.
+ *
+ * The file names verses, not the words inside them, so each mark covers its
+ * whole verse — or its whole run, stored as one annotation per verse sharing a
+ * group id, the way a sweep made in the app is stored. A `reference` row is a
+ * note pinned to a verse with no ink of its own, so it lands `clear`; a row with
+ * a highlight paints yellow, since the file keeps no colour.
+ *
+ * The export is a log: the same address recurs each time a mark was redrawn,
+ * and its notes are rows of their own. Rows sharing an address become one mark,
+ * with every distinct note kept and the tags gathered, so a real export leaves
+ * one mark per place rather than a stack of identical washes.
+ */
+async function importNotesCsvFile({ rows, errors }: NotesCsvRead): Promise<AnnotationImportReport> {
+  const skipped: AnnotationImportReport["skipped"] = errors.map((entry) => ({
+    uri: `line ${entry.line}`,
+    reason: entry.reason,
+  }));
+  const now = new Date().toISOString();
+  const groups = new Map<string, CsvGroup>();
+
+  for (const row of rows) {
+    const anchor = anchorFromUri(row.uri);
+    if (!anchor) {
+      skipped.push({ uri: row.uri, reason: "that address isn't a chapter or talk this app opens" });
+      continue;
+    }
+
+    let doc: ReaderDoc | null = null;
+    if (anchor.kind === "conference" && anchor.conferenceId && anchor.slug) {
+      doc = await openTalk(anchor.conferenceId, anchor.slug);
+    } else if (anchor.kind === "scripture" && anchor.slug) {
+      doc = await openReaderDoc({ kind: "scripture", book: anchor.slug, chapter: anchor.chapter });
+    }
+    if (!doc) {
+      skipped.push({ uri: row.uri, reason: skipReason(anchor) });
+      continue;
+    }
+
+    if (!row.paragraphId && row.verseStart > doc.verses.length) {
+      skipped.push({ uri: row.uri, reason: `that chapter has no verse ${row.verseStart}` });
+      continue;
+    }
+
+    const start = row.paragraphId ? paragraphPosition(doc, row.paragraphId) : numberPosition(doc, row.verseStart);
+    if (!start) {
+      skipped.push({ uri: row.uri, reason: "that paragraph isn't in this build of the library" });
+      continue;
+    }
+    const end = row.paragraphId ? start : Math.max(numberPosition(doc, row.verseEnd), start);
+    const key = `${doc.doc}|${start}-${end}`;
+    const group = groups.get(key) ?? {
+      doc,
+      start,
+      end,
+      ink: false,
+      blocks: [],
+      tags: [],
+      created: now,
+      updated: now,
+    };
+
+    if (row.type !== "reference") group.ink = true;
+    if (row.title || row.note) group.blocks.push({ title: row.title, text: row.note ?? "" });
+    group.tags.push(...row.tags);
+    // ISO timestamps compare as text, so the earliest creation and the latest
+    // edit are the ones the merged mark keeps.
+    const created = isoDate(row.created, group.created);
+    const updated = isoDate(row.updated, group.updated);
+    group.created = created < group.created ? created : group.created;
+    group.updated = updated > group.updated ? updated : group.updated;
+    groups.set(key, group);
+  }
+
+  const incoming: Annotation[] = [];
+  for (const group of groups.values()) {
+    const { title, note } = noteFromBlocks(group.blocks);
+    const tags = [
+      ...new Map(group.tags.map((tag) => [tagKey(tag), cleanTag(tag)])).values(),
+    ].filter((tag) => tag.length > 0);
+    // A reference with no words and no tags has nothing to show and no ink to
+    // show it with; keeping it would only leave an invisible record behind.
+    if (!group.ink && !note && tags.length === 0) continue;
+    // The id is derived from the address, so importing a later download of the
+    // same file updates these marks instead of adding a second set.
+    const base = `gl-csv:${group.doc.doc}:${group.start}-${group.end}`;
+    const verses = group.doc.verses.slice(group.start - 1, group.end);
+
+    for (const [index, verse] of verses.entries()) {
+      incoming.push({
+        id: `${base}:${verse.number}`,
+        doc: group.doc.doc,
+        book: group.doc.book,
+        chapter: group.doc.chapter,
+        verse: verse.number,
+        startWord: 1,
+        endWord: Math.max(1, wordsOf(verse.text).length),
+        color: group.ink ? "yellow" : "clear",
+        style: "fill",
+        note: index === 0 ? note : undefined,
+        title: index === 0 ? title : undefined,
+        tags,
+        groupId: verses.length > 1 ? base : undefined,
+        createdAt: group.created,
+        updatedAt: group.updated,
+      });
+    }
+  }
+
+  const { added, updated } = await importAnnotations(incoming);
+  return { imported: added, updated, skipped };
+}
+
+/**
+ * Import a Gospel Library annotations file, or the notes CSV from its Notes
+ * page.
  *
  * Every record is placed against the bundled library before it is written, so a
  * mark whose verse is not in this build is reported rather than stored against
@@ -455,11 +701,20 @@ async function linksOf(record: Record<string, unknown>): Promise<AnnotationLink[
  * updated instead of duplicated, which makes a repeated import safe.
  */
 export async function importAnnotationsText(source: string): Promise<AnnotationImportReport> {
+  const head = source.replace(/^\uFEFF/, "").trimStart();
+  if (!head.startsWith("{") && !head.startsWith("[")) {
+    const csv = readNotesCsv(source);
+    if (csv) return importNotesCsvFile(csv);
+    throw new Error(
+      "that file isn't JSON — Gospel Library exports annotations as a .json file, or notes as a .csv"
+    );
+  }
+
   let json: unknown;
   try {
     json = JSON.parse(source);
   } catch {
-    throw new Error("that file isn't JSON — Gospel Library exports annotations as a .json file");
+    throw new Error("that file isn't JSON — Gospel Library exports annotations as a .json file, or notes as a .csv");
   }
 
   const { records } = recordsFromExport(json);
@@ -478,24 +733,17 @@ export async function importAnnotationsText(source: string): Promise<AnnotationI
 
     let doc: ReaderDoc | null = null;
     if (anchor.kind === "conference" && anchor.conferenceId && anchor.slug) {
-      const title = await talkTitle(anchor.conferenceId, anchor.slug);
-      if (title) {
-        doc = await openReaderDoc({
-          kind: "conference",
-          book: "General Conference",
-          chapter: title,
-          conferenceId: anchor.conferenceId,
-        });
-      }
+      doc = await openTalk(anchor.conferenceId, anchor.slug);
     } else if (anchor.kind === "scripture" && anchor.slug) {
       doc = await openReaderDoc({ kind: "scripture", book: anchor.slug, chapter: anchor.chapter });
     }
     if (!doc) {
-      skipped.push({ uri, reason: "that chapter isn't in this build of the library" });
+      skipped.push({ uri, reason: skipReason(anchor) });
       continue;
     }
 
-    const verseNumber = clamp(anchor.verse, 1, doc.verses.length);
+    const verseNumber =
+      (anchor.anchorId ? paragraphPosition(doc, anchor.anchorId) : 0) || clamp(anchor.verse, 1, doc.verses.length);
     const verse = doc.verses[verseNumber - 1];
     const offsets = isRecord(record.range) ? record.range : undefined;
     const startOffset =

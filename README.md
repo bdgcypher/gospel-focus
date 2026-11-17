@@ -139,13 +139,15 @@ to open in the Gospel Library, and the reminder is scheduled locally.
 ## Data & attribution
 
 Passage text is bundled so the app works offline: 41,995 scripture verses and
-9,088 general conference paragraphs, 51,083 passages in all.
+117,504 general conference paragraphs from 1971 to 2026, 159,499 passages in all.
 
 - **Scripture** — [bcbooks/scriptures-json](https://github.com/bcbooks/scriptures-json),
   public domain, 2013 edition.
-- **General conference** — [johnmwood/LDS-Conference-Scraper](https://github.com/johnmwood/LDS-Conference-Scraper).
-  The source declares no license; the text is included for personal study and
-  **redistribution rights must be confirmed before publishing**. See
+- **General conference** — 1971–2018 from
+  [johnmwood/LDS-Conference-Scraper](https://github.com/johnmwood/LDS-Conference-Scraper),
+  April 2019 on from the Church's own public content API. Neither declares a
+  license; the text is included for personal study and **redistribution rights
+  must be confirmed before publishing**. See
   [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#two-gates-that-shape-everything).
 
 Every passage links back to the Church's official Gospel Library. This project is

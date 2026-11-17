@@ -7,7 +7,7 @@ import { Glyph, type GlyphName } from "./glyph";
 import { useGems } from "@/lib/gems";
 import { useFavorites } from "@/lib/favorites";
 import { useMemory } from "@/lib/memorize";
-import { countedToday, streakInForce, useStreak } from "@/lib/streak";
+import { streakInForce, useStreak } from "@/lib/streak";
 import { studyProgress, useStudy } from "@/lib/study";
 import { usePuzzleStats } from "@/lib/wordle";
 
@@ -31,13 +31,11 @@ export function StatsPage() {
   const puzzles = usePuzzleStats();
 
   const run = streakInForce(streak);
-  const counted = countedToday(streak);
   const progress = studyProgress(study);
   const memorized = memory.filter((item) => item.reviews > 0).length;
-  const recitations = memory.reduce((total, item) => total + item.reviews, 0);
 
   return (
-    <FeaturePage featureId="stats">
+    <FeaturePage featureId="stats" subtitle="">
       <div className="rounded-3xl border border-border bg-surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
@@ -106,40 +104,13 @@ export function StatsPage() {
           href="/streak"
           hint={
             streak.best > 0
-              ? `Best: ${streak.best} ${streak.best === 1 ? "day" : "days"}${counted ? " · today counts" : ""} · ${streak.freezes} ${
-                  streak.freezes === 1 ? "freeze" : "freezes"
-                } left`
+              ? `Best: ${streak.best} ${streak.best === 1 ? "day" : "days"}`
               : "Reaching the goal on two days running starts one. Open your streak."
           }
         />
-        <StatTile
-          icon="book"
-          label="Passages read"
-          value={String(study.passages)}
-          hint="Every passage you have drawn"
-        />
-        <StatTile
-          icon="puzzle"
-          label="Daily puzzles"
-          value={String(puzzles.solved)}
-          hint={
-            puzzles.solved === 0
-              ? "Find the day's word to start the count."
-              : "Days you found the daily word"
-          }
-        />
-        <StatTile
-          icon="cards"
-          label="Flashcards memorized"
-          value={String(memorized)}
-          hint={
-            memory.length === 0
-              ? "No cards in your decks yet."
-              : `${memory.length} ${memory.length === 1 ? "card" : "cards"} · ${recitations} ${
-                  recitations === 1 ? "recitation" : "recitations"
-                }`
-          }
-        />
+        <StatTile icon="book" label="Random verses read" value={String(study.passages)} />
+        <StatTile icon="puzzle" label="Daily puzzles solved" value={String(puzzles.solved)} />
+        <StatTile icon="cards" label="Flashcards memorized" value={String(memorized)} />
         <StatTile
           icon="heart"
           // The shelf's own drawn mark, whatever the skin: a heart that is a
@@ -147,31 +118,15 @@ export function StatsPage() {
           plain
           label="Favorites"
           value={String(favorites.length)}
-          hint={
-            favorites.length === 0 ? "Nothing favorited yet." : "Passages kept on this device"
-          }
         />
-        <StatTile
-          icon="clock"
-          label="Time studied"
-          value={formatDuration(study.totalSeconds)}
-          hint="Counted while a session runs"
-        />
+        <StatTile icon="clock" label="Total time studied" value={formatDuration(study.totalSeconds)} />
         <StatTile
           icon="calendar"
-          label="Goal met"
+          label="Daily study goal"
           value={String(study.goalDays)}
           unit={study.goalDays === 1 ? "day" : "days"}
-          hint="Days you reached the goal"
         />
-        <StatTile
-          icon="gem"
-          label="Gems"
-          value={String(gems.total)}
-          hint={`A gem for each minute studied, up to the day's goal${
-            gems.today > 0 ? ` · ${gems.today} today` : ""
-          }`}
-        />
+        <StatTile icon="gem" label="Gems" value={String(gems.total)} />
       </div>
 
       <p className="mt-6 text-xs text-muted">
@@ -181,7 +136,7 @@ export function StatsPage() {
   );
 }
 
-/** One number, its name, and the line that keeps it honest. */
+/** One number and its name, with a line under it where the number has one. */
 function StatTile({
   icon,
   label,
@@ -195,7 +150,8 @@ function StatTile({
   label: string;
   value: string;
   unit?: string;
-  hint: string;
+  /** The line under the number, for a tile with something to say about it. */
+  hint?: string;
   /** Somewhere to go for the number's own page, where it has one. */
   href?: string;
   /** Keep the drawn mark in the playful skins as well (see components/glyph.tsx). */
@@ -213,7 +169,7 @@ function StatTile({
         {unit && <span className="text-xs text-muted">{unit}</span>}
       </span>
 
-      <span className="mt-1 text-xs leading-snug text-muted">{hint}</span>
+      {hint && <span className="mt-1 text-xs leading-snug text-muted">{hint}</span>}
     </>
   );
 

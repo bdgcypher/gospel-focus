@@ -85,7 +85,7 @@ export function FeaturePage({
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10 lg:max-w-[120rem]">
         {/* No top margin of its own: the page's padding already holds the
             header clear of the app bar, and stacking another 24px on it read as
             an empty band under the header on every page built from this frame.

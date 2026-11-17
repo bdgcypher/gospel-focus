@@ -1357,12 +1357,13 @@ export async function run({ page, check, base }) {
   await page.sleep(400);
 
   // --- the reader's chrome --------------------------------------------------
-  // A chapter is read, not navigated: the app bar — the mark, the section links,
-  // the streak and the gems — is out of the page for the whole visit, from the
-  // first frame, and the chapter's own bar is the one at the top of the screen,
-  // so a bookmark or a search is always within reach.
+  // Where the app bar stands is where the navigation is. On a wide screen the
+  // sections live in it and the bottom bar is away, so the reader keeps it and
+  // the chapter's own bar parks under it. On a phone or a tablet the bar puts
+  // itself away for the whole visit, and the chapter's own bar is the top of the
+  // screen, so a bookmark or a search is always within reach either way.
   await openChapter(page, base, "book=Genesis&chapter=2");
-  const bare = await page.evaluate(`(() => {
+  const wide = await page.evaluate(`(() => {
     const header = document.querySelector("header.app-header");
     const bar = document.querySelector("main [data-reader-bar]");
     return {
@@ -1375,24 +1376,72 @@ export async function run({ page, check, base }) {
       rail: Math.round(document.querySelector('aside[aria-label="Chapter navigation"] > div').getBoundingClientRect().top),
     };
   })()`);
-  check("the reader puts the app bar away for the visit", bare.bare && bare.header === "none", `${bare.bare} / ${bare.header}`);
-  check("and gives its height to the page", bare.height === 0, `${bare.height}px`);
-  check("with the chapter's bar at the top", bare.bar === 0 && bare.sticky === "sticky", `${bare.bar} / ${bare.sticky}`);
-  check("over the reader's own paper, not the words", bare.background === "rgb(255, 253, 247)", bare.background);
-  check("the rail comes up with it", bare.rail > 0 && bare.rail < 40, `${bare.rail}px`);
+  check(
+    "a wide page keeps the app bar, because the sections are in it",
+    wide.bare && wide.header !== "none" && wide.height > 0,
+    `${wide.bare} / ${wide.header} / ${wide.height}px`
+  );
+  // At the top of the page the bar sits below the bar's air; scrolling pins it
+  // to the header's own height, which the check at the foot of the chapter
+  // makes. Either way it is under the app bar, never over it.
+  check(
+    "with the chapter's bar under it",
+    wide.bar >= wide.height && wide.sticky === "sticky",
+    `${wide.bar} vs ${wide.height}`
+  );
+  check("over the reader's own paper, not the words", wide.background === "rgb(255, 253, 247)", wide.background);
+  check("and the rail parked under it too", wide.rail > wide.height, `${wide.rail}px vs ${wide.height}px`);
 
-  // Scrolling is just reading now: the chrome is the same at the top of the
-  // chapter and deep down it.
+  // A phone is the other way round: the bar goes, and the chapter's own bar is
+  // the top of the screen.
+  await page.send("Emulation.setDeviceMetricsOverride", {
+    width: 430,
+    height: 932,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await openChapter(page, base, "book=Genesis&chapter=2");
+  const bare = await page.evaluate(`(() => {
+    const header = document.querySelector("header.app-header");
+    const bar = document.querySelector("main [data-reader-bar]");
+    return {
+      bare: document.documentElement.dataset.bare === "true",
+      header: getComputedStyle(header).display,
+      height: Math.round(header.getBoundingClientRect().height),
+      bar: Math.round(bar.getBoundingClientRect().top),
+    };
+  })()`);
+  check(
+    "the phone's reader puts the app bar away for the visit",
+    bare.bare && bare.header === "none",
+    `${bare.bare} / ${bare.header}`
+  );
+  check("and gives its height to the page", bare.height === 0, `${bare.height}px`);
+  check("with the chapter's bar at the top", bare.bar === 0, `${bare.bar}`);
+
+  // Back on the wide page, scrolling is just reading: the bar is still there at
+  // the top of the chapter and deep down it, with the chapter's bar under it.
+  await page.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await page.sleep(400);
   await page.evaluate(`window.scrollTo({ top: 700, behavior: "instant" })`);
   await page.sleep(500);
-  const deep = await page.evaluate(`(() => ({
-    header: getComputedStyle(document.querySelector("header.app-header")).display,
-    bar: Math.round(document.querySelector("main [data-reader-bar]").getBoundingClientRect().top),
-  }))()`);
+  const deep = await page.evaluate(`(() => {
+    const header = document.querySelector("header.app-header");
+    return {
+      header: getComputedStyle(header).display,
+      height: Math.round(header.getBoundingClientRect().height),
+      bar: Math.round(document.querySelector("main [data-reader-bar]").getBoundingClientRect().top),
+    };
+  })()`);
   check(
-    "down the page the chapter bar is still the top of the screen",
-    deep.header === "none" && deep.bar === 0,
-    `${deep.header} / ${deep.bar}`
+    "and it stays there down the page, with the chapter bar under it",
+    deep.header !== "none" && deep.bar === deep.height,
+    `${deep.header} / ${deep.bar} vs ${deep.height}`
   );
 
   // --- a verse's margin: notes, links, and tags ----------------------------

@@ -79,7 +79,7 @@ export async function run({ page, check, base }) {
   const count = await page.evaluate(
     `[...document.querySelectorAll("p")].map((p) => p.textContent).find((t) => t.includes("on this device")) ?? ""`
   );
-  check("the library still holds one mark", count.startsWith("1 mark"), count);
+  check("the library still holds one mark", count.startsWith("1 on this device"), count);
 
   // --- a talk, whose address is a different shape ------------------------
   await openChapter(
@@ -134,5 +134,161 @@ export async function run({ page, check, base }) {
   const stillThere = await page.evaluate(
     `[...document.querySelectorAll("p")].map((p) => p.textContent).find((t) => t.includes("on this device")) ?? ""`
   );
-  check("the bad file changed nothing", stillThere.startsWith("2 marks"), stillThere);
+  check("the bad file changed nothing", stillThere.startsWith("2 on this device"), stillThere);
+
+  // --- the notes CSV, which names verses but not the words inside them ---
+  const notesCsv = [
+    "type,title,note text,source location,tags,notebooks,study set,last updated,created",
+    'highlight,Run of faith,"Two verses, one thought",https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/32?lang=eng&id=p10-p11,faith,,Default Set,2026-09-25T14:36:57.700Z,2016-05-06T04:44:45.035Z',
+    'reference,Pinned note,"No ink under this one",https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/32?lang=eng&id=p12,faith,,Default Set,2026-09-20T20:42:55.879Z,2016-05-06T04:44:45.035Z',
+  ].join("\n");
+  await importFile(page, write("NotesDownload.csv", notesCsv));
+  const csvSummary = await page.evaluate(`(() => {
+    const line = [...document.querySelectorAll("p")].find((p) => p.textContent.startsWith("Imported"));
+    return line ? line.textContent : "none";
+  })()`);
+  check("a notes CSV imports its rows", /Imported 3\b/.test(csvSummary), csvSummary);
+
+  const imported = await page.evaluate(`(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("gospel-focus");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const all = await new Promise((resolve) => {
+      const request = db.transaction("annotations").objectStore("annotations").getAll();
+      request.onsuccess = () => resolve(request.result);
+    });
+    db.close();
+    return all
+      .filter((mark) => mark.doc === "bom/alma/32" && mark.verse >= 10 && mark.verse <= 12)
+      .map((mark) => ({
+        verse: mark.verse,
+        groupId: mark.groupId,
+        color: mark.color,
+        endWord: mark.endWord,
+        title: mark.title,
+        note: mark.note,
+        tags: mark.tags,
+      }));
+  })()`);
+  const byVerse = Object.fromEntries((imported ?? []).map((mark) => [mark.verse, mark]));
+  check(
+    "the run is one mark across its verses",
+    Boolean(byVerse[10]?.groupId) && byVerse[10].groupId === byVerse[11]?.groupId,
+    JSON.stringify([byVerse[10]?.groupId, byVerse[11]?.groupId])
+  );
+  check(
+    "the run's first verse carries its note and title",
+    byVerse[10]?.title === "Run of faith" && (byVerse[10]?.note ?? "").includes("Two verses"),
+    JSON.stringify([byVerse[10]?.title, byVerse[10]?.note])
+  );
+  check(
+    "the note is not written again on the next verse",
+    Boolean(byVerse[11]) && !byVerse[11].note,
+    JSON.stringify(byVerse[11]?.note)
+  );
+  check(
+    "the tags travel with every verse of the run",
+    byVerse[10]?.tags.includes("faith") && byVerse[11]?.tags.includes("faith"),
+    JSON.stringify([byVerse[10]?.tags, byVerse[11]?.tags])
+  );
+  check(
+    "a highlight covers its whole verse",
+    byVerse[10]?.color === "yellow" && byVerse[10].endWord > 0,
+    JSON.stringify([byVerse[10]?.color, byVerse[10]?.endWord])
+  );
+  check(
+    "a reference lands as a note with no ink",
+    byVerse[12]?.color === "clear" && (byVerse[12]?.note ?? "").includes("No ink"),
+    JSON.stringify([byVerse[12]?.color, byVerse[12]?.note])
+  );
+
+  await importFile(page, write("NotesDownload.csv", notesCsv));
+  const csvAgain = await page.evaluate(`(() => {
+    const line = [...document.querySelectorAll("p")].find((p) => p.textContent.startsWith("Imported"));
+    return line ? line.textContent : "none";
+  })()`);
+  check("importing the same notes twice updates instead of duplicating", /Imported 0 .*3 updated/.test(csvAgain), csvAgain);
+
+  // --- an address this build doesn't hold --------------------------------
+  // An account's download can name a talk the library has no text for. Those
+  // rows are skipped and reported; the rest of the file still lands.
+  const mixedCsv = [
+    "type,title,note text,source location,tags,notebooks,study set,last updated,created",
+    'highlight,Missing talk,"A talk this build has no text for",https://www.churchofjesuschrist.org/study/general-conference/2024/10/no-such-talk?lang=eng&id=p4,,,Default Set,2026-11-01T16:31:20.143Z,2026-11-01T16:22:27.096Z',
+    'highlight,Still scripture,"This one lands",https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/32?lang=eng&id=p20,,,Default Set,2026-11-01T16:31:20.143Z,2026-11-01T16:22:27.096Z',
+  ].join("\n");
+  await importFile(page, write("NotesDownload.csv", mixedCsv));
+  const mixedSummary = await page.evaluate(`(() => {
+    const line = [...document.querySelectorAll("p")].find((p) => p.textContent.startsWith("Imported"));
+    return line ? line.textContent : "none";
+  })()`);
+  check(
+    "an address this build doesn't hold is skipped, and the rest still imports",
+    /Imported 1\b/.test(mixedSummary) && /1 skipped/.test(mixedSummary),
+    mixedSummary
+  );
+  const reasons = await page.evaluate(`(() => {
+    const list = [...document.querySelectorAll("ul li")].map((li) => li.textContent).filter((t) => t.includes("build of the library"));
+    return list.join(" | ");
+  })()`);
+  check("the skipped row says which kind of address it was", /conference talk isn't in this build/.test(reasons), reasons);
+
+  // --- a talk whose paragraphs are named by hash -------------------------
+  // Since October 2024 the Church anchors a talk's paragraphs by hash, and the
+  // download names them that way. The anchor has to place the mark on the
+  // paragraph it names, and the export has to write the same anchor back.
+  const session = JSON.parse(
+    fs.readFileSync(new URL("../../public/data/conference/2024-10.json", import.meta.url), "utf8")
+  );
+  const talkIndex = session.talks.findIndex(
+    (entry) => Array.isArray(entry.paragraphIds) && entry.paragraphIds.length > 3
+  );
+  const hashTalk = session.talks[talkIndex];
+  const anchor = hashTalk.paragraphIds[2];
+  const talkSlug = hashTalk.url.split("/").pop().split("?")[0];
+  const hashCsv = [
+    "type,title,note text,source location,tags,notebooks,study set,last updated,created",
+    `highlight,Pinned by hash,"A paragraph named by its hash",https://www.churchofjesuschrist.org/study/general-conference/2024/10/${talkSlug}?lang=eng&id=${anchor},,,Default Set,2026-11-01T16:31:20.143Z,2026-11-01T16:22:27.096Z`,
+  ].join("\n");
+  await importFile(page, write("NotesDownload.csv", hashCsv));
+  const hashSummary = await page.evaluate(`(() => {
+    const line = [...document.querySelectorAll("p")].find((p) => p.textContent.startsWith("Imported"));
+    return line ? line.textContent : "none";
+  })()`);
+  check("a talk paragraph named by hash imports", /Imported 1\b/.test(hashSummary), hashSummary);
+
+  const placed = await page.evaluate(`(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("gospel-focus");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const all = await new Promise((resolve) => {
+      const request = db.transaction("annotations").objectStore("annotations").getAll();
+      request.onsuccess = () => resolve(request.result);
+    });
+    db.close();
+    return all
+      .filter((mark) => mark.doc === "c/2024-10/${talkIndex}")
+      .map((mark) => ({ verse: mark.verse, note: mark.note }));
+  })()`);
+  check(
+    "the mark lands on the paragraph the hash names",
+    placed?.length === 1 && placed[0].verse === 3 && (placed[0].note ?? "").includes("named by its hash"),
+    JSON.stringify(placed)
+  );
+
+  await page.goto(`${base}/settings/`, 2400);
+  await captureExport(page);
+  const hashText = await pressExport(page);
+  const hashRecord = (hashText ? JSON.parse(hashText) : { annotations: [] }).annotations.find(
+    (entry) => entry.docId === `c/2024-10/${talkIndex}`
+  );
+  check(
+    "the export writes that same anchor back, on the talk's own page",
+    (hashRecord?.uri ?? "").includes(`id=${anchor}`) && /\/study\/general-conference\/2024\/10\//.test(hashRecord?.uri ?? ""),
+    hashRecord?.uri
+  );
 }

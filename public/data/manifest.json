@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-10T20:34:51.101Z",
+  "generatedAt": "2026-11-17T00:00:26.544Z",
   "sources": {
     "scriptures": {
       "name": "bcbooks/scriptures-json",
@@ -7,9 +7,9 @@
       "license": "Public domain (2013 edition)"
     },
     "conference": {
-      "name": "johnmwood/LDS-Conference-Scraper",
+      "name": "johnmwood/LDS-Conference-Scraper (1971-2018); churchofjesuschrist.org content API (2019 on)",
       "url": "https://github.com/johnmwood/LDS-Conference-Scraper",
-      "note": "Scraped; verify redistribution rights before publishing."
+      "note": "Scraped dataset for 1971-2018; newer sessions read from the Church's own content API. Verify redistribution rights before publishing."
     }
   },
   "volumes": [
@@ -588,6 +588,780 @@
   ],
   "conferences": [
     {
+      "id": "1971-04",
+      "label": "April 1971",
+      "year": 1971,
+      "month": 4,
+      "url": "data/conference/1971-04.json",
+      "talks": 42,
+      "paragraphs": 1095
+    },
+    {
+      "id": "1971-10",
+      "label": "October 1971",
+      "year": 1971,
+      "month": 10,
+      "url": "data/conference/1971-10.json",
+      "talks": 43,
+      "paragraphs": 1125
+    },
+    {
+      "id": "1972-04",
+      "label": "April 1972",
+      "year": 1972,
+      "month": 4,
+      "url": "data/conference/1972-04.json",
+      "talks": 44,
+      "paragraphs": 1144
+    },
+    {
+      "id": "1972-10",
+      "label": "October 1972",
+      "year": 1972,
+      "month": 10,
+      "url": "data/conference/1972-10.json",
+      "talks": 42,
+      "paragraphs": 1177
+    },
+    {
+      "id": "1973-04",
+      "label": "April 1973",
+      "year": 1973,
+      "month": 4,
+      "url": "data/conference/1973-04.json",
+      "talks": 38,
+      "paragraphs": 1180
+    },
+    {
+      "id": "1973-10",
+      "label": "October 1973",
+      "year": 1973,
+      "month": 10,
+      "url": "data/conference/1973-10.json",
+      "talks": 39,
+      "paragraphs": 1241
+    },
+    {
+      "id": "1974-04",
+      "label": "April 1974",
+      "year": 1974,
+      "month": 4,
+      "url": "data/conference/1974-04.json",
+      "talks": 41,
+      "paragraphs": 1258
+    },
+    {
+      "id": "1974-10",
+      "label": "October 1974",
+      "year": 1974,
+      "month": 10,
+      "url": "data/conference/1974-10.json",
+      "talks": 40,
+      "paragraphs": 1209
+    },
+    {
+      "id": "1975-04",
+      "label": "April 1975",
+      "year": 1975,
+      "month": 4,
+      "url": "data/conference/1975-04.json",
+      "talks": 43,
+      "paragraphs": 1195
+    },
+    {
+      "id": "1975-10",
+      "label": "October 1975",
+      "year": 1975,
+      "month": 10,
+      "url": "data/conference/1975-10.json",
+      "talks": 51,
+      "paragraphs": 1440
+    },
+    {
+      "id": "1976-04",
+      "label": "April 1976",
+      "year": 1976,
+      "month": 4,
+      "url": "data/conference/1976-04.json",
+      "talks": 50,
+      "paragraphs": 1353
+    },
+    {
+      "id": "1976-10",
+      "label": "October 1976",
+      "year": 1976,
+      "month": 10,
+      "url": "data/conference/1976-10.json",
+      "talks": 51,
+      "paragraphs": 1338
+    },
+    {
+      "id": "1977-04",
+      "label": "April 1977",
+      "year": 1977,
+      "month": 4,
+      "url": "data/conference/1977-04.json",
+      "talks": 41,
+      "paragraphs": 1069
+    },
+    {
+      "id": "1977-10",
+      "label": "October 1977",
+      "year": 1977,
+      "month": 10,
+      "url": "data/conference/1977-10.json",
+      "talks": 37,
+      "paragraphs": 1029
+    },
+    {
+      "id": "1978-04",
+      "label": "April 1978",
+      "year": 1978,
+      "month": 4,
+      "url": "data/conference/1978-04.json",
+      "talks": 43,
+      "paragraphs": 1080
+    },
+    {
+      "id": "1978-10",
+      "label": "October 1978",
+      "year": 1978,
+      "month": 10,
+      "url": "data/conference/1978-10.json",
+      "talks": 44,
+      "paragraphs": 1131
+    },
+    {
+      "id": "1979-04",
+      "label": "April 1979",
+      "year": 1979,
+      "month": 4,
+      "url": "data/conference/1979-04.json",
+      "talks": 36,
+      "paragraphs": 1047
+    },
+    {
+      "id": "1979-10",
+      "label": "October 1979",
+      "year": 1979,
+      "month": 10,
+      "url": "data/conference/1979-10.json",
+      "talks": 39,
+      "paragraphs": 1095
+    },
+    {
+      "id": "1980-04",
+      "label": "April 1980",
+      "year": 1980,
+      "month": 4,
+      "url": "data/conference/1980-04.json",
+      "talks": 38,
+      "paragraphs": 875
+    },
+    {
+      "id": "1980-10",
+      "label": "October 1980",
+      "year": 1980,
+      "month": 10,
+      "url": "data/conference/1980-10.json",
+      "talks": 45,
+      "paragraphs": 1142
+    },
+    {
+      "id": "1981-04",
+      "label": "April 1981",
+      "year": 1981,
+      "month": 4,
+      "url": "data/conference/1981-04.json",
+      "talks": 38,
+      "paragraphs": 926
+    },
+    {
+      "id": "1981-10",
+      "label": "October 1981",
+      "year": 1981,
+      "month": 10,
+      "url": "data/conference/1981-10.json",
+      "talks": 40,
+      "paragraphs": 1182
+    },
+    {
+      "id": "1982-04",
+      "label": "April 1982",
+      "year": 1982,
+      "month": 4,
+      "url": "data/conference/1982-04.json",
+      "talks": 41,
+      "paragraphs": 1077
+    },
+    {
+      "id": "1982-10",
+      "label": "October 1982",
+      "year": 1982,
+      "month": 10,
+      "url": "data/conference/1982-10.json",
+      "talks": 36,
+      "paragraphs": 1022
+    },
+    {
+      "id": "1983-04",
+      "label": "April 1983",
+      "year": 1983,
+      "month": 4,
+      "url": "data/conference/1983-04.json",
+      "talks": 32,
+      "paragraphs": 855
+    },
+    {
+      "id": "1983-10",
+      "label": "October 1983",
+      "year": 1983,
+      "month": 10,
+      "url": "data/conference/1983-10.json",
+      "talks": 34,
+      "paragraphs": 934
+    },
+    {
+      "id": "1984-04",
+      "label": "April 1984",
+      "year": 1984,
+      "month": 4,
+      "url": "data/conference/1984-04.json",
+      "talks": 34,
+      "paragraphs": 841
+    },
+    {
+      "id": "1984-10",
+      "label": "October 1984",
+      "year": 1984,
+      "month": 10,
+      "url": "data/conference/1984-10.json",
+      "talks": 36,
+      "paragraphs": 954
+    },
+    {
+      "id": "1985-04",
+      "label": "April 1985",
+      "year": 1985,
+      "month": 4,
+      "url": "data/conference/1985-04.json",
+      "talks": 35,
+      "paragraphs": 834
+    },
+    {
+      "id": "1985-10",
+      "label": "October 1985",
+      "year": 1985,
+      "month": 10,
+      "url": "data/conference/1985-10.json",
+      "talks": 35,
+      "paragraphs": 1013
+    },
+    {
+      "id": "1986-04",
+      "label": "April 1986",
+      "year": 1986,
+      "month": 4,
+      "url": "data/conference/1986-04.json",
+      "talks": 27,
+      "paragraphs": 771
+    },
+    {
+      "id": "1986-10",
+      "label": "October 1986",
+      "year": 1986,
+      "month": 10,
+      "url": "data/conference/1986-10.json",
+      "talks": 33,
+      "paragraphs": 938
+    },
+    {
+      "id": "1987-04",
+      "label": "April 1987",
+      "year": 1987,
+      "month": 4,
+      "url": "data/conference/1987-04.json",
+      "talks": 29,
+      "paragraphs": 836
+    },
+    {
+      "id": "1987-10",
+      "label": "October 1987",
+      "year": 1987,
+      "month": 10,
+      "url": "data/conference/1987-10.json",
+      "talks": 33,
+      "paragraphs": 965
+    },
+    {
+      "id": "1988-04",
+      "label": "April 1988",
+      "year": 1988,
+      "month": 4,
+      "url": "data/conference/1988-04.json",
+      "talks": 32,
+      "paragraphs": 813
+    },
+    {
+      "id": "1988-10",
+      "label": "October 1988",
+      "year": 1988,
+      "month": 10,
+      "url": "data/conference/1988-10.json",
+      "talks": 35,
+      "paragraphs": 993
+    },
+    {
+      "id": "1989-04",
+      "label": "April 1989",
+      "year": 1989,
+      "month": 4,
+      "url": "data/conference/1989-04.json",
+      "talks": 29,
+      "paragraphs": 889
+    },
+    {
+      "id": "1989-10",
+      "label": "October 1989",
+      "year": 1989,
+      "month": 10,
+      "url": "data/conference/1989-10.json",
+      "talks": 36,
+      "paragraphs": 1065
+    },
+    {
+      "id": "1990-04",
+      "label": "April 1990",
+      "year": 1990,
+      "month": 4,
+      "url": "data/conference/1990-04.json",
+      "talks": 40,
+      "paragraphs": 1034
+    },
+    {
+      "id": "1990-10",
+      "label": "October 1990",
+      "year": 1990,
+      "month": 10,
+      "url": "data/conference/1990-10.json",
+      "talks": 38,
+      "paragraphs": 1074
+    },
+    {
+      "id": "1991-04",
+      "label": "April 1991",
+      "year": 1991,
+      "month": 4,
+      "url": "data/conference/1991-04.json",
+      "talks": 33,
+      "paragraphs": 901
+    },
+    {
+      "id": "1991-10",
+      "label": "October 1991",
+      "year": 1991,
+      "month": 10,
+      "url": "data/conference/1991-10.json",
+      "talks": 39,
+      "paragraphs": 1090
+    },
+    {
+      "id": "1992-04",
+      "label": "April 1992",
+      "year": 1992,
+      "month": 4,
+      "url": "data/conference/1992-04.json",
+      "talks": 41,
+      "paragraphs": 1027
+    },
+    {
+      "id": "1992-10",
+      "label": "October 1992",
+      "year": 1992,
+      "month": 10,
+      "url": "data/conference/1992-10.json",
+      "talks": 39,
+      "paragraphs": 1064
+    },
+    {
+      "id": "1993-04",
+      "label": "April 1993",
+      "year": 1993,
+      "month": 4,
+      "url": "data/conference/1993-04.json",
+      "talks": 36,
+      "paragraphs": 924
+    },
+    {
+      "id": "1993-10",
+      "label": "October 1993",
+      "year": 1993,
+      "month": 10,
+      "url": "data/conference/1993-10.json",
+      "talks": 36,
+      "paragraphs": 1057
+    },
+    {
+      "id": "1994-04",
+      "label": "April 1994",
+      "year": 1994,
+      "month": 4,
+      "url": "data/conference/1994-04.json",
+      "talks": 40,
+      "paragraphs": 1049
+    },
+    {
+      "id": "1994-10",
+      "label": "October 1994",
+      "year": 1994,
+      "month": 10,
+      "url": "data/conference/1994-10.json",
+      "talks": 36,
+      "paragraphs": 1002
+    },
+    {
+      "id": "1995-04",
+      "label": "April 1995",
+      "year": 1995,
+      "month": 4,
+      "url": "data/conference/1995-04.json",
+      "talks": 43,
+      "paragraphs": 983
+    },
+    {
+      "id": "1995-10",
+      "label": "October 1995",
+      "year": 1995,
+      "month": 10,
+      "url": "data/conference/1995-10.json",
+      "talks": 39,
+      "paragraphs": 1096
+    },
+    {
+      "id": "1996-04",
+      "label": "April 1996",
+      "year": 1996,
+      "month": 4,
+      "url": "data/conference/1996-04.json",
+      "talks": 38,
+      "paragraphs": 993
+    },
+    {
+      "id": "1996-10",
+      "label": "October 1996",
+      "year": 1996,
+      "month": 10,
+      "url": "data/conference/1996-10.json",
+      "talks": 34,
+      "paragraphs": 1009
+    },
+    {
+      "id": "1997-04",
+      "label": "April 1997",
+      "year": 1997,
+      "month": 4,
+      "url": "data/conference/1997-04.json",
+      "talks": 39,
+      "paragraphs": 968
+    },
+    {
+      "id": "1997-10",
+      "label": "October 1997",
+      "year": 1997,
+      "month": 10,
+      "url": "data/conference/1997-10.json",
+      "talks": 37,
+      "paragraphs": 1036
+    },
+    {
+      "id": "1998-04",
+      "label": "April 1998",
+      "year": 1998,
+      "month": 4,
+      "url": "data/conference/1998-04.json",
+      "talks": 39,
+      "paragraphs": 986
+    },
+    {
+      "id": "1998-10",
+      "label": "October 1998",
+      "year": 1998,
+      "month": 10,
+      "url": "data/conference/1998-10.json",
+      "talks": 38,
+      "paragraphs": 1022
+    },
+    {
+      "id": "1999-04",
+      "label": "April 1999",
+      "year": 1999,
+      "month": 4,
+      "url": "data/conference/1999-04.json",
+      "talks": 40,
+      "paragraphs": 1084
+    },
+    {
+      "id": "1999-10",
+      "label": "October 1999",
+      "year": 1999,
+      "month": 10,
+      "url": "data/conference/1999-10.json",
+      "talks": 38,
+      "paragraphs": 1013
+    },
+    {
+      "id": "2000-04",
+      "label": "April 2000",
+      "year": 2000,
+      "month": 4,
+      "url": "data/conference/2000-04.json",
+      "talks": 38,
+      "paragraphs": 950
+    },
+    {
+      "id": "2000-10",
+      "label": "October 2000",
+      "year": 2000,
+      "month": 10,
+      "url": "data/conference/2000-10.json",
+      "talks": 39,
+      "paragraphs": 1000
+    },
+    {
+      "id": "2001-04",
+      "label": "April 2001",
+      "year": 2001,
+      "month": 4,
+      "url": "data/conference/2001-04.json",
+      "talks": 38,
+      "paragraphs": 984
+    },
+    {
+      "id": "2001-10",
+      "label": "October 2001",
+      "year": 2001,
+      "month": 10,
+      "url": "data/conference/2001-10.json",
+      "talks": 37,
+      "paragraphs": 969
+    },
+    {
+      "id": "2002-04",
+      "label": "April 2002",
+      "year": 2002,
+      "month": 4,
+      "url": "data/conference/2002-04.json",
+      "talks": 40,
+      "paragraphs": 950
+    },
+    {
+      "id": "2002-10",
+      "label": "October 2002",
+      "year": 2002,
+      "month": 10,
+      "url": "data/conference/2002-10.json",
+      "talks": 35,
+      "paragraphs": 958
+    },
+    {
+      "id": "2003-04",
+      "label": "April 2003",
+      "year": 2003,
+      "month": 4,
+      "url": "data/conference/2003-04.json",
+      "talks": 42,
+      "paragraphs": 1001
+    },
+    {
+      "id": "2003-10",
+      "label": "October 2003",
+      "year": 2003,
+      "month": 10,
+      "url": "data/conference/2003-10.json",
+      "talks": 36,
+      "paragraphs": 938
+    },
+    {
+      "id": "2004-04",
+      "label": "April 2004",
+      "year": 2004,
+      "month": 4,
+      "url": "data/conference/2004-04.json",
+      "talks": 39,
+      "paragraphs": 952
+    },
+    {
+      "id": "2004-10",
+      "label": "October 2004",
+      "year": 2004,
+      "month": 10,
+      "url": "data/conference/2004-10.json",
+      "talks": 37,
+      "paragraphs": 967
+    },
+    {
+      "id": "2005-04",
+      "label": "April 2005",
+      "year": 2005,
+      "month": 4,
+      "url": "data/conference/2005-04.json",
+      "talks": 38,
+      "paragraphs": 954
+    },
+    {
+      "id": "2005-10",
+      "label": "October 2005",
+      "year": 2005,
+      "month": 10,
+      "url": "data/conference/2005-10.json",
+      "talks": 38,
+      "paragraphs": 962
+    },
+    {
+      "id": "2006-04",
+      "label": "April 2006",
+      "year": 2006,
+      "month": 4,
+      "url": "data/conference/2006-04.json",
+      "talks": 37,
+      "paragraphs": 936
+    },
+    {
+      "id": "2006-10",
+      "label": "October 2006",
+      "year": 2006,
+      "month": 10,
+      "url": "data/conference/2006-10.json",
+      "talks": 43,
+      "paragraphs": 985
+    },
+    {
+      "id": "2007-04",
+      "label": "April 2007",
+      "year": 2007,
+      "month": 4,
+      "url": "data/conference/2007-04.json",
+      "talks": 42,
+      "paragraphs": 937
+    },
+    {
+      "id": "2007-10",
+      "label": "October 2007",
+      "year": 2007,
+      "month": 10,
+      "url": "data/conference/2007-10.json",
+      "talks": 43,
+      "paragraphs": 1000
+    },
+    {
+      "id": "2008-04",
+      "label": "April 2008",
+      "year": 2008,
+      "month": 4,
+      "url": "data/conference/2008-04.json",
+      "talks": 42,
+      "paragraphs": 1004
+    },
+    {
+      "id": "2008-10",
+      "label": "October 2008",
+      "year": 2008,
+      "month": 10,
+      "url": "data/conference/2008-10.json",
+      "talks": 37,
+      "paragraphs": 972
+    },
+    {
+      "id": "2009-04",
+      "label": "April 2009",
+      "year": 2009,
+      "month": 4,
+      "url": "data/conference/2009-04.json",
+      "talks": 39,
+      "paragraphs": 1004
+    },
+    {
+      "id": "2009-10",
+      "label": "October 2009",
+      "year": 2009,
+      "month": 10,
+      "url": "data/conference/2009-10.json",
+      "talks": 39,
+      "paragraphs": 1008
+    },
+    {
+      "id": "2010-04",
+      "label": "April 2010",
+      "year": 2010,
+      "month": 4,
+      "url": "data/conference/2010-04.json",
+      "talks": 40,
+      "paragraphs": 1000
+    },
+    {
+      "id": "2010-10",
+      "label": "October 2010",
+      "year": 2010,
+      "month": 10,
+      "url": "data/conference/2010-10.json",
+      "talks": 39,
+      "paragraphs": 1007
+    },
+    {
+      "id": "2011-04",
+      "label": "April 2011",
+      "year": 2011,
+      "month": 4,
+      "url": "data/conference/2011-04.json",
+      "talks": 40,
+      "paragraphs": 1018
+    },
+    {
+      "id": "2011-10",
+      "label": "October 2011",
+      "year": 2011,
+      "month": 10,
+      "url": "data/conference/2011-10.json",
+      "talks": 39,
+      "paragraphs": 1022
+    },
+    {
+      "id": "2012-04",
+      "label": "April 2012",
+      "year": 2012,
+      "month": 4,
+      "url": "data/conference/2012-04.json",
+      "talks": 40,
+      "paragraphs": 975
+    },
+    {
+      "id": "2012-10",
+      "label": "October 2012",
+      "year": 2012,
+      "month": 10,
+      "url": "data/conference/2012-10.json",
+      "talks": 39,
+      "paragraphs": 1027
+    },
+    {
+      "id": "2013-04",
+      "label": "April 2013",
+      "year": 2013,
+      "month": 4,
+      "url": "data/conference/2013-04.json",
+      "talks": 40,
+      "paragraphs": 965
+    },
+    {
+      "id": "2013-10",
+      "label": "October 2013",
+      "year": 2013,
+      "month": 10,
+      "url": "data/conference/2013-10.json",
+      "talks": 39,
+      "paragraphs": 959
+    },
+    {
       "id": "2014-04",
       "label": "April 2014",
       "year": 2014,
@@ -676,6 +1450,150 @@
       "url": "data/conference/2018-10.json",
       "talks": 34,
       "paragraphs": 834
+    },
+    {
+      "id": "2019-04",
+      "label": "April 2019",
+      "year": 2019,
+      "month": 4,
+      "url": "data/conference/2019-04.json",
+      "talks": 33,
+      "paragraphs": 985
+    },
+    {
+      "id": "2019-10",
+      "label": "October 2019",
+      "year": 2019,
+      "month": 10,
+      "url": "data/conference/2019-10.json",
+      "talks": 35,
+      "paragraphs": 1132
+    },
+    {
+      "id": "2020-04",
+      "label": "April 2020",
+      "year": 2020,
+      "month": 4,
+      "url": "data/conference/2020-04.json",
+      "talks": 35,
+      "paragraphs": 995
+    },
+    {
+      "id": "2020-10",
+      "label": "October 2020",
+      "year": 2020,
+      "month": 10,
+      "url": "data/conference/2020-10.json",
+      "talks": 35,
+      "paragraphs": 1062
+    },
+    {
+      "id": "2021-04",
+      "label": "April 2021",
+      "year": 2021,
+      "month": 4,
+      "url": "data/conference/2021-04.json",
+      "talks": 37,
+      "paragraphs": 1077
+    },
+    {
+      "id": "2021-10",
+      "label": "October 2021",
+      "year": 2021,
+      "month": 10,
+      "url": "data/conference/2021-10.json",
+      "talks": 40,
+      "paragraphs": 1070
+    },
+    {
+      "id": "2022-04",
+      "label": "April 2022",
+      "year": 2022,
+      "month": 4,
+      "url": "data/conference/2022-04.json",
+      "talks": 38,
+      "paragraphs": 1143
+    },
+    {
+      "id": "2022-10",
+      "label": "October 2022",
+      "year": 2022,
+      "month": 10,
+      "url": "data/conference/2022-10.json",
+      "talks": 36,
+      "paragraphs": 1012
+    },
+    {
+      "id": "2023-04",
+      "label": "April 2023",
+      "year": 2023,
+      "month": 4,
+      "url": "data/conference/2023-04.json",
+      "talks": 35,
+      "paragraphs": 1078
+    },
+    {
+      "id": "2023-10",
+      "label": "October 2023",
+      "year": 2023,
+      "month": 10,
+      "url": "data/conference/2023-10.json",
+      "talks": 33,
+      "paragraphs": 1079
+    },
+    {
+      "id": "2024-04",
+      "label": "April 2024",
+      "year": 2024,
+      "month": 4,
+      "url": "data/conference/2024-04.json",
+      "talks": 34,
+      "paragraphs": 1054
+    },
+    {
+      "id": "2024-10",
+      "label": "October 2024",
+      "year": 2024,
+      "month": 10,
+      "url": "data/conference/2024-10.json",
+      "talks": 35,
+      "paragraphs": 1842
+    },
+    {
+      "id": "2025-04",
+      "label": "April 2025",
+      "year": 2025,
+      "month": 4,
+      "url": "data/conference/2025-04.json",
+      "talks": 34,
+      "paragraphs": 1860
+    },
+    {
+      "id": "2025-10",
+      "label": "October 2025",
+      "year": 2025,
+      "month": 10,
+      "url": "data/conference/2025-10.json",
+      "talks": 35,
+      "paragraphs": 1823
+    },
+    {
+      "id": "2026-04",
+      "label": "April 2026",
+      "year": 2026,
+      "month": 4,
+      "url": "data/conference/2026-04.json",
+      "talks": 37,
+      "paragraphs": 1698
+    },
+    {
+      "id": "2026-10",
+      "label": "October 2026",
+      "year": 2026,
+      "month": 10,
+      "url": "data/conference/2026-10.json",
+      "talks": 38,
+      "paragraphs": 1559
     }
   ],
   "cfm": {

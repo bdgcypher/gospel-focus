@@ -41,6 +41,12 @@ export interface ConferenceData {
     calling: string;
     url: string;
     paragraphs: string[];
+    /**
+     * The Church's own anchor for each paragraph, in order — `p7` on older
+     * pages, `p_yiJBUv` since October 2024. Absent in the scraper's sessions,
+     * which split a talk into paragraphs of their own.
+     */
+    paragraphIds?: string[];
   }[];
 }
 
@@ -83,7 +89,13 @@ function loadVolume(id: string): Promise<VolumeData> {
 function loadConference(id: string): Promise<ConferenceData> {
   let p = conferenceCache.get(id);
   if (!p) {
-    p = fetchJSON<ConferenceData>(dataUrl(`data/conference/${id}.json`));
+    p = fetchJSON<ConferenceData>(dataUrl(`data/conference/${id}.json`)).catch((error: unknown) => {
+      // A session that isn't in this build leaves a rejection in the cache, so
+      // every later reader would fail on a file that was never going to be
+      // there. Drop it and let the caller decide what to do without the talk.
+      conferenceCache.delete(id);
+      throw error;
+    });
     conferenceCache.set(id, p);
   }
   return p;
@@ -142,6 +154,37 @@ export function summarize(manifest: Manifest, filters: Filters): EligibleSummary
  */
 const unseeded: Random = Math.random;
 
+/**
+ * General conference's share of a draw, held where it stood before the
+ * pre-2014 sessions were bundled: 29,557 paragraphs against 41,995 verses.
+ * Weighting by the whole corpus now would send three draws in four to a talk.
+ */
+const CONFERENCE_PER_VERSE = 29557 / 41995;
+
+/**
+ * The weight each source brings to a draw.
+ *
+ * Verses and paragraphs are counted as they are, except conference, which is
+ * capped at its old share of the library rather than at its own size. The cap
+ * follows the reader's filters — halve the verses and the talks halve with
+ * them — so the mix holds whatever is switched off.
+ */
+export function sourceWeights(
+  manifest: Manifest,
+  filters: Filters
+): { scriptureWeight: number; conferenceWeight: number } {
+  const scriptureWeight = manifest.volumes.reduce(
+    (a, v) => a + eligibleVolumeVerseCount(v, filters),
+    0
+  );
+  const paragraphs = eligibleConferences(manifest, filters).reduce((a, c) => a + c.paragraphs, 0);
+  return {
+    scriptureWeight,
+    conferenceWeight:
+      scriptureWeight > 0 ? Math.min(paragraphs, scriptureWeight * CONFERENCE_PER_VERSE) : paragraphs,
+  };
+}
+
 function weightedPick<T>(items: T[], weight: (t: T) => number, random: Random): T | null {
   const total = items.reduce((a, i) => a + weight(i), 0);
   if (total <= 0) return null;
@@ -168,8 +211,7 @@ export async function pickPassage(
   const volumes = manifest.volumes.filter((v) => eligibleVolumeVerseCount(v, filters) > 0);
   const conferences = eligibleConferences(manifest, filters).filter((c) => c.paragraphs > 0);
 
-  const scriptureWeight = volumes.reduce((a, v) => a + eligibleVolumeVerseCount(v, filters), 0);
-  const conferenceWeight = conferences.reduce((a, c) => a + c.paragraphs, 0);
+  const { scriptureWeight, conferenceWeight } = sourceWeights(manifest, filters);
 
   if (scriptureWeight <= 0 && conferenceWeight <= 0) throw new NoSourcesError();
 

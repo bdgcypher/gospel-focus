@@ -38,6 +38,7 @@ npm run lint         # eslint
 npm test             # unit tests (Vitest + jsdom)
 npm run test:browser # the reader, marking and the annotations file, in Chromium
 npm run build:data   # re-download + rebuild public/data from the sources
+npm run build:conference # rebuild every conference session, from the scraper CSV and the Church's API
 npm run build:search # rebuild just the search index from public/data on disk
 npm run build:words  # rebuild just the daily puzzle's word list from public/data
 npm run cap:sync     # build, then copy the web app into both native projects
@@ -89,7 +90,8 @@ components/               UI — hub, reader and its marking toolbar, picker and
 lib/picker.ts             manifest + weighted draws, citation lookups
 lib/reader.ts             a chapter as a document: verses, neighbours, links
 lib/annotations.ts        per-word marks and notes, in IndexedDB
-lib/annotations-io.ts     Gospel Library's annotations.json, read and written
+lib/annotations-io.ts     Gospel Library's annotations.json, read and written; its notes CSV, read
+lib/notes-csv.ts          rows of the Church's notes CSV, before the library places them
 lib/search.ts             the search index: load, inflate, query, rank
 lib/daily.ts              the local day shared by streak, goal, verse, reminder
 lib/features.ts           the catalog every page, card, and nav is built from
@@ -113,6 +115,7 @@ scripts/toolchain.mjs     find JAVA_HOME / ANDROID_HOME, or the .toolchain copy
 scripts/gradle.mjs        cross-platform gradlew runner
 scripts/ios-build.mjs     unsigned simulator build via xcodebuild (macOS only)
 scripts/build-data.mjs    the dataset generator (and the search index with it)
+scripts/build-conference.mjs  the conference sessions after the scraper dataset
 scripts/build-cfm.mjs     the Come, Follow Me weekly schedule
 scripts/search-index.mjs  the MiniSearch index, stopwords, and its self-check
 scripts/build-search.mjs  rebuild just the index
@@ -330,17 +333,18 @@ works offline:
 | Source | Content | Provenance |
 | --- | --- | --- |
 | [`bcbooks/scriptures-json`](https://github.com/bcbooks/scriptures-json) | Book of Mormon, Doctrine & Covenants, Pearl of Great Price, Old & New Testament (verse-level) | Public domain, 2013 edition |
-| [`johnmwood/LDS-Conference-Scraper`](https://github.com/johnmwood/LDS-Conference-Scraper) | General conference talks (split into paragraphs) | Scraped project with no declared license — **verify redistribution rights before publishing** |
+| [`johnmwood/LDS-Conference-Scraper`](https://github.com/johnmwood/LDS-Conference-Scraper) | General conference talks, 1971–2018 (split into paragraphs) | Scraped project with no declared license — **verify redistribution rights before publishing** |
+| [General conference](https://www.churchofjesuschrist.org/study/general-conference) | Talks from April 2019 on, in their own paragraphs, from the Church's public content API | No declared license — **verify redistribution rights before publishing** |
 | [Come, Follow Me](https://www.churchofjesuschrist.org/study/manual) | Each week's dates and chapter ranges, from the Church's public content API | Only dates and references are stored; no lesson text is reproduced |
 
-**51,083 passages**: 41,995 scripture verses (Old Testament 23,145; New
+**159,499 passages**: 41,995 scripture verses (Old Testament 23,145; New
 Testament 7,957; Book of Mormon 6,604; Doctrine & Covenants 3,654; Pearl of Great
-Price 635) and 9,088 conference paragraphs from ten conferences (2014–2018).
-About **10 MB**, most of it fetched lazily.
+Price 635) and 117,504 conference paragraphs from 4,271 talks in the 112
+conferences of 1971–2026. About **62 MB**, most of it fetched lazily.
 
-`scripts/build-data.mjs` downloads and normalizes both into:
+`scripts/build-data.mjs` downloads and normalizes the sources into:
 
-- `public/data/manifest.json` — lightweight index (~14 KB) for filtering and draws
+- `public/data/manifest.json` — lightweight index (~35 KB) for filtering and draws
 - `public/data/scriptures/<volume>.json` — verse text, lazily loaded
 - `public/data/conference/<year>-<month>.json` — talk paragraphs, lazily loaded
 - `public/data/search.snapshot` — the MiniSearch index `/search` queries (gzipped;
@@ -358,11 +362,11 @@ the weekly Come, Follow Me schedule, the reminder, and search all work offline.
 
 ### The search index
 
-One document per verse or conference paragraph (51,083), with its citation for an
+One document per verse or conference paragraph (159,499), with its citation for an
 id, its text searchable, and almost nothing stored. Common function words are
 kept out of the index — indexing them measured 19.09 MB JSON / 4.84 MB gzipped
 against 11.89 / 2.86 — and are added back at query time from the passage text.
-The result is **11.9 MB of JSON, 2.86 MB gzipped**, fetched and inflated once per
+The result is **60.5 MB of JSON, 13.45 MB gzipped**, fetched and inflated once per
 session, about 1.4 s to the first result on a desktop browser and ~0.1 s after.
 
 The index carries no passage text. A result's line, and the ranking's reading of
@@ -374,6 +378,6 @@ The build reads its own file back and searches it before finishing
 
 ```bash
 npm run build:search
-# 51,083 documents, 11.89 MB → 2.86 MB gzipped, ~13 s
-# ok "nephi" → 2723 hits / ok "1 nephi 3" → 126 hits / ok common words → 0 hits
+# 159,499 documents, 60.46 MB → 13.45 MB gzipped, ~67 s
+# ok "nephi" → 4544 hits / ok "1 nephi 3" → 265 hits / ok common words → 0 hits
 ```

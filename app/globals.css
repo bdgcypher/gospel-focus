@@ -509,45 +509,53 @@ html[data-nav-swipe="on"] {
 
 /* The reader's chrome.
 
-   The reader and the scroll are read, not navigated. For the whole visit the app
-   bar — the mark, the section links and the status lights — puts itself away:
-   both pages carry their own bar (the chapter's name, its bookmark, its search)
-   and their own way back, and the words are what the screen is for. The route
-   marks the document (see components/app-header.tsx) and the stylesheet hides
-   the bar, and the measured header height falls to zero with it, so the
-   chapter's rail and the scroll's own height follow without a second number to
-   keep in step.
+   The reader and the scroll are read, not navigated. On a phone or a tablet the
+   app bar — the mark, the section links and the status lights — puts itself away
+   for the whole visit: both pages carry their own bar (the chapter's name, its
+   bookmark, its search) and their own way back, and the words are what the
+   screen is for. The route marks the document (see components/app-header.tsx)
+   and the stylesheet hides the bar, and the measured header height falls to zero
+   with it, so the chapter's rail and the scroll's own height follow without a
+   second number to keep in step.
+
+   A wide screen is the other way round, and the reason is where the navigation
+   is: the sections stand in the app bar there and the bottom bar is away, so
+   hiding it would take every section link out of the reader. The bar stays, and
+   the chapter's own bar parks under it — which the measured header height
+   already does, so nothing below needs a rule of its own.
 
    The reader's two sticky things move up to the top of the screen with it. The
    bar the reader wants while deep in a passage — the chapter's name, its
    bookmark and its search — is the one that stays. */
-html[data-bare="true"] .app-header {
-  display: none;
-}
+@media (max-width: 767.98px), (max-width: 1023.98px) and (orientation: portrait) {
+  html[data-bare="true"] .app-header {
+    display: none;
+  }
 
-html[data-bare="true"] {
-  --reader-bar-top: 0px;
-  --reader-rail-top: 0.9rem;
-}
+  html[data-bare="true"] {
+    --reader-bar-top: 0px;
+    --reader-rail-top: 0.9rem;
+  }
 
-/* The chapter's bar is the top of the screen now, so the page's own top
-   padding — the air it kept under the app bar — goes with the bar. */
-html[data-bare="true"] [data-reader-page] {
-  padding-top: 0;
-}
+  /* The chapter's bar is the top of the screen now, so the page's own top
+     padding — the air it kept under the app bar — goes with the bar. */
+  html[data-bare="true"] [data-reader-page] {
+    padding-top: 0;
+  }
 
-/* On the Android shell the app bar is what absorbs the status bar's inset. With
-   it gone, the chapter bar is the top of the screen and has to take that room
-   itself — its own paper runs up under the clock, as the app bar's does — and
-   the rail parks below the inset rather than under it. The scroll's own bar takes
-   the same room at the top of the scroll. */
-html[data-bare="true"][data-capacitor="android"] {
-  --reader-rail-top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
-}
+  /* On the Android shell the app bar is what absorbs the status bar's inset.
+     With it gone, the chapter bar is the top of the screen and has to take that
+     room itself — its own paper runs up under the clock, as the app bar's does —
+     and the rail parks below the inset rather than under it. The scroll's own
+     bar takes the same room at the top of the scroll. */
+  html[data-bare="true"][data-capacitor="android"] {
+    --reader-rail-top: calc(env(safe-area-inset-top, 0px) + 0.9rem);
+  }
 
-html[data-bare="true"][data-capacitor="android"] [data-reader-bar],
-html[data-bare="true"][data-capacitor="android"] [data-scroll] > div:first-child {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  html[data-bare="true"][data-capacitor="android"] [data-reader-bar],
+  html[data-bare="true"][data-capacitor="android"] [data-scroll] > div:first-child {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  }
 }
 
 /* The page's own light, named rather than written straight onto the body: the
@@ -1500,30 +1508,39 @@ html.playful[data-reduce-motion="true"] .streak-card[data-counted="true"] .strea
   border: 0;
 }
 
-/* The way home, and how much of the bar it takes. On a phone it is only as wide
-   as the mark: with no top nav to balance there is nothing for it to grow into,
-   and a grown link would stretch the target across empty bar and push the status
-   lights out of the corner they belong in. Where the top bar is on screen it
-   takes its half of the bar back, which is what centres the sections between
-   the two flanks. */
+/* The way home, and how much of the bar it takes. On a phone and a tablet there
+   is no room for it: the status lights are the whole of the bar, spread along
+   it, and a logo in the corner took the first of their places. It is hidden
+   rather than dropped — the link and the page's heading are still there to be
+   read out, and the bottom bar's Home tab is the visible way back. Where the top
+   bar is on screen it comes back and takes its half of the bar, which is what
+   centres the sections between the two flanks. */
 .app-home-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
   flex: 0 0 auto;
 }
 
-/* Even spacing across a phone's bar. There is nothing between the mark and the
-   status lights on a phone — no sections, no menu button — so the wrappers
-   around them are wrappers around nothing the row can space: they step out of
-   the way with `display: contents`, which puts the mark and each light into the
-   row itself, and the row spreads all of them with equal gaps. What is left is
-   one row of five marks that fills the bar, rather than a mark at one end and
-   four lights bunched at the other.
+/* Even spacing across a phone's bar. There is nothing between the lights on a
+   phone — no sections, no menu button, and no logo — so the wrappers around them
+   are wrappers around nothing the row can space: they step out of the way with
+   `display: contents`, which puts each light into the row itself, and the row
+   spreads all of them with equal gaps. What is left is one row of four marks
+   that fills the bar, rather than four lights bunched at one end.
 
    Where the top bar is on screen the wrappers come back (see the media query
    below): the sections sit between two flanks of equal width, and that is what
    holds them on the middle of the bar. */
 .app-header-row {
   justify-content: space-between;
-  /* Five marks share a narrow bar, so the gap they are spaced apart by is kept
+  /* Four marks share a narrow bar, so the gap they are spaced apart by is kept
      small: on a 320px phone it is the difference between the last light landing
      inside the page's padding and hanging off the end of the bar. */
   gap: 0.5rem;
@@ -1875,6 +1892,13 @@ html[data-reduce-motion="true"] .scroll-heart-burst {
   }
 
   .app-home-link {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
     flex: 1 1 0%;
   }
 

@@ -611,12 +611,49 @@ export async function run({ page, check, base }) {
   await openActions();
   const menuItems = await page.evaluate(`[...document.querySelectorAll('[role="menu"] button')].map((node) => node.querySelector(".truncate")?.textContent.trim() ?? node.textContent.trim())`);
   check(
-    "the kebab holds the note, the link, and Memorize",
-    menuItems.join(", ") === "Add a note, Link a passage, Memorize" && menuItems.length === 3,
+    "the kebab holds the note, the link, Memorize, and the Gospel Library",
+    menuItems.join(", ") === "Add a note, Link a passage, Memorize, Open in Gospel Library" &&
+      menuItems.length === 4,
     menuItems.join(", ")
   );
 
+  // --- the Gospel Library ---------------------------------------------------
+  // The verse under the eye leaves for the Church's own app, at the same
+  // address the reader's verse sheet opens: its chapter, with this verse
+  // marked in it. window.open is caught so the check reads the address rather
+  // than a tab, and put back afterwards.
+  const libraryPress = await page.evaluate(`(() => {
+    window.__opened = [];
+    window.open = (url) => {
+      window.__opened.push(String(url));
+      return null;
+    };
+    const verse = document.querySelector("[data-scroll-current]")?.dataset.scrollVerse ?? "";
+    const item = [...document.querySelectorAll('[role="menu"] button')]
+      .find((node) => node.querySelector(".truncate")?.textContent.trim() === "Open in Gospel Library");
+    if (!item) return { pressed: false, verse };
+    item.click();
+    return { pressed: true, verse };
+  })()`);
+  await page.sleep(400);
+  const outside = await page.evaluate(`(() => {
+    const opened = window.__opened ?? [];
+    delete window.open;
+    return { opened, menu: Boolean(document.querySelector('[role="menu"]')) };
+  })()`);
+  check(
+    "and the verse's own page in the Gospel Library",
+    libraryPress.pressed &&
+      outside.opened.length === 1 &&
+      outside.opened[0] ===
+        `https://www.churchofjesuschrist.org/study/scriptures/ot/gen/1?lang=eng&id=p${libraryPress.verse}#p${libraryPress.verse}`,
+    outside.opened.join(", ") || "nothing opened"
+  );
+  check("with the menu shut behind the press", libraryPress.pressed && !outside.menu);
+
   // --- memorize -------------------------------------------------------------
+  // The press above put the menu away, so it is opened again for the next job.
+  await openActions();
   await pressMenuItem("Memorize");
   check(
     "Memorize opens the deck picker on the verse",
@@ -1207,4 +1244,38 @@ export async function run({ page, check, base }) {
     "and it is followed in the app rather than loading a new page",
     await page.evaluate(`window.__stayedInPage === true`)
   );
+
+  // --- a wide screen --------------------------------------------------------
+  // The sections live in the app bar on a wide screen, so the scroll keeps it
+  // and takes the room under it rather than the whole screen.
+  await page.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await page.goto(`${base}/scroll/?book=Genesis&chapter=1&verse=1`, 2800);
+  await waitFor(page, `Boolean(document.querySelector("[data-scroll-verse='1']"))`);
+  const wide = await page.evaluate(`(() => {
+    const header = document.querySelector(".app-header");
+    return {
+      header: getComputedStyle(header).display,
+      height: Math.round(header.getBoundingClientRect().height),
+      stage: Math.round(document.querySelector("[data-scroll]").getBoundingClientRect().height),
+      viewport: window.innerHeight,
+      sections: getComputedStyle(document.querySelector(".app-nav-top")).display,
+      bottom: getComputedStyle(document.querySelector(".app-nav-bottom")).display,
+    };
+  })()`);
+  check(
+    "a wide screen keeps the app bar over the scroll, where the sections are",
+    wide.header !== "none" && wide.sections === "flex" && wide.bottom === "none" && wide.height > 0,
+    `${wide.header} / sections ${wide.sections} / bottom ${wide.bottom} / ${wide.height}px`
+  );
+  check(
+    "and the stage takes the screen under it, one verse a screen",
+    Math.abs(wide.viewport - wide.height - wide.stage) <= 2,
+    `${wide.stage} of ${wide.viewport} under ${wide.height}`
+  );
+  await page.send("Emulation.clearDeviceMetricsOverride", {});
 }

@@ -9,7 +9,7 @@
  *
  * - **One document per verse / conference paragraph.** A hit is then exactly
  *   what the reader wanted to find, and its id is its citation, so the app can
- *   open the passage without a second lookup. 51,083 documents.
+ *   open the passage without a second lookup. 159,499 documents.
  * - **No stored text.** Storing a snippet per document added 10 MB on its own —
  *   as much as the corpus. The id carries the citation and the page reads the
  *   real text out of the passage data it already loads to open a result

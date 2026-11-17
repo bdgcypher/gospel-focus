@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Glyph } from "./glyph";
 import { useAnnotations } from "@/lib/annotations";
 import {
   ANNOTATIONS_FILE_TYPES,
@@ -20,16 +19,14 @@ import {
 /**
  * Marks and notes, and the way they travel to and from Gospel Library.
  *
- * The panel is a file's two doors plus one honest paragraph. There is no live
- * sync to build: the Church's notes sit behind an account and an API that only
- * its own apps are registered for, and a third-party app that asked for the
- * password would be collecting credentials it has no business holding. So
- * signing in happens on the Church's own site — in the reader's own browser,
- * where the account is already trusted — and the notes come across as the file
- * the Church exports: download it there, import it here. The format is Gospel
- * Library's own (see lib/annotations-io.ts), so the same file goes back the
- * other way, and every mark lands on the words it was drawn over rather than on
- * the verse as a whole.
+ * The panel is a file's two doors. There is no live sync to build: the Church's
+ * notes sit behind an account and an API that only its own apps are registered
+ * for, and a third-party app that asked for the password would be collecting
+ * credentials it has no business holding. So the notes travel as the files the
+ * Church exports — downloaded there, imported here — and the same files go back
+ * the other way. The format is Gospel Library's own (see lib/annotations-io.ts),
+ * so a mark lands on the words it was drawn over rather than on the verse as a
+ * whole.
  *
  * The download and picker paths are the app's existing native ones: a Capacitor
  * WebView cannot download a file or hand back a `content://` URI to a file
@@ -37,10 +34,8 @@ import {
  * browser the ordinary blob download and file input do the same job.
  */
 
-/** Where the Church keeps the account, for the sign-in button. */
-const ACCOUNT_URL = "https://account.churchofjesuschrist.org/";
-/** Where its help explains how to download your own data. */
-const DATA_HELP_URL = "https://www.churchofjesuschrist.org/learn/mobile-applications/gospel-library-faq?lang=eng";
+/** Where the Church keeps the notes a reader can download. */
+const NOTES_URL = "https://www.churchofjesuschrist.org/notes";
 
 export function MarksPanel() {
   const marks = useAnnotations();
@@ -133,11 +128,11 @@ export function MarksPanel() {
 
   return (
     <div className="rounded-3xl border border-border bg-surface p-5">
-      <p className="text-sm font-medium text-foreground">Marks &amp; notes</p>
+      <p className="text-sm font-medium text-foreground">Notes &amp; Annotations</p>
       <p className="mt-0.5 text-xs text-muted">
         {marks.length === 0
           ? "Nothing marked yet. Highlight or underline any words in the reader."
-          : `${marks.length} ${marks.length === 1 ? "mark" : "marks"} on this device, each one on the words it was drawn over.`}
+          : `${marks.length} on this device`}
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2.5">
@@ -162,46 +157,28 @@ export function MarksPanel() {
         <input
           ref={picker}
           type="file"
-          accept=".json,application/json,text/plain"
+          accept=".json,.csv,application/json,text/csv,text/plain"
           onChange={(event) => void importFile(event)}
           className="hidden"
           aria-label="Gospel Library annotations file to import"
         />
       </div>
 
-      <p className="mt-2 text-xs text-muted">
-        The file is Gospel Library&apos;s own <code className="font-mono">annotations.json</code> — its envelope,
-        fields and chapter anchors — so it opens there, and one exported from there imports here.
-      </p>
-
       {status && <p className="mt-3 text-xs text-muted">{status}</p>}
       {report && <ImportSummary report={report} />}
 
       <div className="mt-4 border-t border-border pt-4">
-        <p className="text-sm font-medium text-foreground">Church account</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted">
-          The Church doesn&apos;t let other apps read your notes directly — there is no public API for them. Sign
-          in on the Church&apos;s own site, download your data, and import the file above; nothing here ever asks
-          for your password, and no account details are kept on this device.
+        <p className="text-xs text-muted">
+          Notes and annotations from Gospel Library can be downloaded from an account on the church&apos;s website
+          and imported here.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2.5">
-          <button
-            type="button"
-            onClick={() => void openExternal(ACCOUNT_URL)}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
-          >
-            <Glyph name="lock" className="h-4 w-4" />
-            Open Church account
-          </button>
-          <button
-            type="button"
-            onClick={() => void openExternal(DATA_HELP_URL)}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
-          >
-            <Glyph name="help" className="h-4 w-4" />
-            How to download your data
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void openExternal(NOTES_URL)}
+          className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent/60 hover:text-accent-strong"
+        >
+          Download Church Account Notes
+        </button>
       </div>
     </div>
   );
@@ -209,6 +186,16 @@ export function MarksPanel() {
 
 function ImportSummary({ report }: { report: AnnotationImportReport }) {
   const skipped = report.skipped.length;
+  // A download of a whole account repeats the same reason hundreds of times —
+  // one for every talk from a conference this build doesn't hold. Counting the
+  // reasons keeps the report readable without hiding any of them.
+  const reasons = [...
+    report.skipped.reduce((counts, entry) => {
+      counts.set(entry.reason, (counts.get(entry.reason) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>()),
+  ];
+
   return (
     <div className="mt-3 rounded-2xl border border-border bg-surface-2 px-3.5 py-3 text-xs text-foreground">
       <p className="font-medium">
@@ -217,12 +204,13 @@ function ImportSummary({ report }: { report: AnnotationImportReport }) {
         {skipped > 0 && ` · ${skipped} skipped`}
       </p>
       <ul className="mt-1.5 list-inside list-disc space-y-1 text-muted">
-        {report.skipped.slice(0, 5).map((entry, index) => (
-          <li key={`${entry.uri}-${index}`} className="break-words">
-            {entry.reason}
+        {reasons.slice(0, 5).map(([reason, count]) => (
+          <li key={reason} className="break-words">
+            {reason}
+            {count > 1 && ` (${count})`}
           </li>
         ))}
-        {skipped > 5 && <li>and {skipped - 5} more</li>}
+        {reasons.length > 5 && <li>and {reasons.length - 5} more</li>}
       </ul>
     </div>
   );

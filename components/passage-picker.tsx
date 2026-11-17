@@ -229,7 +229,7 @@ export function PassagePicker() {
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-10 lg:max-w-[120rem]">
         {loadError ? (
           <div className="rounded-3xl border border-border bg-surface p-6 text-sm text-foreground">
             <p className="font-semibold">Couldn&apos;t load the passage library.</p>

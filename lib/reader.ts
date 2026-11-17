@@ -46,6 +46,8 @@ export interface ReaderDoc {
   sourceLabel: string;
   subtitle?: string;
   verses: ReaderVerse[];
+  /** A talk's paragraph anchor per verse, when the source names one. */
+  paragraphIds?: string[];
   url: string;
   prev: ReaderNeighbour | null;
   next: ReaderNeighbour | null;
@@ -342,6 +344,7 @@ async function conferenceDoc(title: string, conferenceId?: string): Promise<Read
       sourceLabel: "General Conference",
       subtitle: [talk.speaker, talk.calling, conference.label].filter(Boolean).join(" · "),
       verses: talk.paragraphs.map((text, i) => ({ number: i + 1, text })),
+      paragraphIds: talk.paragraphIds,
       url: talk.url,
       prev: neighbourTalk(-1),
       next: neighbourTalk(1),
@@ -455,12 +458,17 @@ export function versePassage(doc: ReaderDoc, verse: number): Passage {
   const scripture = doc.kind === "scripture";
   const reference = scripture ? `${doc.book} ${doc.chapter}:${found.number}` : `“${doc.chapter}” ¶ ${found.number}`;
 
+  // The chapter's own page is kept without its query, so the verse is added to
+  // it once: a chapter URL already carries `?lang=eng`, and appending a second
+  // `?` would fold the verse id into the language's value.
+  const chapterUrl = doc.url.split("?")[0];
+
   return {
     kind: doc.kind,
     reference,
     sourceLabel: doc.sourceLabel,
     text: found.text,
-    url: scripture ? `${doc.url}?lang=eng&id=p${found.number}#p${found.number}` : doc.url,
+    url: scripture ? `${chapterUrl}?lang=eng&id=p${found.number}#p${found.number}` : doc.url,
     urlLabel: "Open in Gospel Library",
     expansionTitle: doc.title,
     expansionSubtitle: doc.subtitle,

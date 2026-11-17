@@ -20,6 +20,11 @@ import type { Passage } from "@/lib/types";
  * heading, the way in (the goal hero), the words themselves (the verse of the
  * day), and five tiles for everything else.
  *
+ * The two cards under the heading are the day read twice — what it asks, and
+ * what it gives — so on a wide screen they stand side by side, a half each. On
+ * a phone they stay stacked: half a phone's width is not enough for a sentence
+ * of verse, and the order is the order they are read in.
+ *
  * The order is the point. A reader opening the app meets something to *do*
  * before anything to choose, and the scripture is above the fold rather than
  * below the fold of a card wall — an earlier hub led with two status cards and
@@ -46,14 +51,18 @@ import type { Passage } from "@/lib/types";
 export function HomePage() {
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:max-w-5xl sm:px-6 sm:py-8 lg:max-w-[120rem]">
         <FocusLockBanner />
 
         <TodayHeading />
 
-        <GoalHero />
-
-        <DailyVerseCard />
+        {/* One card to act on and one to read, side by side once there is width
+            for both. The grid also gives them the same height, so the two
+            halves read as one row rather than as two cards of different sizes. */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+          <GoalHero />
+          <DailyVerseCard />
+        </div>
 
         <QuickActivities />
       </main>
@@ -147,7 +156,7 @@ function DailyVerseCard() {
   }, [filters]);
 
   return (
-    <section className="mt-3 rounded-3xl border border-border bg-surface p-5 sm:p-6">
+    <section className="rounded-3xl border border-border bg-surface p-5 sm:p-6">
       <div className="flex items-center gap-2 text-muted">
         <Glyph name="calendar" className="h-4 w-4" />
         <p className="text-xs font-semibold uppercase tracking-wider">Verse of the day</p>

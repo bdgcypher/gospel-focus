@@ -633,8 +633,7 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M15.5 4.3 12 8.4 8.5 4.3M8.5 19.7 12 15.6l3.5 4.1" />
     </>
   ),
-  // A question mark in a ring, for the control that opens an explanation —
-  // the marks panel's "How to download your data" (components/marks-panel.tsx).
+  // A question mark in a ring, for the control that opens an explanation.
   help: (
     <>
       <circle cx="12" cy="12" r="8.6" />

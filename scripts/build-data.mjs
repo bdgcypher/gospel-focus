@@ -3,7 +3,9 @@
  *
  * Sources:
  *  - Standard Works (public domain, 2013 edition): https://github.com/bcbooks/scriptures-json
- *  - General conference talks (2018 and earlier): https://github.com/johnmwood/LDS-Conference-Scraper
+ *  - General conference talks (1971-2018): https://github.com/johnmwood/LDS-Conference-Scraper
+ *  - General conference talks (2019 on): the Church's own content API, through
+ *    scripts/build-conference.mjs
  *
  * Output (written to public/data):
  *  - manifest.json                      lightweight index used for filtering/picking
@@ -20,13 +22,12 @@ import { fileURLToPath } from "node:url";
 import { buildSearchIndex } from "./search-index.mjs";
 import { buildWordList } from "./build-words.mjs";
 import { buildCfm, cfmYears } from "./build-cfm.mjs";
+import { buildChurchConferences, CONFERENCE_API_FROM_YEAR, CONFERENCE_SOURCE } from "./build-conference.mjs";
+import { buildScrapedConferences } from "./conference-scraper.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DATA_DIR = path.join(ROOT, "public", "data");
-
-// Conference years to bundle. The scraper dataset ends at October 2018.
-const CONFERENCE_MIN_YEAR = 2014;
 
 // In reading order, which is the order every list in the app presents:
 // Old Testament, New Testament, Book of Mormon, Doctrine and Covenants, Pearl
@@ -41,49 +42,11 @@ const SCRIPTURE_VOLUMES = [
 ];
 
 const SCRIPTURE_BASE = "https://raw.githubusercontent.com/bcbooks/scriptures-json/master/";
-const CONFERENCE_CSV =
-  "https://raw.githubusercontent.com/johnmwood/LDS-Conference-Scraper/master/conference_talks.csv";
 
 async function fetchText(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
   return res.text();
-}
-
-/** Minimal RFC 4180 CSV parser (handles quoted fields, escaped quotes and embedded newlines). */
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let field = null;
-  let i = 0;
-  const n = text.length;
-  const pushField = () => { row.push(field); field = null; };
-  while (i < n) {
-    if (field === null) {
-      if (text[i] === '"') {
-        i++;
-        const buf = [];
-        for (;;) {
-          const q = text.indexOf('"', i);
-          if (q < 0) { buf.push(text.slice(i)); i = n; break; }
-          if (text[q + 1] === '"') { buf.push(text.slice(i, q + 1)); i = q + 2; continue; }
-          buf.push(text.slice(i, q)); i = q + 1; break;
-        }
-        field = buf.join("");
-        continue;
-      }
-      field = "";
-    }
-    let j = i;
-    while (j < n) { const ch = text[j]; if (ch === "," || ch === "\n" || ch === "\r") break; j++; }
-    field += text.slice(i, j);
-    i = j;
-    if (i < n && text[i] === "\r") i++;
-    if (i < n && text[i] === ",") { pushField(); i++; continue; }
-    if (i < n && text[i] === "\n") { pushField(); rows.push(row); row = []; i++; continue; }
-    if (i >= n) { pushField(); rows.push(row); break; }
-  }
-  return rows;
 }
 
 const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
@@ -141,87 +104,6 @@ async function buildScriptures() {
   return manifest;
 }
 
-function splitParagraphs(text) {
-  // The scraper concatenates a talk into one blob. Split on sentence groups into
-  // readable paragraphs of roughly 2-4 sentences so "random section" is digestible.
-  const normalized = clean(text);
-  if (!normalized) return [];
-  const sentences = normalized.match(/[^.!?]+[.!?]+["\u201d\u2019)]?|\S[^.!?]*$/g) || [normalized];
-  const paragraphs = [];
-  let buf = [];
-  for (const s of sentences) {
-    buf.push(clean(s));
-    // break after a sentence when the accumulating paragraph is long enough
-    if (buf.join(" ").length >= 320) { paragraphs.push(buf.join(" ")); buf = []; }
-  }
-  if (buf.length) paragraphs.push(buf.join(" "));
-  return paragraphs.filter((p) => p.length > 40);
-}
-
-async function buildConference() {
-  console.log("  downloading conference CSV...");
-  const csv = await fetchText(CONFERENCE_CSV);
-  const rows = parseCSV(csv);
-  const header = rows[0];
-  const idx = Object.fromEntries(header.map((h, i) => [h, i]));
-
-  await fs.mkdir(path.join(DATA_DIR, "conference"), { recursive: true });
-  const groups = new Map();
-
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    const conference = clean(r[idx.conference]);
-    const m = conference.match(/(\w+)\s+(\d{4})/);
-    if (!m) continue;
-    const year = Number(m[2]);
-    if (year < CONFERENCE_MIN_YEAR) continue;
-    const monthName = m[1].toLowerCase();
-    const month = monthName.startsWith("april") ? 4 : monthName.startsWith("oct") ? 10 : 0;
-    if (!month) continue;
-
-    const url = clean(r[idx.url])
-      .replace("https://www.lds.org/", "https://www.churchofjesuschrist.org/study/")
-      .replace("https://lds.org/", "https://www.churchofjesuschrist.org/study/");
-    const talkBlob = r[idx.talk] || "";
-    if (!talkBlob || talkBlob.length < 200) continue;
-
-    let speaker = clean(r[idx.speaker]);
-    const calling = clean(r[idx.calling]);
-    if (calling && speaker.endsWith(calling)) speaker = clean(speaker.slice(0, -calling.length));
-
-    const paragraphs = splitParagraphs(talkBlob);
-    if (!paragraphs.length) continue;
-
-    const id = `${year}-${String(month).padStart(2, "0")}`;
-    if (!groups.has(id)) groups.set(id, { id, label: conference, year, month, talks: [] });
-    groups.get(id).talks.push({
-      id: `${id}-${groups.get(id).talks.length}`,
-      title: clean(r[idx.title]) || "Untitled talk",
-      speaker: speaker || "Unknown",
-      calling,
-      url,
-      paragraphs,
-    });
-  }
-
-  const manifest = [];
-  for (const [id, group] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const paragraphs = group.talks.reduce((a, t) => a + t.paragraphs.length, 0);
-    const payload = {
-      id,
-      label: group.label,
-      year: group.year,
-      month: group.month,
-      source: `https://www.churchofjesuschrist.org/study/general-conference/${group.year}/${String(group.month).padStart(2, "0")}`,
-      talks: group.talks,
-    };
-    await fs.writeFile(path.join(DATA_DIR, "conference", `${id}.json`), JSON.stringify(payload));
-    manifest.push({ id, label: group.label, year: group.year, month: group.month, url: `data/conference/${id}.json`, talks: group.talks.length, paragraphs });
-  }
-  console.log(`  ${manifest.length} conferences, ${manifest.reduce((a, c) => a + c.talks, 0)} talks, ${manifest.reduce((a, c) => a + c.paragraphs, 0)} paragraphs`);
-  return manifest;
-}
-
 async function main() {
   // Only the two directories this script regenerates are cleared. `cfm/` is
   // fetched from a site rather than a dataset in this repo, and a fetch that
@@ -232,7 +114,11 @@ async function main() {
   console.log("Building scripture data...");
   const volumes = await buildScriptures();
   console.log("Building conference data...");
-  const conferences = await buildConference();
+  const conferences = await buildScrapedConferences({ dataDir: DATA_DIR });
+  // The scraper stops at October 2018; the Church's own API carries the rest.
+  console.log("Building conference data from the Church's content API...");
+  const recent = await buildChurchConferences({ dataDir: DATA_DIR, fromYear: CONFERENCE_API_FROM_YEAR });
+  const allConferences = [...conferences, ...recent].sort((a, b) => a.id.localeCompare(b.id));
   // After the scriptures, because the schedule is checked against the library
   // that just shipped: a week may only name chapters this build can open.
   console.log("Building the Come, Follow Me schedule...");
@@ -241,10 +127,10 @@ async function main() {
     generatedAt: new Date().toISOString(),
     sources: {
       scriptures: { name: "bcbooks/scriptures-json", url: "https://github.com/bcbooks/scriptures-json", license: "Public domain (2013 edition)" },
-      conference: { name: "johnmwood/LDS-Conference-Scraper", url: "https://github.com/johnmwood/LDS-Conference-Scraper", note: "Scraped; verify redistribution rights before publishing." },
+      conference: CONFERENCE_SOURCE,
     },
     volumes,
-    conferences,
+    conferences: allConferences,
     cfm: {
       years: cfm.map((year) => year.year),
       source: {

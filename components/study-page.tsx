@@ -24,14 +24,15 @@ const search = featureById("search");
 /**
  * The wall's order, by id. The catalog keeps the study section in the order it
  * grew; the page has its own, which is the order a reader works in: read a
- * chapter through the scroll, then the two things you do with a passage — keep
- * it, then write it down. A missing entry drops out rather than leaving a gap.
+ * chapter through the scroll, then the things you do with a passage — learn it,
+ * find what you marked on it, then write it down. A missing entry drops out
+ * rather than leaving a gap.
  *
  * Looked up across the whole catalog rather than within the study section: the
  * scroll is a way of reading, so its entry sits in the Read section beside the
  * reader and the draw, and the wall here gathers it by name.
  */
-const ORDER = ["scroll", "memorize", "journal"];
+const ORDER = ["scroll", "memorize", "marks", "journal"];
 const rest = ORDER.map((id) => featureById(id)).filter(
   (feature): feature is Feature => Boolean(feature),
 );

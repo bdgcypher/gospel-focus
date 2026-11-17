@@ -46,6 +46,7 @@ import {
 } from "@/lib/annotations";
 import { bookmarkReference, type BookmarkPlace } from "@/lib/bookmarks";
 import { dayKey } from "@/lib/daily";
+import { openExternal } from "@/lib/external";
 import { favoriteId, toggleFavorite, useFavorites } from "@/lib/favorites";
 import { tapControl, tapPageTurn } from "@/lib/haptics";
 import { sanitizeBody } from "@/lib/journal";
@@ -1041,6 +1042,19 @@ export function ScrollPage() {
     });
   };
 
+  /**
+   * The verse under the eye, in the Church's own app.
+   *
+   * The same address the reader's verse sheet opens: its chapter page with
+   * this verse marked in it, which the app's custom scheme turns into the
+   * Gospel Library's own place when it is installed.
+   */
+  const openLibraryVerse = () => {
+    if (!doc || !current) return;
+    setActionsOpen(false);
+    void openExternal(versePassage(doc, current.number).url);
+  };
+
   /** The one page drawn from each neighbouring chapter, when there is one. */
   const before = edges.prev ? edges.prev.verses[edges.prev.verses.length - 1] ?? null : null;
   const after = edges.next ? edges.next.verses[0] ?? null : null;
@@ -1372,6 +1386,16 @@ export function ScrollPage() {
                   >
                     <Glyph name="cards" className="h-4 w-4 shrink-0" />
                     <span className="truncate">Memorize</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    aria-label={`Open ${referenceOf(current.number)} in Gospel Library`}
+                    onClick={openLibraryVerse}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent/10 hover:text-accent-strong"
+                  >
+                    <Glyph name="book" className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Open in Gospel Library</span>
                   </button>
                 </div>
               )}

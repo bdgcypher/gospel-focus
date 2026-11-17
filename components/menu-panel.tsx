@@ -19,8 +19,6 @@ export function MenuPanel({ open, onClose }: Props) {
   // the page it opens cannot describe it differently.
   const stats = featureById("stats");
   const streak = featureById("streak");
-  const journal = featureById("journal");
-  const marks = featureById("marks");
 
   // Escape closes the pane, like any other dialog.
   useEffect(() => {
@@ -74,9 +72,10 @@ export function MenuPanel({ open, onClose }: Props) {
                 the two places that spend and explain it, and settings last as
                 the least frequented door.
 
-                The library itself is not here: reading starts from the Study
-                page's own cards, and a menu that also kept a copy of the way in
-                would be a second door to the same room (components/study-page.tsx). */}
+                The library and the two things written on it — the journal and
+                the notes — are not here: they start from the Study page's own
+                cards, and a menu that also kept a copy of the way in would be a
+                second door to the same room (components/study-page.tsx). */}
             <nav className="space-y-2 px-5 py-4">
               <MenuLink
                 href="/favorites"
@@ -91,25 +90,8 @@ export function MenuPanel({ open, onClose }: Props) {
                     : `${favorites.length} saved ${favorites.length === 1 ? "passage" : "passages"}`
                 }
               />
-              {/* Named from the catalog like the two below it, so the menu
+              {/* Named from the catalog like the one below it, so the menu
                   cannot go on calling a page unbuilt after it ships. */}
-              <MenuLink
-                href={journal?.href ?? "/journal"}
-                onClick={onClose}
-                icon={<Glyph name={journal?.icon ?? "journal"} />}
-                label="Journal"
-                hint={journal?.blurb ?? "Your own words, kept beside the verses"}
-              />
-              {/* Beside the journal rather than under it: an entry is a page
-                  the reader writes, a note is a thought pinned to the words.
-                  The sheet is where both are found again. */}
-              <MenuLink
-                href={marks?.href ?? "/notes"}
-                onClick={onClose}
-                icon={<Glyph name={marks?.icon ?? "journal"} />}
-                label={marks?.title ?? "Marks & Notes"}
-                hint={marks?.blurb ?? "Every note you've written on the words"}
-              />
               <MenuLink
                 href={streak?.href ?? "/streak"}
                 onClick={onClose}

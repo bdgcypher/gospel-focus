@@ -85,7 +85,7 @@ export function AppHeader({ onOpenMenu }: Props) {
       ref={header}
       className="app-header sticky top-0 z-20 border-b border-border/70 bg-background/80 backdrop-blur"
     >
-      <div className="app-header-row mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:max-w-5xl sm:px-6">
+      <div className="app-header-row mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 sm:max-w-5xl sm:px-6 lg:max-w-[120rem]">
         {/* The mark and the name together are the way home from any page. On a
             phone the link is only as wide as the mark; where the top bar is on
             screen it grows into the left flank. See `.app-home-link`. */}
